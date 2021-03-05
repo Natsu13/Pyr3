@@ -245,7 +245,7 @@ AST_Directive* Parser::parse_directive() {
 		directive->value0 = parse_string();
 	}
 	else {
-		interpret->report_error(token, "unkown direcvtie");
+		interpret->report_error(token, "unkown directive");
 	}
 
 	return directive;
@@ -433,12 +433,19 @@ int Parser::get_current_token_prec() {
 
 	if (token->type == '<')				return 10;
 	if (token->type == '>')				return 10;
+	if (token->type == TOKEN_LESSEQUAL)	return 10;
+	if (token->type == TOKEN_MOREEQUAL)	return 10;
 	if (token->type == '+')				return 20;
 	if (token->type == '-')				return 20;
 	if (token->type == '*')				return 40;
 	if (token->type == '/')				return 40;
+	if (token->type == '%')				return 40;	
+	if (token->type == TOKEN_BAND)		return 60;
+	if (token->type == TOKEN_BOR)		return 60;
 	if (token->type == TOKEN_EQUAL)		return 80;
 	if (token->type == TOKEN_NOTEQUAL)	return 80;
+	if (token->type == TOKEN_AND)		return 100;
+	if (token->type == TOKEN_OR)		return 100;
 
 	return -1;
 }

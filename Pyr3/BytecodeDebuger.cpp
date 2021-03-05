@@ -8,7 +8,7 @@ void BytecodeDebuger::debug() {
 
 		switch (instruction->instruction) {
 		case BYTECODE_INTEGER_ADD_TO_CONSTANT: {
-			printf("%12s v%d = v%d + %I64d\n", "constant", instruction->index_o, instruction->index_a, instruction->big_constant._s64);
+			printf("%12s v%d = v%d + %I64d\n", "add_int", instruction->index_o, instruction->index_a, instruction->big_constant._s64);
 		}break;
 		case BYTECODE_ASSING_TO_BIG_CONSTANT: {
 			printf("%12s v%d = %I64d\n", "constant", instruction->index_o, instruction->big_constant._s64);
