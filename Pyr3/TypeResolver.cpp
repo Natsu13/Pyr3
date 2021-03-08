@@ -1,10 +1,37 @@
 #pragma once
 
-#include "TypeResolver.h"
 #include "Headers.h"
+#include "TypeResolver.h"
 
 TypeResolver::TypeResolver(Interpret* interpret) {
 	this->interpret = interpret;
+}
+
+AST_Literal* TypeResolver::make_string_literal(CString value) {
+	AST_Literal* literal = AST_NEW_EMPTY(AST_Literal);
+	literal->value_type = LITERAL_STRING;
+	literal->string_value = value;
+
+	return literal;
+}
+
+AST_Literal* TypeResolver::make_number_literal(long long value) {
+	AST_Literal* literal = AST_NEW_EMPTY(AST_Literal);
+	literal->value_type = LITERAL_NUMBER;
+	literal->integer_value = value;
+
+	if (value < 0) literal->number_flags |= NUMBER_FLAG_SIGNED;
+
+	return literal;
+}
+
+AST_Literal* TypeResolver::make_number_literal(float value) {
+	AST_Literal* literal = AST_NEW_EMPTY(AST_Literal);
+	literal->value_type = LITERAL_NUMBER;
+	literal->float_value = value;
+	literal->number_flags |= NUMBER_FLAG_FLOAT;
+
+	return literal;
 }
 
 void TypeResolver::addToResolve(AST_Expression* expression) {
@@ -50,13 +77,9 @@ int TypeResolver::resolveExpression(AST_Expression* expression, AST_Block* block
 	}
 	case AST_TYPE_DEFINITION:
 		break;
-	case AST_STRING: {
-		AST_String* string = static_cast<AST_String*>(expression);
-		return resolveString(string);
-	}
-	case AST_NUMBER: {
-		AST_Number* number = static_cast<AST_Number*>(expression);
-		return resolveNumber(number);
+	case AST_LITERAL: {
+		AST_Literal* literal = static_cast<AST_Literal*>(expression);
+		return resolveLiteral(literal);
 	}
 	case AST_BINARYOP: {
 		AST_BinaryOp* binop = static_cast<AST_BinaryOp*>(expression);
@@ -64,7 +87,7 @@ int TypeResolver::resolveExpression(AST_Expression* expression, AST_Block* block
 
 		return resolveBinop(binop);
 	}
-	case AST_FUNCTION:
+	case AST_PROCEDURE:
 		break;
 	case AST_PARAMLIST:
 		break;
@@ -106,11 +129,9 @@ void TypeResolver::resolveDirective(AST_Directive* directive) {
 	};
 }
 
-int TypeResolver::resolveString(AST_String* string) {
-	return TYPE_DEFINITION_STRING;
-}
-
-int TypeResolver::resolveNumber(AST_Number* number) {
+int TypeResolver::resolveLiteral(AST_Literal* literal) {
+	if (literal->value_type == LITERAL_STRING)
+		return TYPE_DEFINITION_STRING;
 	return TYPE_DEFINITION_NUMBER;
 }
 
@@ -196,12 +217,12 @@ int TypeResolver::find_type_definition(AST_Ident* ident, AST_Block* block) {
 }
 
 int TypeResolver::find_internal_type_definition(Token* value) {
-	auto name = value->value.c_str();
+	auto name = value->value.data;
 
-	if (COMPARE(name, L"int")) {
+	if (COMPARE(name, "int")) {
 		return TYPE_DEFINITION_NUMBER;
 	}
-	if (COMPARE(name, L"char")) {
+	if (COMPARE(name, "char")) {
 		return TYPE_DEFINITION_STRING;
 	}
 

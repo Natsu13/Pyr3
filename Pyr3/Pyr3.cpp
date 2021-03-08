@@ -9,6 +9,7 @@
 #include "DirectiveResolver.h"
 #include "BytecodeBuilder.h"
 #include "BytecodeDebuger.h"
+#include "BytecodeRunner.h"
 #include <clocale>
 
 using namespace std::chrono;
@@ -51,17 +52,18 @@ int main(int argc, char* argv[])
 
             Interpret* interpreter = new Interpret();
             
-            Lexer* lexer = new Lexer(interpreter, path_to_file.c_str(), L"\0"); //test :: () -> bool #foreign; x = \"test\"
+            Lexer* lexer = new Lexer(interpreter, path_to_file.c_str(), "\0"); //test :: () -> bool #foreign; x = \"test\"
             lexer->lex();
             auto tokens = lexer->getTokens();
 
             Parser* parser = NULL;
 
             if (!interpreter->isError()) {
-                parser = new Parser(interpreter, lexer);
-                main_block = parser->parse();
-
                 TypeResolver* type_resolver = new TypeResolver(interpreter);
+
+                parser = new Parser(interpreter, lexer, type_resolver);
+                main_block = parser->parse();
+                
                 type_resolver->resolve(main_block);
 
                 CodeManager* code_manager = new CodeManager(interpreter);
@@ -75,6 +77,10 @@ int main(int argc, char* argv[])
 
                 BytecodeDebuger* debuger = new BytecodeDebuger(builder->get_instructions());
                 debuger->debug();
+
+                BytecodeRunner* runner = new BytecodeRunner(interpreter, builder->get_instructions(), builder->get_output_register_size());
+                //runner->run(0);
+                runner->loop();
             }
             else {
                 printf("\nCan't parse because error occured");

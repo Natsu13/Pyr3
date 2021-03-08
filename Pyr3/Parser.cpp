@@ -6,9 +6,10 @@
 #include "Lexer.h"
 #include "Interpret.h"
 
-Parser::Parser(Interpret* interpret, Lexer* lexer) {
+Parser::Parser(Interpret* interpret, Lexer* lexer, TypeResolver* type_resolver) {
 	this->interpret = interpret;
 	this->lexer = lexer;
+	this->type_resolver = type_resolver;
 }
 
 AST_Block* Parser::parse() {
@@ -38,11 +39,12 @@ AST_Expression* Parser::parse_primary() {
 	AST_Expression* left = parse_expression();
 
 	if (left == NULL)
-		return NULL;
+		return NULL;	
 
 	Token* token = lexer->peek_next_token();
-	if (token->type == ';' || token->type == '}') {
-		if (left->type == AST_FUNCTION && token->type == '}') {
+
+	if (token->type == ';' || token->type == '}' || token->type == ')') {
+		if ((left->type == AST_PROCEDURE && token->type == '}')) {
 			lexer->eat_token();
 		}
 		return left;
@@ -72,9 +74,10 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_TRUE || token->type == TOKEN_KEYWORD_FALSE) {
 		this->lexer->eat_token();
 
-		AST_Number* num = AST_NEW(AST_Number);
+		AST_Literal* num = AST_NEW(AST_Literal);
 		num->flags |= TOKEN_NUMBER_FLAG_INT;
-		num->value = token->type == TOKEN_KEYWORD_TRUE? 1: 0;
+		num->value_type = LITERAL_NUMBER;
+		num->integer_value = token->type == TOKEN_KEYWORD_TRUE? 1: 0;
 		return num;
 	}
 	else if(token->type == '(') {
@@ -231,9 +234,9 @@ AST_Directive* Parser::parse_directive() {
 	directive->name = parse_string();
 
 	Token* token = NULL;
-	auto name = directive->name->value.c_str();
+	auto name = directive->name->string_value.data;
 
-	if (COMPARE(name, L"import")) {
+	if (COMPARE(name, "import")) {
 		directive->directive_type = D_IMPORT;
 
 		token = lexer->peek_next_token();
@@ -259,7 +262,7 @@ bool Parser::parse_arguments(AST_Block* block) {
 	bool isProcDeclaration = true;
 
 	while (token->type != ')') {
-		AST_Expression* exp = parse_expression();
+		AST_Expression* exp = parse_primary();
 		if (exp == NULL) {
 			return true;
 		}
@@ -296,7 +299,7 @@ AST_Expression* Parser::parse_param_or_function() {
 	}
 	
 	//it must be declaration of procedue
-	AST_Function* function = AST_NEW(AST_Function);
+	AST_Procedure* function = AST_NEW(AST_Procedure);
 	function->header = header;
 
 	token = lexer->peek_next_token();
@@ -319,16 +322,16 @@ AST_Expression* Parser::parse_param_or_function() {
 		
 		lexer->eat_token();
 		token = lexer->peek_next_token();
-		auto name = token->value.c_str();
+		auto name = token->value.data;
 
-		if (COMPARE(name, L"compiler"))
-			function->flags |= AST_FUNCTION_FLAG_COMPILER;
-		else if (COMPARE(name, L"internal"))
-			function->flags |= AST_FUNCTION_FLAG_INTERNAL;
-		else if (COMPARE(name, L"native"))
-			function->flags |= AST_FUNCTION_FLAG_NATIVE;
-		else if (COMPARE(name, L"foreign")) {
-			function->flags |= AST_FUNCTION_FLAG_FOREIGN;
+		if (COMPARE(name, "compiler"))
+			function->flags |= AST_PROCEDURE_FLAG_COMPILER;
+		else if (COMPARE(name, "internal"))
+			function->flags |= AST_PROCEDURE_FLAG_INTERNAL;
+		else if (COMPARE(name, "native"))
+			function->flags |= AST_PROCEDURE_FLAG_NATIVE;
+		else if (COMPARE(name, "foreign")) {
+			function->flags |= AST_PROCEDURE_FLAG_FOREIGN;
 
 			lexer->eat_token();
 			token = lexer->peek_next_token();
@@ -413,6 +416,7 @@ AST_Expression* Parser::parse_binop(int prec, AST_Expression* left) {
 		} else {
 			interpret->report_error(binop_token, "Unkown binary operation");
 		}
+
 
 		AST_Expression* right = parse_primary();
 		if (right == NULL) {
@@ -529,22 +533,36 @@ AST_Ident* Parser::crate_ident_from_current_token() {
 	return ident;
 }
 
-AST_String* Parser::parse_string() {
+AST_Literal* Parser::parse_string() {
 	Token* token = this->lexer->peek_next_token();
 	this->lexer->eat_token();
 
-	AST_String* str = AST_NEW(AST_String);
-	str->value = token->value;
-	str->name = token;
-
-	return str;
+	return type_resolver->make_string_literal(token->value);
 }
 
-AST_Number* Parser::parse_number() {
+AST_Literal* Parser::parse_number() {
 	auto token = this->lexer->peek_next_token();
 	this->lexer->eat_token();
 
-	AST_Number* num = AST_NEW(AST_Number);
+	long long value = 0;
+	if (token->number_flags & TOKEN_NUMBER_FLAG_INT) {
+		if (token->number_flags & TOKEN_NUMBER_FLAG_HEX) {
+			value = token->number_value_l;
+		}
+		else {
+			value = token->number_value_i;
+		}
+	}
+	else if (token->number_flags & TOKEN_NUMBER_FLAG_LONG) {
+		value = token->number_value_l;
+	}
+	else if (token->number_flags & TOKEN_NUMBER_FLAG_FLOAT) {
+		//fvalue = floatToInteger(token->number_value_f);
+		return type_resolver->make_number_literal(token->number_value_f);
+	}
+	
+	return type_resolver->make_number_literal(value);
+	/*AST_Number* num = AST_NEW(AST_Number);
 	num->flags = token->number_flags;
 
 	if (token->number_flags & TOKEN_NUMBER_FLAG_INT) {
@@ -562,5 +580,5 @@ AST_Number* Parser::parse_number() {
 		num->value = floatToInteger(token->number_value_f);
 	}
 
-	return num;
+	return num;*/
 }

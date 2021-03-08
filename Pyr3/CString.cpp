@@ -5,7 +5,7 @@ int CString::sizeOfChar(const char* str) {
     while (str[i] != '\0') {
         i++;
     }
-    return i + 1;
+    return i;
 }
 
 void CString::empty() {
@@ -14,23 +14,31 @@ void CString::empty() {
 }
 
 void CString::realoc() {
-    data = (char*)malloc(size);
+    data = (char*)malloc(size+1);
+    if (data == nullptr)
+        throw "Can't alloc enought memory";
+
     data[0] = '\0';
 }
 
 CString::CString() {
-    size = 1;
+    size = 0;
     realoc();
 }
 CString::CString(const char* str) {
-    size = sizeOfChar(str);
+    if(str != NULL)
+        size = sizeOfChar(str);
+
     realoc();
-    memcpy(data, str, size);
-    data[size] = '\0';
+
+    if (str != NULL) {
+        memcpy(data, str, size);
+        data[size] = '\0';
+    }
 }
 
 CString& CString::operator+(CString& second) {
-    int oldsize = size;
+    auto oldsize = size;
     size = size + second.size - 1;
     char* old = data;
     realoc();
@@ -40,13 +48,24 @@ CString& CString::operator+(CString& second) {
 }
 
 CString& CString::operator+(const char* second) {
-    int oldsize = size;
+    auto oldsize = size;
     int sizeSecond = sizeOfChar(second);
     size = size + sizeSecond - 1;
     char* old = data;
     realoc();
     memcpy(data, old, oldsize - 1);
-    memcpy(data + oldsize - 1, second, sizeSecond);
+    memcpy(data + oldsize - 1, second, sizeSecond);    
+    return *this;
+}
+
+CString& CString::operator+=(char second) {
+    auto oldsize = size;
+    size += 1;
+    char* old = data;
+    realoc();
+    memcpy(data, old, oldsize);
+    memcpy(data + oldsize, &second, 1);
+    data[size] = '\0';
     return *this;
 }
 

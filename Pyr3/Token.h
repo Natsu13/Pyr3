@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Headers.h"
+#include "CString.h"
 
 const int TOKEN_KEYWORD_IDENT = 1000;
 const int TOKEN_KEYWORD_TRUE = 10001;
@@ -79,9 +80,9 @@ public:
 	Token(string file_name, int row, int column);
 
 	string file_name = "";
-	wstring value = L"";
+	CString value = "";
 	int row = -1;
-	int column = -1;
+	long long column = -1;
 
 	int index = -1;
 
@@ -101,5 +102,5 @@ typedef struct token_define {
 	int token_type = 0;
 	int type = 0;
 
-	wstring value_string;
+	CString value_string;
 } TokenDefine;

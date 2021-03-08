@@ -1,0 +1,23 @@
+#pragma once
+#include "Interpret.h"
+#include "Bytecode.h"
+
+class BytecodeRunner
+{
+private:
+	Interpret* interpet;
+	vector<ByteCode*> bytecodes;
+	vector<Register> registers;
+
+	int current_address;
+
+	ByteCode* get_bytecode(int address);
+	bool is_binop(Bytecode_Instruction bc_inst);
+public:
+	BytecodeRunner(Interpret* interpet, vector<ByteCode*> bytecodes, int register_size);
+	void run(int address);
+	void loop();
+	int run_expression(int address);
+	int run_binop(int address);
+};
+

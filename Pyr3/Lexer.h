@@ -3,12 +3,13 @@
 #include "Headers.h"
 #include "Token.h"
 #include "Interpret.h"
+#include "CString.h"
 
 
 class Lexer {
 private:
 	Interpret* interpreter;
-	wstring code;
+	CString code;
 	vector<Token*> tokens;
 	int pos;
 	int token_pos;
@@ -21,25 +22,25 @@ private:
 
 	inline bool isidentity(char c);
 	
-	int decide_token_keyword(const wchar_t* word);
+	int decide_token_keyword(const char* word);
 	Token* new_token();
 	TokenDefine get_next_token();
 
-	wchar_t peek_next_character();
+	char peek_next_character();
 	void eat_character();
-	wstring peek_next_word(int& token_type);
+	CString peek_next_word(int& token_type);
 	//void eat_word();
-	wstring peek_next_string();
-	wstring peek_next_numer();
+	CString peek_next_string();
+	CString peek_next_numer();
 	void eat_white();
 	void rollback_eat_char();
 	void eat_comment();
 
-	void report_error(wstring message, ...);
-	void report_warning(wstring  message, ...);
+	void report_error(CString message, ...);
+	void report_warning(CString  message, ...);
 
 public:
-	Lexer(Interpret* interpreter, const char* file_name, const wchar_t* code);
+	Lexer(Interpret* interpreter, const char* file_name, CString code);
 	void lex();
 
 	vector<Token*> getTokens();

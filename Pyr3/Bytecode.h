@@ -51,7 +51,7 @@ struct Register {
 struct ByteCode {
 	Bytecode_Instruction instruction = BYTECODE_UNINITIALIZED;
 
-	/*ByteCode(int i, int a, int b, int o) :instruction(i), index_o(o) {
+	/*ByteCode(int i, int a, int b, int o) :instruction(i), index_r(o) {
 		this->index_a = 0;
 		this->index_b = 0;
 
@@ -72,7 +72,7 @@ struct ByteCode {
 		Register big_constant;
 	};
 	
-	int index_o = -1;
+	int index_r = -1;
 	int options = -1;
 	int flags;
 

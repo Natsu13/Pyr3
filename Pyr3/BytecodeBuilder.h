@@ -30,6 +30,7 @@ public:
 	BytecodeBuilder(Interpret* interpet);
 	void build(AST_Block* block);
 	vector<ByteCode*> get_instructions();
+	int get_output_register_size();
 };
 
-#define Instruction(instr, index_a, index_b, index_o) current_bytecode = insert_and_return(bytecodes, instruction(instr, index_a, index_b, index_o, __LINE__));
+#define Instruction(instr, index_a, index_b, index_r) current_bytecode = insert_and_return(bytecodes, instruction(instr, index_a, index_b, index_r, __LINE__));

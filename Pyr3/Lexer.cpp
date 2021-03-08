@@ -4,7 +4,7 @@
 #include "Utils.h"
 #include "Lexer.h"
 
-Lexer::Lexer(Interpret* interpreter, const char* file_name, const wchar_t* code) {
+Lexer::Lexer(Interpret* interpreter, const char* file_name, CString code) {
 	this->interpreter = interpreter;
 	this->code = code;
 	this->pos = 0;
@@ -39,7 +39,7 @@ bool Lexer::load_file(const char* file_name)
 	return true;
 }
 
-void Lexer::report_error(wstring message, ...) {
+void Lexer::report_error(CString message, ...) {
 	string file = this->current_file_name;
 	std::string file_name(file.substr(file.rfind("\\") + 1));
 	va_list args;
@@ -48,7 +48,7 @@ void Lexer::report_error(wstring message, ...) {
 	va_end(args);
 }
 
-void Lexer::report_warning(wstring message, ...) {
+void Lexer::report_warning(CString message, ...) {
 	string file = this->current_file_name;
 	std::string file_name(file.substr(file.rfind("\\") + 1));
 	va_list args;
@@ -73,13 +73,13 @@ void Lexer::eat_comment() {
 	}
 }
 
-wchar_t Lexer::peek_next_character() {	
+char Lexer::peek_next_character() {	
 	if (!peeked) {
 		if (this->code[this->pos] == '\n') { this->current_row++; this->current_col = 0; }
 		peeked = true;
 	}
 
-	if (this->pos < static_cast<int>(this->code.length())) {		
+	if (this->pos < this->code.size) {		
 		return this->code[this->pos];
 	}
 
@@ -94,14 +94,14 @@ void Lexer::eat_character() {
 
 //We parse it as string because it's string anyway then we parse it to the actual number
 //this will maybe be changed in future
-wstring Lexer::peek_next_numer() {
-	wstring str = L"";
+CString Lexer::peek_next_numer() {
+	CString str = "";
 
 	bool has_x = false;
 	//bool has_l = false;
 	bool has_dot = false;
 
-	wchar_t ch = peek_next_character();
+	char ch = peek_next_character();
 	while ((ch >= '0' && ch <= '9') || ch == 'x' || ch == '.' || ch == 'l' || ch == '-') {
 		eat_character();
 
@@ -109,14 +109,14 @@ wstring Lexer::peek_next_numer() {
 		ch = peek_next_character();
 
 		if (ch == '-') {
-			if (str.length() != 0) {
+			if (str.size != 0) {
 				return str;
 			}
 		}
 		else if (ch == 'x') { 			
-			if (has_x || !(str.length() == 1 && str[0] == '0') || has_dot) {
-				report_error(L"Unkown number modifier 'x'");
-				return L"0";
+			if (has_x || !(str.size == 1 && str[0] == '0') || has_dot) {
+				report_error("Unkown number modifier 'x'");
+				return "0";
 			}
 
 			has_x = true; }
@@ -125,8 +125,8 @@ wstring Lexer::peek_next_numer() {
 		}*/
 		else if (ch == '.') { 
 			if (has_dot || has_x) {
-				report_error(L"Unkown number modifier '.'");
-				return L"0";
+				report_error("Unkown number modifier '.'");
+				return "0";
 			}
 			has_dot = true; 
 		}
@@ -135,10 +135,10 @@ wstring Lexer::peek_next_numer() {
 	return str;
 }
 
-wstring Lexer::peek_next_string() {
-	wstring str = L"";
+CString Lexer::peek_next_string() {
+	CString str = "";
 
-	wchar_t ch = peek_next_character();
+	char ch = peek_next_character();
 	while (ch != '"' && ch != '0') {
 		eat_character();
 
@@ -167,8 +167,8 @@ wstring Lexer::peek_next_string() {
 }
 
 //This can peek keyword, string or number
-wstring Lexer::peek_next_word(int& token_type) {
-	wstring str = L"";
+CString Lexer::peek_next_word(int& token_type) {
+	CString str = "";
 
 	int character = peek_next_character();
 	
@@ -189,7 +189,7 @@ wstring Lexer::peek_next_word(int& token_type) {
 		token_type = TOKEN_IDENT;
 	}
 
-	if (str.length() == 0) return L"\0";
+	if (str.size == 0) return "\0";
 	return str;
 }
 
@@ -203,26 +203,26 @@ Token* Lexer::new_token() {
 	return token;
 }
 
-int Lexer::decide_token_keyword(const wchar_t* word) {
-	if (COMPARE(word, L"true"))			return TOKEN_KEYWORD_TRUE;
-	if (COMPARE(word, L"false"))		return TOKEN_KEYWORD_FALSE;
-	if (COMPARE(word, L"if"))			return TOKEN_KEYWORD_IF;
-	if (COMPARE(word, L"else"))			return TOKEN_KEYWORD_ELSE;
-	if (COMPARE(word, L"for"))			return TOKEN_KEYWORD_FOR;
-	if (COMPARE(word, L"new"))			return TOKEN_KEYWORD_NEW;
-	if (COMPARE(word, L"float"))		return TOKEN_KEYWORD_FLOAT;
-	if (COMPARE(word, L"long"))			return TOKEN_KEYWORD_LONG;
-	if (COMPARE(word, L"string"))		return TOKEN_KEYWORD_STRING;
-	if (COMPARE(word, L"return"))		return TOKEN_KEYWORD_RETURN;
-	if (COMPARE(word, L"enum"))			return TOKEN_KEYWORD_ENUM;
-	if (COMPARE(word, L"struct"))		return TOKEN_KEYWORD_STRUCT;
-	if (COMPARE(word, L"defer"))		return TOKEN_KEYWORD_DEFER;
-	if (COMPARE(word, L"constructor"))	return TOKEN_KEYWORD_CONSTRUCTOR;
-	if (COMPARE(word, L"destructor"))	return TOKEN_KEYWORD_DESCRUCTOR;
-	if (COMPARE(word, L"int"))			return TOKEN_KEYWORD_INT;
-	if (COMPARE(word, L"s16"))			return TOKEN_KEYWORD_S16;
-	if (COMPARE(word, L"s32"))			return TOKEN_KEYWORD_S32;
-	if (COMPARE(word, L"s64"))			return TOKEN_KEYWORD_S64;
+int Lexer::decide_token_keyword(const char* word) {
+	if (COMPARE(word, "true"))			return TOKEN_KEYWORD_TRUE;
+	if (COMPARE(word, "false"))		return TOKEN_KEYWORD_FALSE;
+	if (COMPARE(word, "if"))			return TOKEN_KEYWORD_IF;
+	if (COMPARE(word, "else"))			return TOKEN_KEYWORD_ELSE;
+	if (COMPARE(word, "for"))			return TOKEN_KEYWORD_FOR;
+	if (COMPARE(word, "new"))			return TOKEN_KEYWORD_NEW;
+	if (COMPARE(word, "float"))		return TOKEN_KEYWORD_FLOAT;
+	if (COMPARE(word, "long"))			return TOKEN_KEYWORD_LONG;
+	if (COMPARE(word, "string"))		return TOKEN_KEYWORD_STRING;
+	if (COMPARE(word, "return"))		return TOKEN_KEYWORD_RETURN;
+	if (COMPARE(word, "enum"))			return TOKEN_KEYWORD_ENUM;
+	if (COMPARE(word, "struct"))		return TOKEN_KEYWORD_STRUCT;
+	if (COMPARE(word, "defer"))		return TOKEN_KEYWORD_DEFER;
+	if (COMPARE(word, "constructor"))	return TOKEN_KEYWORD_CONSTRUCTOR;
+	if (COMPARE(word, "destructor"))	return TOKEN_KEYWORD_DESCRUCTOR;
+	if (COMPARE(word, "int"))			return TOKEN_KEYWORD_INT;
+	if (COMPARE(word, "s16"))			return TOKEN_KEYWORD_S16;
+	if (COMPARE(word, "s32"))			return TOKEN_KEYWORD_S32;
+	if (COMPARE(word, "s64"))			return TOKEN_KEYWORD_S64;
 	return 0;
 }
 
@@ -240,28 +240,28 @@ void Lexer::lex() {
 		auto token = new_token();
 		if (token_type.type == 0) {			
 			token->type = token_type.token_type;	
-			token->column -= wcslen(token_type.value_string.c_str());
+			token->column -= token_type.value_string.size;
 		}
 		else if (token_type.type == TOKEN_IDENT) {
 			token->type = token_type.type;
 			token->value = token_type.value_string;
-			token->column -= wcslen(token_type.value_string.c_str());
+			token->column -= token_type.value_string.size;
 		}
 		else if (token_type.type == TOKEN_KEYWORD) {
 			token->type = token_type.token_type;
 			token->value = token_type.value_string;
-			token->column -= wcslen(token_type.value_string.c_str());
+			token->column -= token_type.value_string.size;
 		}
 		else if (token_type.type == TOKEN_STRING) {
 			token->type = token_type.type;
 			token->value = token_type.value_string;
-			token->column -= wcslen(token_type.value_string.c_str());
+			token->column -= token_type.value_string.size;
 		}
 		else if (token_type.type == TOKEN_NUMBER) {
 			token->type = token_type.type;
 			token->value = token_type.value_string;
-			auto number_as_string = Utils::to_string(token->value);
-			const char* wvalue = number_as_string.c_str();
+			auto number_as_string = token->value;
+			const char* wvalue = number_as_string.data;
 			token->column -= strlen(wvalue);
 
 			if (Utils::strContChar(wvalue, 'x')) {
@@ -299,10 +299,10 @@ void Lexer::rollback_eat_char() {
 TokenDefine Lexer::get_next_token() {
 	eat_white();
 
-	wchar_t character = peek_next_character();
+	char character = peek_next_character();
 	eat_character();
 
-	wstring token_value_string = L"";
+	CString token_value_string = "";
 	int token = 0;
 	int type = 0;
 
@@ -310,7 +310,7 @@ TokenDefine Lexer::get_next_token() {
 	case '+':
 		if (peek_next_character() == '+') {
 			eat_character();
-			token_value_string = L"++";
+			token_value_string = "++";
 			token = TOKEN_INCREMENT;
 			break;
 		}
@@ -318,13 +318,13 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '-':
 		if (peek_next_character() == '>') {
-			token_value_string = L"->";
+			token_value_string = "->";
 			eat_character();
 			token = TOKEN_RETURNTYPE;
 			break;
 		}
 		if (peek_next_character() == '-') {
-			token_value_string = L"--";
+			token_value_string = "--";
 			eat_character();
 			token = TOKEN_DECREMENT;
 			break;
@@ -336,7 +336,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '/':
 		if (peek_next_character() == '/') {
-			token_value_string = L"//";
+			token_value_string = "//";
 			eat_character();
 			eat_comment();
 			type = TOKEN_NOP;
@@ -352,7 +352,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '.':
 		if (peek_next_character() == '.') {
-			token_value_string = L"..";
+			token_value_string = "..";
 			eat_character();
 			token = TOKEN_RANGE;
 			break;
@@ -379,7 +379,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '&':
 		if (peek_next_character() == '&') {
-			token_value_string = L"&&";
+			token_value_string = "&&";
 			eat_character();
 			token = TOKEN_AND;
 			break;
@@ -388,7 +388,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '|':
 		if (peek_next_character() == '|') {
-			token_value_string = L"||";
+			token_value_string = "||";
 			eat_character();
 			token = TOKEN_OR;
 			break;
@@ -397,7 +397,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '!':
 		if (COMPARE_CH(peek_next_character(), '=')) {
-			token_value_string = L"!=";
+			token_value_string = "!=";
 			eat_character();
 			token = TOKEN_NOTEQUAL;
 			break;
@@ -406,7 +406,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '=':
 		if (peek_next_character() == '=') {
-			token_value_string = L"==";
+			token_value_string = "==";
 			eat_character();
 			token = TOKEN_EQUAL;
 			break;
@@ -421,7 +421,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '>':
 		if (peek_next_character() == '=') {
-			token_value_string = L">=";
+			token_value_string = ">=";
 			eat_character();
 			token = TOKEN_MOREEQUAL;
 			break;
@@ -430,7 +430,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '<':
 		if (peek_next_character() == '=') {
-			token_value_string = L">=";
+			token_value_string = ">=";
 			eat_character();
 			token = TOKEN_LESSEQUAL;
 			break;
@@ -447,7 +447,7 @@ TokenDefine Lexer::get_next_token() {
 		rollback_eat_char();
 		token_value_string = peek_next_word(type);
 
-		token = decide_token_keyword(token_value_string.c_str());
+		token = decide_token_keyword(token_value_string.data);
 		if(token != 0)
 			type = TOKEN_KEYWORD;
 		//rollback_eat_char();
@@ -459,7 +459,7 @@ TokenDefine Lexer::get_next_token() {
 	TokenDefine token_type;
 	token_type.token_type = token;
 	token_type.type = type;
-	if (token_value_string != L"") {
+	if (token_value_string != "") {
 		token_type.value_string = token_value_string;
 	}
 

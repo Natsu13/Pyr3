@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Headers.h"
+#include "CString.h"
 
 class Utils
 {
@@ -11,7 +12,7 @@ public:
     static std::string to_string(const std::wstring& utf16Str);
     static std::string path_combine(std::string path, std::string filename);
 	static std::wstring s2ws(const std::string& str);
-    static wstring load_file(const char* file_name);
+    static CString load_file(const char* file_name);
     static bool strContChar(const char* text, char find);
     static bool strContWChar(const wchar_t* text, char find);
 };

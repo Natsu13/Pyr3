@@ -2,6 +2,7 @@
 
 #include "Headers.h"
 #include "Token.h"
+#include "CString.h"
 
 enum AST_Types {
 	AST_EXPRESSION = 0x0,
@@ -9,10 +10,10 @@ enum AST_Types {
 	AST_BLOCK = 0x2,
 	AST_DECLARATION = 0x3,
 	AST_TYPE_DEFINITION = 0x4,
-	AST_STRING = 0x5,
-	AST_NUMBER = 0x6,
+	//AST_STRING = 0x5,
+	//AST_NUMBER = 0x6,
 	AST_BINARYOP = 0x7,
-	AST_FUNCTION = 0x8,
+	AST_PROCEDURE = 0x8,
 	AST_PARAMLIST = 0x9,
 	AST_UNARYOP = 0x10,
 	AST_DIRECTIVE = 0x11,
@@ -37,13 +38,18 @@ struct AST_Expression {
 	AST_Expression() {}
 
 	int type = AST_EXPRESSION;
+	unsigned int flags = 0;
+
+	Token* token = NULL;
+	int line_number = 0;
+	int character_number = 0;
+	CString *file_name = NULL;
 };
 
 const int AST_BLOCK_FLAG_MAIN_BLOCK = 0x1;
 struct AST_Block : public AST_Expression {
 	AST_Block() { type = AST_BLOCK; }
 
-	int flags = 0x0;
 	AST_Block* scope = NULL;
 	vector<AST_Expression*> expressions;
 };
@@ -77,8 +83,6 @@ struct AST_Ident : public AST_Expression {
 	AST_Block* scope = NULL;
 	AST_Expression* type_definition = NULL;
 	AST_Declaration* type_declaration = NULL;
-
-	int flags = 0x0;
 };
 
 const int AST_DECLARATION_FLAG_CONSTANT = 0x1;
@@ -99,26 +103,24 @@ struct AST_Declaration : public AST_Expression {
 	int type_definition = NULL;
 
 	int register_index = -1;
-
-	int flags = 0x0;
 };
 
+const int LITERAL_NUMBER = 1;
+const int LITERAL_STRING = 2;
+const int LITERAL_FLOAT = 3;
+
+const int NUMBER_FLAG_SIGNED = 0x1;
+const int NUMBER_FLAG_FLOAT = 0x2;
 struct AST_Literal : public AST_Expression {
 	AST_Literal() { type = AST_LITERAL; }
-};
 
-struct AST_String : public AST_Expression {
-	AST_String() { type = AST_STRING; }
+	int value_type = 0;
 
-	wstring value;
-	Token* name = NULL;
-};
-struct AST_Number : public AST_Expression {
-	AST_Number() { type = AST_NUMBER; }
+	CString string_value = NULL;		
 
-	int flags = 0x0;
-
-	int64_t value = 0;
+	long long integer_value = 0;
+	float float_value = 0.0;
+	int number_flags = 0;
 };
 
 struct AST_UnaryOp : public AST_Expression {
@@ -164,9 +166,8 @@ const int AST_DIRECTIVE_FLAG_CANT_INITIALIZE = 0x4;
 struct AST_Directive : public AST_Expression {
 	AST_Directive() { type = AST_DIRECTIVE; }
 
-	AST_String* name = NULL;
+	AST_Literal* name = NULL;
 	int directive_type = 0;
-	int flags = 0;
 
 	AST_Expression* value0 = NULL;
 
@@ -175,21 +176,19 @@ struct AST_Directive : public AST_Expression {
 };
 
 
-const int AST_FUNCTION_FLAG_COMPILER = 0x1;
-const int AST_FUNCTION_FLAG_INTERNAL = 0x2;
-const int AST_FUNCTION_FLAG_NATIVE = 0x4;
-const int AST_FUNCTION_FLAG_FOREIGN = 0x8;
-struct AST_Function : public AST_Expression {
-	AST_Function() { type = AST_FUNCTION; }
+const int AST_PROCEDURE_FLAG_COMPILER = 0x1;
+const int AST_PROCEDURE_FLAG_INTERNAL = 0x2;
+const int AST_PROCEDURE_FLAG_NATIVE = 0x4;
+const int AST_PROCEDURE_FLAG_FOREIGN = 0x8;
+struct AST_Procedure : public AST_Expression {
+	AST_Procedure() { type = AST_PROCEDURE; }
 
 	AST_Expression* returnType = NULL;
 	AST_Block* header = NULL;
 	AST_Block* body = NULL;
 
-	AST_String* foreign_library = NULL;
+	AST_Literal* foreign_library = NULL;
 	AST_Expression* foreign_library_expression = NULL;
-
-	int flags = 0;
 };
 
 struct AST_Condition : public AST_Expression {
@@ -208,15 +207,17 @@ private:
 public:
 	Interpret();
 
-	void report_error(wstring message, va_list argptr);
-	void report_error(wstring message, const char* file, int row, int column, va_list argptr);
-	void report_warning(wstring message, va_list argptr);
-	void report_warning(wstring message, const char* file, int row, int column, va_list argptr);
+	void report_error(CString message);
+
+	void report_error(CString message, va_list argptr);
+	void report_error(CString message, const char* file, int row, int column, va_list argptr);
+	void report_warning(CString message, va_list argptr);
+	void report_warning(CString message, const char* file, int row, int column, va_list argptr);
 
 	void report_error(Token* token, const char* message, ...);
-	void report_error(Token* token, wstring message, ...);
+	void report_error(Token* token, CString message, ...);
 	void report_warning(Token* token, const char* message, ...);
-	void report_warning(Token* token, wstring message, ...);
+	void report_warning(Token* token, CString message, ...);
 
 	bool isError();		
 
@@ -233,10 +234,19 @@ public:
 	AST_Type_Definition* type_def_s64 = NULL;
 };
 
-#define AST_NEW(type) new type();
+#define AST_NEW(type) create_expression(new type(), lexer->peek_next_token());
+#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr);
 
 template<class T>
 T insert_and_return(vector<T>& _vector, T object) {
 	_vector.push_back(object);
 	return object;
+}
+
+template<class AST>
+AST* create_expression(AST* expression, Token* current_token) {
+	if(current_token != nullptr)
+		expression->token = current_token;
+
+	return expression;
 }

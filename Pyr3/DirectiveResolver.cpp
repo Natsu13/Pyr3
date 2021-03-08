@@ -21,10 +21,10 @@ void DirectiveResolver::resolve(AST_Block* block) {
 void DirectiveResolver::resolveDirective(AST_Directive* directive) {
 	switch (directive->directive_type) {
 	case D_IMPORT: {
-			wstring fileName = L"";
+			CString fileName = "";
 			if (directive->value0->type == AST_IDENT) {
 				if (!(directive->flags & AST_DIRECTIVE_FLAG_INITIALIZED)) {
-					interpret->report_error(directive->name->name, "Using unitialized directive");
+					interpret->report_error(directive->name->token, "Using unitialized directive");
 				}	
 				else {
 					AST_Ident* ident = static_cast<AST_Ident*>(directive->value0);
@@ -36,9 +36,12 @@ void DirectiveResolver::resolveDirective(AST_Directive* directive) {
 					}
 				}
 			}
-			else if (directive->value0->type == AST_STRING) {
-				AST_String* str = static_cast<AST_String*>(directive->value0);
-				fileName = str->value;
+			else if (directive->value0->type == AST_LITERAL) {
+				AST_Literal* literal = static_cast<AST_Literal*>(directive->value0);
+				if(literal->value_type == LITERAL_STRING)
+					fileName = literal->string_value;
+				else
+					interpret->report_error(literal->token, "Can't use number for import");
 			}
 			
 		}

@@ -41,13 +41,13 @@ std::wstring Utils::s2ws(const std::string& str)
     return wstrTo;
 }
 
-std::wstring Utils::load_file(const char* file_name) {
+CString Utils::load_file(const char* file_name) {
 	auto path = Utils::to_string(Utils::ExePath());
 	auto path_to_file = Utils::path_combine(path, file_name);
 
 	FILE* file;
 	int err = 0;
-	if ((err = fopen_s(&file, path_to_file.c_str(), "rb")) != 0) {
+	if ((err = fopen_s(&file, path_to_file.c_str(), "rb")) != 0 || file == 0) {
 		ASSERT(false, "File can't open");
 	}
 
@@ -62,12 +62,13 @@ std::wstring Utils::load_file(const char* file_name) {
 	ASSERT(result + 1 == lSize, "Can't read file");
 
 	buffer[lSize - 1] = 0;
-	std::wstring replyStr = (Utils::s2ws((char*)buffer));
+	//std::wstring replyStr = (Utils::s2ws((char*)buffer));
+	CString ret = (char*)buffer;
 
 	fclose(file);
 	free(buffer);
 
-	return replyStr;
+	return ret;
 }
 
 bool Utils::strContWChar(const wchar_t* text, char find) {

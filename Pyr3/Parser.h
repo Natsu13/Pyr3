@@ -4,22 +4,23 @@
 #include "Headers.h"
 #include "Token.h"
 #include "Lexer.h"
-#include "Interpret.h"
+#include "TypeResolver.h"
 
 class Parser
 {
 private:
+	TypeResolver* type_resolver;
 	Interpret* interpret;
-	Lexer* lexer;
-	AST_Block* current_scope = NULL;
+	Lexer* lexer;	
+	AST_Block* current_scope = NULL;	
 
 	AST_Block* parse_block();
 	AST_Expression* parse_primary();
 	AST_Expression* parse_expression();
 	AST_Expression* parse_ident();
 	AST_BinaryOp* parse_assigment(AST_Ident* left);
-	AST_String* parse_string();
-	AST_Number* parse_number();
+	AST_Literal* parse_string();
+	AST_Literal* parse_number();
 	AST_Condition* parse_condition();
 	AST_Directive* parse_directive();
 	void parse_directives(vector<AST_Directive*> &directives);
@@ -35,6 +36,6 @@ private:
 
 	int get_current_token_prec();
 public:
-	Parser(Interpret* interpret, Lexer* lexer);
+	Parser(Interpret* interpret, Lexer* lexer, TypeResolver* type_resolver);
 	AST_Block* parse();
 };

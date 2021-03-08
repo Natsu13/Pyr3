@@ -11,7 +11,7 @@ ByteCode* BytecodeBuilder::instruction(Bytecode_Instruction instruction, int a, 
 	bc->instruction = instruction;
 	bc->index_a = a;
 	bc->index_b = b;
-	bc->index_o = result;
+	bc->index_r = result;
 	bc->flags = 0;
 
 	bc->line_number = line_number;
@@ -21,6 +21,10 @@ ByteCode* BytecodeBuilder::instruction(Bytecode_Instruction instruction, int a, 
 
 vector<ByteCode*> BytecodeBuilder::get_instructions() {
 	return this->bytecodes;
+}
+
+int BytecodeBuilder::get_output_register_size() {
+	return this->output_registers_index;
 }
 
 int BytecodeBuilder::allocate_output_register(AST_Type_Definition* type_def) {
@@ -41,7 +45,7 @@ void BytecodeBuilder::build(AST_Block* block) {
 		auto it = block->expressions[index];
 		if (it->type == AST_DECLARATION) {
 			auto declaration = static_cast<AST_Declaration*>(it);
-			if (declaration->value->type == AST_FUNCTION) {
+			if (declaration->value->type == AST_PROCEDURE) {
 				int output_register = allocate_output_register(interpet->type_def_s64);
 				declaration->register_index = output_register;
 
@@ -79,12 +83,19 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		}
 
 		switch (declaration->value->type) {
-			case AST_NUMBER: {
-				auto number = static_cast<AST_Number*>(declaration->value);
+			case AST_LITERAL: {
+				auto literal = static_cast<AST_Literal*>(declaration->value);
 
-				auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
-				instr->options = number->flags;
-				instr->big_constant._s64 = number->value;
+				if (literal->value_type == LITERAL_NUMBER) {
+					auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
+
+					if (literal->number_flags & NUMBER_FLAG_FLOAT)
+						instr->big_constant._float = literal->float_value;
+					else if (literal->number_flags & NUMBER_FLAG_SIGNED)
+						instr->big_constant._s64 = literal->integer_value;
+					else
+						instr->big_constant._u64 = literal->integer_value;
+				}
 			}break;
 			default: {				
 				auto instr_initialize = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
@@ -100,23 +111,28 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 	case AST_TYPE_DEFINITION: {
 
 	}break;
-	case AST_STRING: {
-		AST_String* string = static_cast<AST_String*>(expression);
+	case AST_LITERAL: {
+		AST_Literal* literal = static_cast<AST_Literal*>(expression);
 
-	}break;
-	case AST_NUMBER: {
-		AST_Number* number = static_cast<AST_Number*>(expression);
-		int output_register = allocate_output_register(interpet->type_def_s64);
-		auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, output_register);
-		instr->big_constant._s64 = number->value;
+		if (literal->value_type == LITERAL_NUMBER) {
+			int output_register = allocate_output_register(interpet->type_def_s64);
+			auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, output_register);
 
-		return output_register;
+			if (literal->number_flags & NUMBER_FLAG_FLOAT) 
+				instr->big_constant._float = literal->float_value;
+			else if(literal->number_flags & NUMBER_FLAG_SIGNED)
+				instr->big_constant._s64 = literal->integer_value;
+			else
+				instr->big_constant._u64 = literal->integer_value;
+
+			return output_register;
+		}
 	}break;
 	case AST_BINARYOP: {
 		AST_BinaryOp* binary = static_cast<AST_BinaryOp*>(expression);
 		return build_binary(binary);
 	}break;
-	case AST_FUNCTION: {
+	case AST_PROCEDURE: {
 
 	}break;
 	case AST_PARAMLIST: {
@@ -144,10 +160,15 @@ int BytecodeBuilder::build_binary(AST_BinaryOp* binop) {
 		int output_register = allocate_output_register(interpet->type_def_s64);
 
 		// ident + number
-		if (binop->right->type == AST_NUMBER) {
-			auto number = static_cast<AST_Number*>(binop->right);
+		if (binop->right->type == AST_LITERAL) {
+			auto literal = static_cast<AST_Literal*>(binop->right);
 			auto instr = Instruction(BYTECODE_INTEGER_ADD_TO_CONSTANT, ident->type_declaration->register_index, -1, output_register);
-			instr->big_constant._s64 = number->value;
+			if (literal->number_flags & NUMBER_FLAG_FLOAT)
+				instr->big_constant._float = literal->float_value;
+			else if (literal->number_flags & NUMBER_FLAG_SIGNED)
+				instr->big_constant._s64 = literal->integer_value;
+			else
+				instr->big_constant._u64 = literal->integer_value;
 			return output_register;
 		}
 	}
