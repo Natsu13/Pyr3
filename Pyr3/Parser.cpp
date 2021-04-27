@@ -19,8 +19,13 @@ AST_Block* Parser::parse() {
 	return parse_block();
 }
 
-AST_Block* Parser::parse_block() {
+AST_Block* Parser::parse_block(bool new_scope) {
 	AST_Block* scope = current_scope;
+	if (new_scope) {
+		current_scope = AST_NEW(AST_Block);
+	}
+	AST_Block* save_scope = current_scope;
+
 	while (lexer->peek_next_token()->type != TOKEN_EOF && lexer->peek_next_token()->type != '}') {
 		if (lexer->peek_next_token()->type == ';') {
 			lexer->eat_token();
@@ -28,14 +33,22 @@ AST_Block* Parser::parse_block() {
 		}
 
 		AST_Expression* expression = parse_primary();
-		if (expression == NULL) return scope;
+		if (expression == NULL) return save_scope;
 
-		scope->expressions.push_back(expression);
+		save_scope->expressions.push_back(expression);
+	}
+	if (new_scope) {
+		current_scope = scope;
+		return save_scope;
 	}
 	return scope;
 }
 
 AST_Expression* Parser::parse_primary() {
+	return parse_primary(0);
+}
+
+AST_Expression* Parser::parse_primary(int prec) {
 	AST_Expression* left = parse_expression();
 
 	if (left == NULL)
@@ -50,13 +63,13 @@ AST_Expression* Parser::parse_primary() {
 		return left;
 	}
 
-	return parse_binop(0, left);
+	return parse_binop(prec, left);
 }
 
 AST_Expression* Parser::parse_expression() {
 	Token* token = lexer->peek_next_token();
 
-	if (token->type == TOKEN_IDENT) {
+	if (token->type == TOKEN_MUL || token->type == TOKEN_BAND || token->type == TOKEN_IDENT) { // *test (pointer to) &test (address of)
 		return parse_ident();
 	}
 	else if (token->type == TOKEN_STRING) {
@@ -71,6 +84,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_IF) {
 		return parse_condition();
 	}
+	else if (token->type == TOKEN_KEYWORD_RETURN) {
+		return parse_return();
+	}
 	else if (token->type == TOKEN_KEYWORD_TRUE || token->type == TOKEN_KEYWORD_FALSE) {
 		this->lexer->eat_token();
 
@@ -82,113 +98,10 @@ AST_Expression* Parser::parse_expression() {
 	}
 	else if(token->type == '(') {
 		lexer->eat_token();
-		/*
-		AST_Expression* expression = parse_expression();
-
-		token = lexer->peek_next_token();
-		if (token->type != ')') {
-			interpret->report_error(token, "Expecting ')' after end of expression");
-		}
-		lexer->eat_token();
-		*/
 		return parse_param_or_function();
 	}
 
 	interpret->report_error(token, "Unexpected token type '%s'", token_to_string(token->type));
-	return NULL;
-}
-
-const char* Parser::token_to_string(int type) {
-
-	switch (type) {
-	case TOKEN_KEYWORD_IDENT:
-		return "ident";
-	case TOKEN_KEYWORD_TRUE:
-		return "true";
-	case TOKEN_KEYWORD_FALSE:
-		return "false";
-	case TOKEN_KEYWORD_IF:
-		return "if";
-	case TOKEN_KEYWORD_ELSE:
-		return "else";
-	case TOKEN_KEYWORD_FOR:
-		return "for";
-	case TOKEN_KEYWORD_INT:
-		return "int";
-	case TOKEN_KEYWORD_STRING:
-		return "string";
-	case TOKEN_KEYWORD_NEW:
-		return "new";
-	case TOKEN_KEYWORD_FLOAT:
-		return "float";
-	case TOKEN_KEYWORD_LONG:
-		return "long";
-	case TOKEN_KEYWORD_RETURN:
-		return "return";
-	case TOKEN_KEYWORD_ENUM:
-		return "enum";
-	case TOKEN_KEYWORD_STRUCT:
-		return "struct";
-	case TOKEN_KEYWORD_DEFER:
-		return "defer";
-	case TOKEN_KEYWORD_CONSTRUCTOR:
-		return "constructor";
-	case TOKEN_KEYWORD_DESCRUCTOR:
-		return "destructor";
-	case TOKEN_KEYWORD_S16:
-		return "s16";
-	case TOKEN_KEYWORD_S32:
-		return "s32";
-	case TOKEN_KEYWORD_S64:
-		return "s64";
-	}
-
-	auto char_type = std::to_string(type);
-	return char_type.c_str();
-}
-
-bool Parser::is_typedef_keyword() {
-	Token* token = lexer->peek_next_token();
-	int type = token->type;
-	if (type == TOKEN_KEYWORD_INT || type == TOKEN_KEYWORD_FLOAT || type == TOKEN_KEYWORD_LONG
-		|| type == TOKEN_KEYWORD_S16 || type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
-		|| type == TOKEN_KEYWORD_STRING)
-		return true;
-
-	return false;
-}
-
-AST_Type_Definition* Parser::parse_type_definition() {
-	Token* token = lexer->peek_next_token();
-	int type = token->type;
-
-	this->lexer->eat_token();
-
-	switch (type) {
-	case TOKEN_KEYWORD_INT: {
-			return interpret->type_def_int;
-		}break;
-	case TOKEN_KEYWORD_FLOAT: {
-		return interpret->type_def_float;
-		}break;
-	case TOKEN_KEYWORD_LONG: {
-			return interpret->type_def_long;
-		}break;
-	case TOKEN_KEYWORD_STRING: {
-			return interpret->type_def_char;
-		}break;
-	case TOKEN_KEYWORD_S16: {
-			return interpret->type_def_s16;
-		}break;
-	case TOKEN_KEYWORD_S32: {
-			return interpret->type_def_s32;
-		}break;
-	case TOKEN_KEYWORD_S64: {
-			return interpret->type_def_s64;
-		}break;
-	}
-
-	assert(false);
 	return NULL;
 }
 
@@ -210,10 +123,19 @@ AST_Condition* Parser::parse_condition() {
 	return condition;
 }
 
+AST_Return* Parser::parse_return() {
+	lexer->eat_token();
+
+	AST_Return* ast_return = AST_NEW(AST_Return);
+	ast_return->value = parse_expression();
+
+	return ast_return;
+}
+
 AST_Expression* Parser::parse_block_or_expression() {
 	if (lexer->peek_next_token()->type == '{') {
 		lexer->eat_token();
-		AST_Block* block = parse_block();
+		AST_Block* block = parse_block(true);
 		lexer->eat_token();
 		return block;
 	}
@@ -374,7 +296,7 @@ AST_Expression* Parser::parse_binop(int prec, AST_Expression* left) {
 	while (true) {
 		int tokprec = get_current_token_prec();
 
-		if (tokprec < prec) {
+		if (tokprec == 0 || tokprec <= prec) {
 			return left;
 		}
 
@@ -418,7 +340,7 @@ AST_Expression* Parser::parse_binop(int prec, AST_Expression* left) {
 		}
 
 
-		AST_Expression* right = parse_primary();
+		AST_Expression* right = parse_primary(tokprec);
 		if (right == NULL) {
 			interpret->report_error(lexer->peek_next_token(), "Binary operation need right expression");
 		}
@@ -432,33 +354,150 @@ AST_Expression* Parser::parse_binop(int prec, AST_Expression* left) {
 	}
 }
 
+AST_Type* Parser::parse_type_array(AST_Type* type) {
+	auto token = lexer->peek_next_token();	
+	while (token->type == TOKEN_LBRACKET) {
+		lexer->eat_token();
+
+		token = lexer->peek_next_token();
+		if (token->type == TOKEN_NUMBER) {
+			type->array_size.push_back(parse_number());
+		}
+		else {
+			interpret->report_error("Currently si supported only numbers");
+		}
+
+		token = lexer->peek_next_token();
+		assert(token->type == TOKEN_RBRACKET);
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+	}
+
+	return type;
+}
+
+AST_Type* Parser::parse_type() {
+	auto type = parse_typedefinition();
+		
+	auto token = lexer->peek_next_token();
+	if (token->type == TOKEN_LBRACKET) {
+		return parse_type_array(type);
+	}
+
+	return type;
+}
+
+AST_Type* Parser::parse_typedefinition() {
+	Token* token = lexer->peek_next_token();
+	int type = token->type;
+
+	this->lexer->eat_token();
+
+	switch (type) {
+		case TOKEN_MUL: {
+			AST_Pointer* pointer = AST_NEW(AST_Pointer);
+			pointer->point_to = parse_typedefinition();
+			return pointer;
+		}
+		case TOKEN_BAND: {
+			AST_Addressof* addressof = AST_NEW(AST_Addressof);
+			addressof->address_of = parse_typedefinition();
+			return addressof;
+		}
+		case TOKEN_KEYWORD_FLOAT: {
+			return interpret->type_float;
+		}
+		case TOKEN_KEYWORD_LONG: {
+			return interpret->type_long;
+		}
+		case TOKEN_KEYWORD_STRING: {
+			return interpret->type_char;
+		}
+		case TOKEN_KEYWORD_S8: {
+			return interpret->type_s8;
+		}
+		case TOKEN_KEYWORD_S16: {
+			return interpret->type_s16;
+		}
+		case TOKEN_KEYWORD_S32: {
+			return interpret->type_s32;
+		}
+		case TOKEN_KEYWORD_S64: {
+			return interpret->type_s64;
+		}
+		case TOKEN_KEYWORD_U8: {
+			return interpret->type_u8;
+		}
+		case TOKEN_KEYWORD_U16: {
+			return interpret->type_u16;
+		}
+		case TOKEN_KEYWORD_U32: {
+			return interpret->type_u32;
+		}
+		case TOKEN_KEYWORD_U64: {
+			return interpret->type_u64;
+		}
+	}
+
+	assert(false);
+	return NULL;
+}
+
 int Parser::get_current_token_prec() {
 	Token* token = lexer->peek_next_token();
 
-	if (token->type == '<')				return 10;
-	if (token->type == '>')				return 10;
-	if (token->type == TOKEN_LESSEQUAL)	return 10;
-	if (token->type == TOKEN_MOREEQUAL)	return 10;
-	if (token->type == '+')				return 20;
-	if (token->type == '-')				return 20;
-	if (token->type == '*')				return 40;
-	if (token->type == '/')				return 40;
-	if (token->type == '%')				return 40;	
-	if (token->type == TOKEN_BAND)		return 60;
-	if (token->type == TOKEN_BOR)		return 60;
-	if (token->type == TOKEN_EQUAL)		return 80;
-	if (token->type == TOKEN_NOTEQUAL)	return 80;
-	if (token->type == TOKEN_AND)		return 100;
-	if (token->type == TOKEN_OR)		return 100;
+	switch (token->type) {
+		case '<':
+		case '>':
+		case TOKEN_LESSEQUAL:
+		case TOKEN_MOREEQUAL:
+			return 10;
+		case '+':
+		case '-':
+			return 20;
+		case '*':
+		case '/':
+		case '%':
+			return 30;
+		case TOKEN_BAND:
+		case TOKEN_BOR:
+			return 40;
+		case TOKEN_EQUAL:
+		case TOKEN_NOTEQUAL:
+			return 50;
+		case TOKEN_AND:
+		case TOKEN_OR:
+			return 60;
+	}
 
-	return -1;
+	return 0;
 }
 
 AST_Expression* Parser::parse_ident() {
+	auto token = lexer->peek_next_token();
+
+	if (token->type == TOKEN_MUL) { //Pointer to *test
+		lexer->eat_token();
+
+		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		unary->operation = UNOP_DEF;
+		unary->left = parse_primary();
+
+		return unary;
+	}
+	else if (token->type == TOKEN_BAND) { //Address of &test
+		lexer->eat_token();
+
+		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		unary->operation = UNOP_REF;
+		unary->left = parse_primary();
+
+		return unary;
+	}
 
 	AST_Ident* ident = crate_ident_from_current_token();
 
-	auto token = lexer->peek_next_token();
+	token = lexer->peek_next_token();
 	if (token->type == ':') { //Create variable
 		AST_Declaration* declaration = AST_NEW(AST_Declaration);
 		declaration->ident = ident;
@@ -470,7 +509,7 @@ AST_Expression* Parser::parse_ident() {
 		bool is_typedef = this->is_typedef_keyword();
 		if (token->type == TOKEN_IDENT || is_typedef) {
 			if (is_typedef) {
-				declaration->assigmet_type = parse_type_definition();
+				declaration->assigmet_type = parse_type();
 			}
 			else {
 				type = crate_ident_from_current_token();
@@ -493,6 +532,10 @@ AST_Expression* Parser::parse_ident() {
 		AST_Expression* value = parse_primary();
 		declaration->value = value;
 
+		if (value->type == AST_PROCEDURE) {
+			declaration->assigmet_type = interpret->type_pointer;
+		}
+
 		return declaration;
 	}
 	else if (token->type == '=') { //Assign to variable		
@@ -504,7 +547,7 @@ AST_Expression* Parser::parse_ident() {
 		AST_UnaryOp* call = AST_NEW(AST_UnaryOp);
 		call->left = ident;
 		call->arguments = AST_NEW(AST_Block);
-		call->operation = token;
+		call->operation = UNOP_CALL;
 		parse_arguments(call->arguments);
 		return call;
 	}
@@ -581,4 +624,73 @@ AST_Literal* Parser::parse_number() {
 	}
 
 	return num;*/
+}
+
+const char* Parser::token_to_string(int type) {
+
+	switch (type) {
+	case TOKEN_KEYWORD_IDENT:
+		return "ident";
+	case TOKEN_KEYWORD_TRUE:
+		return "true";
+	case TOKEN_KEYWORD_FALSE:
+		return "false";
+	case TOKEN_KEYWORD_IF:
+		return "if";
+	case TOKEN_KEYWORD_ELSE:
+		return "else";
+	case TOKEN_KEYWORD_FOR:
+		return "for";
+	case TOKEN_KEYWORD_STRING:
+		return "string";
+	case TOKEN_KEYWORD_NEW:
+		return "new";
+	case TOKEN_KEYWORD_FLOAT:
+		return "float";
+	case TOKEN_KEYWORD_LONG:
+		return "long";
+	case TOKEN_KEYWORD_RETURN:
+		return "return";
+	case TOKEN_KEYWORD_ENUM:
+		return "enum";
+	case TOKEN_KEYWORD_STRUCT:
+		return "struct";
+	case TOKEN_KEYWORD_DEFER:
+		return "defer";
+	case TOKEN_KEYWORD_CONSTRUCTOR:
+		return "constructor";
+	case TOKEN_KEYWORD_DESCRUCTOR:
+		return "destructor";
+	case TOKEN_KEYWORD_S8:
+		return "s8";
+	case TOKEN_KEYWORD_S16:
+		return "s16";
+	case TOKEN_KEYWORD_S32:
+		return "s32";
+	case TOKEN_KEYWORD_S64:
+		return "s64";
+	case TOKEN_KEYWORD_U8:
+		return "u8";
+	case TOKEN_KEYWORD_U16:
+		return "u16";
+	case TOKEN_KEYWORD_U32:
+		return "u32";
+	case TOKEN_KEYWORD_U64:
+		return "u64";
+	}
+
+	auto char_type = std::to_string(type);
+	return char_type.c_str();
+}
+
+bool Parser::is_typedef_keyword() {
+	Token* token = lexer->peek_next_token();
+	int type = token->type;
+	if (   type == TOKEN_KEYWORD_FLOAT	|| type == TOKEN_KEYWORD_LONG
+		|| type == TOKEN_KEYWORD_S8		|| type == TOKEN_KEYWORD_S16	|| type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
+		|| type == TOKEN_KEYWORD_U8		|| type == TOKEN_KEYWORD_U16	|| type == TOKEN_KEYWORD_U32 || type == TOKEN_KEYWORD_U64
+		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL			|| type == TOKEN_BAND )
+		return true;
+
+	return false;
 }

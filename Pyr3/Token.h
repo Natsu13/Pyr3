@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Headers.h"
-#include "CString.h"
+#include "String.h"
 
 const int TOKEN_KEYWORD_IDENT = 1000;
 const int TOKEN_KEYWORD_TRUE = 10001;
@@ -9,7 +9,6 @@ const int TOKEN_KEYWORD_FALSE = 10002;
 const int TOKEN_KEYWORD_IF = 10003;
 const int TOKEN_KEYWORD_ELSE = 10004;
 const int TOKEN_KEYWORD_FOR = 10005;
-const int TOKEN_KEYWORD_INT = 10006;
 const int TOKEN_KEYWORD_STRING = 10007;
 const int TOKEN_KEYWORD_NEW = 10008;
 const int TOKEN_KEYWORD_FLOAT = 10009;
@@ -23,14 +22,21 @@ const int TOKEN_KEYWORD_DESCRUCTOR = 10016;
 const int TOKEN_KEYWORD_S16 = 10018;
 const int TOKEN_KEYWORD_S32 = 10019;
 const int TOKEN_KEYWORD_S64 = 10020;
+const int TOKEN_KEYWORD_U16 = 10021;
+const int TOKEN_KEYWORD_U32 = 10022;
+const int TOKEN_KEYWORD_U64 = 10023;
+const int TOKEN_KEYWORD_S8 = 10024;
+const int TOKEN_KEYWORD_U8 = 10025;
 
 const int TOKEN_DIRECTIVE = '#';
 const int TOKEN_PLUS = '+';
 const int TOKEN_MINUS = '-';
 const int TOKEN_MUL = '*';
 const int TOKEN_DIV = '/';
-const int TOKEN_LBRACKET = '(';
-const int TOKEN_RBRACKET = ')';
+const int TOKEN_LPARENTHESE = '(';
+const int TOKEN_RPARENTHESE = ')';
+const int TOKEN_LBRACKET = '[';
+const int TOKEN_RBRACKET = ']';
 const int TOKEN_LBLOCK = '{';
 const int TOKEN_RBLOCK = '}';
 const int TOKEN_MORE = '>';
@@ -80,7 +86,7 @@ public:
 	Token(string file_name, int row, int column);
 
 	string file_name = "";
-	CString value = "";
+	String value = "";
 	int row = -1;
 	long long column = -1;
 
@@ -102,5 +108,5 @@ typedef struct token_define {
 	int token_type = 0;
 	int type = 0;
 
-	CString value_string;
+	String value_string;
 } TokenDefine;

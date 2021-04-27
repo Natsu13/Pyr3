@@ -1,7 +1,8 @@
 #pragma once
 #include "Interpret.h"
+#include "String.h"
 
-const int INSTRUCTION_COUNT = 19;
+const int INSTRUCTION_COUNT = 21;
 
 enum Bytecode_Instruction {
 	BYTECODE_UNINITIALIZED = 0,
@@ -9,6 +10,7 @@ enum Bytecode_Instruction {
 	BYTECODE_ASSING_TO_BIG_CONSTANT = 2,
 	BYTECODE_INTEGER_ADD_TO_CONSTANT = 3,
 	BYTECODE_MOVE_A_TO_R = 4,
+	BYTECODE_MOVE_A_REGISTER_TO_R = 23,
 
 	BYTECODE_BINOP_PLUS = 5,
 	BYTECODE_BINOP_MINUS = 6,
@@ -26,6 +28,10 @@ enum Bytecode_Instruction {
 	BYTECODE_BINOP_BITWISE_AND = 18,
 	BYTECODE_BINOP_BITWISE_OR = 19,
 
+	BYTECODE_JUMP_IF = 20,
+	BYTECODE_JUMP = 21,
+
+	BYTECODE_RESERVE_STACK = 22
 };
 
 const char* InstructionNames[];
@@ -51,18 +57,6 @@ struct Register {
 struct ByteCode {
 	Bytecode_Instruction instruction = BYTECODE_UNINITIALIZED;
 
-	/*ByteCode(int i, int a, int b, int o) :instruction(i), index_r(o) {
-		this->index_a = 0;
-		this->index_b = 0;
-
-		if (a != -1) {
-			this->index_a = a;
-		}
-		if (b != -1) {
-			this->index_b = b;
-		}
-	}*/
-
 	union {
 		struct {
 			int index_a;
@@ -76,6 +70,10 @@ struct ByteCode {
 	int options = -1;
 	int flags;
 
+	int index_instruction = -1;
+
 	AST_Expression* debug_expression = NULL;
 	int line_number = 0;
+
+	String comment;
 };

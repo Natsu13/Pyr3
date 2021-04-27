@@ -5,7 +5,7 @@
 class BytecodeRunner
 {
 private:
-	Interpret* interpet;
+	Interpret* interpret;
 	vector<ByteCode*> bytecodes;
 	vector<Register> registers;
 
@@ -14,7 +14,7 @@ private:
 	ByteCode* get_bytecode(int address);
 	bool is_binop(Bytecode_Instruction bc_inst);
 public:
-	BytecodeRunner(Interpret* interpet, vector<ByteCode*> bytecodes, int register_size);
+	BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, int register_size, int memory_size);
 	void run(int address);
 	void loop();
 	int run_expression(int address);

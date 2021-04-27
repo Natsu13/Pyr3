@@ -41,7 +41,7 @@ std::wstring Utils::s2ws(const std::string& str)
     return wstrTo;
 }
 
-CString Utils::load_file(const char* file_name) {
+String Utils::load_file(const char* file_name) {
 	auto path = Utils::to_string(Utils::ExePath());
 	auto path_to_file = Utils::path_combine(path, file_name);
 
@@ -63,7 +63,7 @@ CString Utils::load_file(const char* file_name) {
 
 	buffer[lSize - 1] = 0;
 	//std::wstring replyStr = (Utils::s2ws((char*)buffer));
-	CString ret = (char*)buffer;
+	String ret = (char*)buffer;
 
 	fclose(file);
 	free(buffer);

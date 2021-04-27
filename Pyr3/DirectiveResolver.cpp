@@ -21,7 +21,7 @@ void DirectiveResolver::resolve(AST_Block* block) {
 void DirectiveResolver::resolveDirective(AST_Directive* directive) {
 	switch (directive->directive_type) {
 	case D_IMPORT: {
-			CString fileName = "";
+			String fileName = "";
 			if (directive->value0->type == AST_IDENT) {
 				if (!(directive->flags & AST_DIRECTIVE_FLAG_INITIALIZED)) {
 					interpret->report_error(directive->name->token, "Using unitialized directive");

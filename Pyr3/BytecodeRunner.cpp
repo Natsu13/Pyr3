@@ -1,7 +1,7 @@
 #include "BytecodeRunner.h"
 
-BytecodeRunner::BytecodeRunner(Interpret* interpet, vector<ByteCode*> bytecodes, int register_size) {
-	this->interpet = interpet;
+BytecodeRunner::BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, int register_size, int memory_size) {
+	this->interpret = interpret;
 	this->bytecodes = bytecodes;
 	this->registers.reserve(register_size);
 	
@@ -14,7 +14,7 @@ ByteCode* BytecodeRunner::get_bytecode(int address) {
 	if (address < bytecodes.size())
 		return bytecodes[address];
 
-	interpet->report_error("bytecode register overload");
+	interpret->report_error("bytecode register overload");
 
 	assert(false);
 	return NULL;
@@ -51,12 +51,15 @@ int BytecodeRunner::run_expression(int address) {
 		return bc->index_r;
 	}
 	if (bc->instruction == BYTECODE_INTEGER_ADD_TO_CONSTANT) {
-		this->registers[bc->index_r]._float = (this->registers[bc->index_a]._float + bc->big_constant._float);
+		this->registers[bc->index_r]._s64 = (this->registers[bc->index_r]._s64 + bc->big_constant._s64);
 		return bc->index_r;
 	}
 	if (bc->instruction == BYTECODE_MOVE_A_TO_R) {
 		this->registers[bc->index_r] = this->registers[bc->index_a];
 		return bc->index_r;
+	}
+	if (bc->instruction == BYTECODE_MOVE_A_REGISTER_TO_R) {
+		this->registers[bc->index_r] = this->registers[this->registers[bc->index_a]._s64];
 	}
 	if (is_binop(bc->instruction)) {
 		return run_binop(address);
@@ -69,19 +72,37 @@ int BytecodeRunner::run_binop(int address) {
 	auto bc = get_bytecode(address);
 
 	if (bc->instruction == BYTECODE_BINOP_PLUS) {
-		this->registers[bc->index_r]._float = this->registers[bc->index_a]._float + this->registers[bc->index_b]._float;
+		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 + this->registers[bc->index_b]._s64;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_MINUS) {
-		this->registers[bc->index_r]._float = this->registers[bc->index_a]._float - this->registers[bc->index_b]._float;
+		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 - this->registers[bc->index_b]._s64;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_DIV) {
-		this->registers[bc->index_r]._float = this->registers[bc->index_a]._float / this->registers[bc->index_b]._float;
+		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 / this->registers[bc->index_b]._s64;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_TIMES) {
-		this->registers[bc->index_r]._float = this->registers[bc->index_a]._float * this->registers[bc->index_b]._float;
+		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 * this->registers[bc->index_b]._s64;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_MOD) {
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 % this->registers[bc->index_b]._s64;
+	}
+	else if (bc->instruction == BYTECODE_BINOP_ISEQUAL) {
+		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 == this->registers[bc->index_b]._s64;
+	}
+	else if (bc->instruction == BYTECODE_BINOP_ISNOTEQUAL) {
+		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 != this->registers[bc->index_b]._s64;
+	}
+	else if (bc->instruction == BYTECODE_BINOP_GREATER) {
+		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 > this->registers[bc->index_b]._s64;
+	}
+	else if (bc->instruction == BYTECODE_BINOP_GREATEREQUAL) {
+		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 >= this->registers[bc->index_b]._s64;
+	}
+	else if (bc->instruction == BYTECODE_BINOP_LESS) {
+		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 < this->registers[bc->index_b]._s64;
+	}
+	else if (bc->instruction == BYTECODE_BINOP_LESSEQUAL) {
+		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 <= this->registers[bc->index_b]._s64;
 	}
 
 	return bc->index_r;

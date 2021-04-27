@@ -1,6 +1,6 @@
-#include "CString.h"
+#include "String.h"
 
-int CString::sizeOfChar(const char* str) {
+int String::sizeOfChar(const char* str) {
     int i = 0;
     while (str[i] != '\0') {
         i++;
@@ -8,12 +8,16 @@ int CString::sizeOfChar(const char* str) {
     return i;
 }
 
-void CString::empty() {
+void String::empty() {
     if (size > 0)
         data[0] = '\0';
 }
 
-void CString::realoc() {
+bool String::isEmpty() {
+    return data[0] == '\0';
+}
+
+void String::realoc() {
     data = (char*)malloc(size+1);
     if (data == nullptr)
         throw "Can't alloc enought memory";
@@ -21,11 +25,19 @@ void CString::realoc() {
     data[0] = '\0';
 }
 
-CString::CString() {
+bool String::compare(char* left, char* right) {
+    int i = 0;
+    while (left[i] != '\0' && right[i] != '\0' && left[i] == right[i]) {
+        i++;
+    }
+    return !(left[i] != right[i]);
+}
+
+String::String() {
     size = 0;
     realoc();
 }
-CString::CString(const char* str) {
+String::String(const char* str) {
     if(str != NULL)
         size = sizeOfChar(str);
 
@@ -37,7 +49,7 @@ CString::CString(const char* str) {
     }
 }
 
-CString& CString::operator+(CString& second) {
+String& String::operator+(String& second) {
     auto oldsize = size;
     size = size + second.size - 1;
     char* old = data;
@@ -47,7 +59,7 @@ CString& CString::operator+(CString& second) {
     return *this;
 }
 
-CString& CString::operator+(const char* second) {
+String& String::operator+(const char* second) {
     auto oldsize = size;
     int sizeSecond = sizeOfChar(second);
     size = size + sizeSecond - 1;
@@ -58,7 +70,7 @@ CString& CString::operator+(const char* second) {
     return *this;
 }
 
-CString& CString::operator+=(char second) {
+String& String::operator+=(char second) {
     auto oldsize = size;
     size += 1;
     char* old = data;
@@ -69,10 +81,17 @@ CString& CString::operator+=(char second) {
     return *this;
 }
 
-char CString::operator[] (int index) {
+bool String::operator==(String& second) {
+    return compare(data, second.data);
+}
+bool String::operator!=(String& second) {
+    return !compare(data, second.data);
+}
+
+char String::operator[] (int index) {
     return data[index];
 }
 
-CString::operator const char* () const {
+String::operator const char* () const {
     return data;
 }

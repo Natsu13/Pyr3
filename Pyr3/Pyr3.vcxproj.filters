@@ -54,10 +54,10 @@
     <ClCompile Include="Bytecode.cpp">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
-    <ClCompile Include="CString.cpp">
+    <ClCompile Include="BytecodeRunner.cpp">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
-    <ClCompile Include="BytecodeRunner.cpp">
+    <ClCompile Include="String.cpp">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
   </ItemGroup>
@@ -101,10 +101,10 @@
     <ClInclude Include="BytecodeDebuger.h">
       <Filter>Hlavičkové soubory</Filter>
     </ClInclude>
-    <ClInclude Include="CString.h">
+    <ClInclude Include="BytecodeRunner.h">
       <Filter>Hlavičkové soubory</Filter>
     </ClInclude>
-    <ClInclude Include="BytecodeRunner.h">
+    <ClInclude Include="String.h">
       <Filter>Hlavičkové soubory</Filter>
     </ClInclude>
   </ItemGroup>

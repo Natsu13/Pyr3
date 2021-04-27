@@ -63,9 +63,11 @@ int main(int argc, char* argv[])
 
                 parser = new Parser(interpreter, lexer, type_resolver);
                 main_block = parser->parse();
-                
-                type_resolver->resolve(main_block);
 
+                type_resolver->resolve_main(main_block);
+            }
+
+            if (!interpreter->isError()) {
                 CodeManager* code_manager = new CodeManager(interpreter);
                 code_manager->manage(main_block);
 
@@ -78,7 +80,7 @@ int main(int argc, char* argv[])
                 BytecodeDebuger* debuger = new BytecodeDebuger(builder->get_instructions());
                 debuger->debug();
 
-                BytecodeRunner* runner = new BytecodeRunner(interpreter, builder->get_instructions(), builder->get_output_register_size());
+                BytecodeRunner* runner = new BytecodeRunner(interpreter, builder->get_instructions(), builder->get_output_register_size(), builder->get_output_stack_size());
                 //runner->run(0);
                 runner->loop();
             }

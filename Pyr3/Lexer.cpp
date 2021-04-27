@@ -4,7 +4,7 @@
 #include "Utils.h"
 #include "Lexer.h"
 
-Lexer::Lexer(Interpret* interpreter, const char* file_name, CString code) {
+Lexer::Lexer(Interpret* interpreter, const char* file_name, String code) {
 	this->interpreter = interpreter;
 	this->code = code;
 	this->pos = 0;
@@ -39,7 +39,7 @@ bool Lexer::load_file(const char* file_name)
 	return true;
 }
 
-void Lexer::report_error(CString message, ...) {
+void Lexer::report_error(String message, ...) {
 	string file = this->current_file_name;
 	std::string file_name(file.substr(file.rfind("\\") + 1));
 	va_list args;
@@ -48,7 +48,7 @@ void Lexer::report_error(CString message, ...) {
 	va_end(args);
 }
 
-void Lexer::report_warning(CString message, ...) {
+void Lexer::report_warning(String message, ...) {
 	string file = this->current_file_name;
 	std::string file_name(file.substr(file.rfind("\\") + 1));
 	va_list args;
@@ -94,8 +94,8 @@ void Lexer::eat_character() {
 
 //We parse it as string because it's string anyway then we parse it to the actual number
 //this will maybe be changed in future
-CString Lexer::peek_next_numer() {
-	CString str = "";
+String Lexer::peek_next_numer() {
+	String str = "";
 
 	bool has_x = false;
 	//bool has_l = false;
@@ -135,8 +135,8 @@ CString Lexer::peek_next_numer() {
 	return str;
 }
 
-CString Lexer::peek_next_string() {
-	CString str = "";
+String Lexer::peek_next_string() {
+	String str = "";
 
 	char ch = peek_next_character();
 	while (ch != '"' && ch != '0') {
@@ -167,8 +167,8 @@ CString Lexer::peek_next_string() {
 }
 
 //This can peek keyword, string or number
-CString Lexer::peek_next_word(int& token_type) {
-	CString str = "";
+String Lexer::peek_next_word(int& token_type) {
+	String str = "";
 
 	int character = peek_next_character();
 	
@@ -205,24 +205,30 @@ Token* Lexer::new_token() {
 
 int Lexer::decide_token_keyword(const char* word) {
 	if (COMPARE(word, "true"))			return TOKEN_KEYWORD_TRUE;
-	if (COMPARE(word, "false"))		return TOKEN_KEYWORD_FALSE;
+	if (COMPARE(word, "false"))			return TOKEN_KEYWORD_FALSE;
 	if (COMPARE(word, "if"))			return TOKEN_KEYWORD_IF;
 	if (COMPARE(word, "else"))			return TOKEN_KEYWORD_ELSE;
 	if (COMPARE(word, "for"))			return TOKEN_KEYWORD_FOR;
-	if (COMPARE(word, "new"))			return TOKEN_KEYWORD_NEW;
-	if (COMPARE(word, "float"))		return TOKEN_KEYWORD_FLOAT;
-	if (COMPARE(word, "long"))			return TOKEN_KEYWORD_LONG;
-	if (COMPARE(word, "string"))		return TOKEN_KEYWORD_STRING;
+	if (COMPARE(word, "new"))			return TOKEN_KEYWORD_NEW;	
 	if (COMPARE(word, "return"))		return TOKEN_KEYWORD_RETURN;
 	if (COMPARE(word, "enum"))			return TOKEN_KEYWORD_ENUM;
 	if (COMPARE(word, "struct"))		return TOKEN_KEYWORD_STRUCT;
-	if (COMPARE(word, "defer"))		return TOKEN_KEYWORD_DEFER;
+	if (COMPARE(word, "defer"))			return TOKEN_KEYWORD_DEFER;
 	if (COMPARE(word, "constructor"))	return TOKEN_KEYWORD_CONSTRUCTOR;
 	if (COMPARE(word, "destructor"))	return TOKEN_KEYWORD_DESCRUCTOR;
-	if (COMPARE(word, "int"))			return TOKEN_KEYWORD_INT;
+
+	if (COMPARE(word, "float"))			return TOKEN_KEYWORD_FLOAT;
+	if (COMPARE(word, "long"))			return TOKEN_KEYWORD_LONG;
+	if (COMPARE(word, "string"))		return TOKEN_KEYWORD_STRING;
+
+	if (COMPARE(word, "s8"))			return TOKEN_KEYWORD_S8;
 	if (COMPARE(word, "s16"))			return TOKEN_KEYWORD_S16;
 	if (COMPARE(word, "s32"))			return TOKEN_KEYWORD_S32;
 	if (COMPARE(word, "s64"))			return TOKEN_KEYWORD_S64;
+	if (COMPARE(word, "u8"))			return TOKEN_KEYWORD_U8;
+	if (COMPARE(word, "u16"))			return TOKEN_KEYWORD_U16;
+	if (COMPARE(word, "u32"))			return TOKEN_KEYWORD_U32;
+	if (COMPARE(word, "u64"))			return TOKEN_KEYWORD_U64;
 	return 0;
 }
 
@@ -302,7 +308,7 @@ TokenDefine Lexer::get_next_token() {
 	char character = peek_next_character();
 	eat_character();
 
-	CString token_value_string = "";
+	String token_value_string = "";
 	int token = 0;
 	int type = 0;
 
@@ -363,9 +369,15 @@ TokenDefine Lexer::get_next_token() {
 		token = TOKEN_COMMA;
 		break;
 	case '(':
-		token = TOKEN_LBRACKET;
+		token = TOKEN_LPARENTHESE;
 		break;
 	case ')':
+		token = TOKEN_RPARENTHESE;
+		break;
+	case '[':
+		token = TOKEN_LBRACKET;
+		break;
+	case ']':
 		token = TOKEN_RBRACKET;
 		break;
 	case '{':

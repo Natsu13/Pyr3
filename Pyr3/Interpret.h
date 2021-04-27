@@ -2,14 +2,13 @@
 
 #include "Headers.h"
 #include "Token.h"
-#include "CString.h"
+#include "String.h"
 
 enum AST_Types {
 	AST_EXPRESSION = 0x0,
 	AST_IDENT = 0x1,
 	AST_BLOCK = 0x2,
 	AST_DECLARATION = 0x3,
-	AST_TYPE_DEFINITION = 0x4,
 	//AST_STRING = 0x5,
 	//AST_NUMBER = 0x6,
 	AST_BINARYOP = 0x7,
@@ -18,7 +17,9 @@ enum AST_Types {
 	AST_UNARYOP = 0x10,
 	AST_DIRECTIVE = 0x11,
 	AST_CONDITION = 0x12,
-	AST_LITERAL = 0x13
+	AST_LITERAL = 0x13,
+	AST_RETURN = 0x14,
+	AST_TYPE = 0x15
 };
 
 const int D_COMPILER = 0x1;
@@ -40,38 +41,70 @@ struct AST_Expression {
 	int type = AST_EXPRESSION;
 	unsigned int flags = 0;
 
+	AST_Block* scope = NULL;
 	Token* token = NULL;
+
+	//For debug
 	int line_number = 0;
 	int character_number = 0;
-	CString *file_name = NULL;
+	String *file_name = NULL;
 };
 
 const int AST_BLOCK_FLAG_MAIN_BLOCK = 0x1;
 struct AST_Block : public AST_Expression {
 	AST_Block() { type = AST_BLOCK; }
-
-	AST_Block* scope = NULL;
 	vector<AST_Expression*> expressions;
 };
 
-const int AST_Type_unitialized = 0x0;
-const int AST_Type_s8 = 0x1;
-const int AST_Type_s16 = 0x2;
-const int AST_Type_s32 = 0x3;
-const int AST_Type_s64 = 0x4;
-const int AST_Type_int = 0x5;
-const int AST_Type_char = 0x6;
-const int AST_Type_struct = 0x7;
-const int AST_Type_enum = 0x8;
-const int AST_Type_float = 0x9;
-const int AST_Type_long = 0x10;
-const int AST_Type_bit = 0x11;
+enum AST_Internal_Types {
+	AST_Type_unitialized = 0x0,
+	AST_Type_s8 = 0x1,
+	AST_Type_s16 = 0x2,
+	AST_Type_s32 = 0x4,
+	AST_Type_s64 = 0x8,
+	AST_Type_u8 = 0x10,
+	AST_Type_u16 = 0x12,
+	AST_Type_u32 = 0x14,
+	AST_Type_u64 = 0x18,
+	AST_Type_char = 0x20,
+	AST_Type_struct = 0x21,
+	AST_Type_enum = 0x22,
+	AST_Type_float = 0x24,
+	AST_Type_long = 0x28,
+	AST_Type_bit = 0x30,
+	AST_Type_pointer = 0x31
+};
 
-struct AST_Type_Definition : public AST_Expression {
-	AST_Type_Definition() { type = AST_TYPE_DEFINITION; }
+const int AST_TYPE_DEFINITION	= 0x0;
+const int AST_TYPE_POINTER		= 0x1;
+const int AST_TYPE_ADDRESSOF	= 0x2;
+struct AST_Type : public AST_Expression {
+	AST_Type() { type = AST_TYPE; }
 
-	int size = 1; //Size in bits
+	int kind = AST_TYPE_DEFINITION;
+	vector<AST_Expression*> array_size;
+};
+
+struct AST_Type_Definition : public AST_Type {
+	AST_Type_Definition() { kind = AST_TYPE_DEFINITION; }
+
+	int size = 1;
+	int aligment = 1;
 	int internal_type = 0;
+};
+
+struct AST_Pointer : public AST_Type {
+	AST_Pointer() { kind = AST_TYPE_POINTER; }
+
+	AST_Expression* point_to = NULL;
+	AST_Type_Definition* point_type = NULL;
+};
+
+struct AST_Addressof : public AST_Type {
+	AST_Addressof() { kind = AST_TYPE_ADDRESSOF; }
+
+	AST_Expression* address_of = NULL;
+	AST_Type_Definition* address_type = NULL;
 };
 
 const int AST_IDENT_FLAG_CONSTANT = 0x1;
@@ -80,8 +113,6 @@ struct AST_Ident : public AST_Expression {
 
 	Token* name = NULL;
 
-	AST_Block* scope = NULL;
-	AST_Expression* type_definition = NULL;
 	AST_Declaration* type_declaration = NULL;
 };
 
@@ -96,40 +127,41 @@ struct AST_Declaration : public AST_Expression {
 	AST_Declaration() { type = AST_DECLARATION; }
 
 	AST_Ident* ident = NULL;
-	AST_Expression* assigmet_type = NULL;
+	AST_Expression* assigmet_type = NULL; //AST_Type_Definition
 	AST_Expression* value = NULL;
-
-	AST_Block* scope = NULL;
-	int type_definition = NULL;
 
 	int register_index = -1;
 };
 
-const int LITERAL_NUMBER = 1;
-const int LITERAL_STRING = 2;
-const int LITERAL_FLOAT = 3;
+const int LITERAL_NUMBER = 0x1;
+const int LITERAL_STRING = 0x2;
+const int LITERAL_FLOAT  = 0x4;
 
 const int NUMBER_FLAG_SIGNED = 0x1;
-const int NUMBER_FLAG_FLOAT = 0x2;
+const int NUMBER_FLAG_FLOAT  = 0x2;
 struct AST_Literal : public AST_Expression {
 	AST_Literal() { type = AST_LITERAL; }
 
 	int value_type = 0;
 
-	CString string_value = NULL;		
-
+	String string_value = NULL;
 	long long integer_value = 0;
 	float float_value = 0.0;
 	int number_flags = 0;
 };
 
+enum UnaryOp {
+	UNOP_REF = '*', //42
+	UNOP_DEF = '&',  //38,
+	UNOP_CALL = 3
+};
 struct AST_UnaryOp : public AST_Expression {
 	AST_UnaryOp() { type = AST_UNARYOP; }
 
 	AST_Expression* left = NULL;
 	AST_Block* arguments = NULL;
-	Token* operation = NULL;
-	bool isPreppend = false;
+	int operation = NULL;
+	bool isPreppend = true;
 };
 
 enum BinaryOp {
@@ -144,9 +176,9 @@ enum BinaryOp {
 	BINOP_GREATER		= '>', //62
 	BINOP_GREATEREQUAL	= 8,   //>=
 	BINOP_LESS			= '<', //60
-	BINOP_LESSEQUAL		= 10,  // <=
-	BINOP_LOGIC_AND		= 11,  // &&
-	BINOP_LOGIC_OR		= 12,  // ||
+	BINOP_LESSEQUAL		= 10,  //<=
+	BINOP_LOGIC_AND		= 11,  //&&
+	BINOP_LOGIC_OR		= 12,  //||
 	BINOP_BITWISE_AND	= '&', //38
 	BINOP_BITWISE_OR	= '|', //124
 };
@@ -156,8 +188,6 @@ struct AST_BinaryOp : public AST_Expression {
 	AST_Expression* left = NULL;
 	AST_Expression* right = NULL;
 	int operation = 0;
-
-	AST_Block* scope = NULL;
 };
 
 const int AST_DIRECTIVE_FLAG_INITIALIZING = 0x1;
@@ -170,11 +200,13 @@ struct AST_Directive : public AST_Expression {
 	int directive_type = 0;
 
 	AST_Expression* value0 = NULL;
-
-	AST_Block* scope = NULL;
-
 };
 
+struct AST_Return : public AST_Expression {
+	AST_Return() { type = AST_RETURN; }
+
+	AST_Expression* value = NULL;
+};
 
 const int AST_PROCEDURE_FLAG_COMPILER = 0x1;
 const int AST_PROCEDURE_FLAG_INTERNAL = 0x2;
@@ -207,35 +239,41 @@ private:
 public:
 	Interpret();
 
-	void report_error(CString message);
+	void report_error(String message);
 
-	void report_error(CString message, va_list argptr);
-	void report_error(CString message, const char* file, int row, int column, va_list argptr);
-	void report_warning(CString message, va_list argptr);
-	void report_warning(CString message, const char* file, int row, int column, va_list argptr);
+	void report_error(String message, va_list argptr);
+	void report_error(String message, const char* file, int row, int column, va_list argptr);
+	void report_warning(String message, va_list argptr);
+	void report_warning(String message, const char* file, int row, int column, va_list argptr);
 
 	void report_error(Token* token, const char* message, ...);
-	void report_error(Token* token, CString message, ...);
+	void report_error(Token* token, String message, ...);
 	void report_warning(Token* token, const char* message, ...);
-	void report_warning(Token* token, CString message, ...);
+	void report_warning(Token* token, String message, ...);
 
 	bool isError();		
 
-	AST_Type_Definition* type_def_bit = NULL;
+	AST_Type_Definition* type_bit = NULL;
+	AST_Type_Definition* type_pointer = NULL;
 
-	AST_Type_Definition* type_def_int = NULL;
-	AST_Type_Definition* type_def_float = NULL;
-	AST_Type_Definition* type_def_long = NULL;
-	AST_Type_Definition* type_def_char = NULL;
+	AST_Type_Definition* type_int = NULL;
+	AST_Type_Definition* type_float = NULL;
+	AST_Type_Definition* type_long = NULL;
+	AST_Type_Definition* type_char = NULL;
 
-	AST_Type_Definition* type_def_s8 = NULL;
-	AST_Type_Definition* type_def_s16 = NULL;
-	AST_Type_Definition* type_def_s32 = NULL;
-	AST_Type_Definition* type_def_s64 = NULL;
+	AST_Type_Definition* type_s8 = NULL;
+	AST_Type_Definition* type_s16 = NULL;
+	AST_Type_Definition* type_s32 = NULL;
+	AST_Type_Definition* type_s64 = NULL;
+
+	AST_Type_Definition* type_u8 = NULL;
+	AST_Type_Definition* type_u16 = NULL;
+	AST_Type_Definition* type_u32 = NULL;
+	AST_Type_Definition* type_u64 = NULL;
 };
 
-#define AST_NEW(type) create_expression(new type(), lexer->peek_next_token());
-#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr);
+#define AST_NEW(type) create_expression(new type(), lexer->peek_next_token(), current_scope);
+#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr, nullptr);
 
 template<class T>
 T insert_and_return(vector<T>& _vector, T object) {
@@ -244,9 +282,12 @@ T insert_and_return(vector<T>& _vector, T object) {
 }
 
 template<class AST>
-AST* create_expression(AST* expression, Token* current_token) {
+AST* create_expression(AST* expression, Token* current_token, AST_Block* current_scope) {
 	if(current_token != nullptr)
 		expression->token = current_token;
+
+	if (current_scope != nullptr)
+		expression->scope = current_scope;
 
 	return expression;
 }

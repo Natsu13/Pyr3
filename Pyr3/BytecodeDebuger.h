@@ -1,7 +1,7 @@
 #pragma once
 #include "Interpret.h"
 #include "Bytecode.h"
-#include "CString.h"
+#include "String.h"
 
 class BytecodeDebuger
 {
