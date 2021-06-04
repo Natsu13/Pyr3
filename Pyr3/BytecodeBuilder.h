@@ -1,6 +1,7 @@
 #pragma once
 #include "Interpret.h"
 #include "Bytecode.h"
+#include "TypeResolver.h"
 
 struct output_register {
 	int start = -1;
@@ -19,6 +20,7 @@ private:
 	int output_registers_end = 0;
 	int stack_size = 0;
 	Interpret* interpret = nullptr;
+	TypeResolver* typeResolver = nullptr;
 	ByteCode* current_bytecode = nullptr;
 
 	vector<ByteCode*> bytecodes;	
@@ -30,14 +32,19 @@ private:
 	int build_condition(AST_Condition* condition);
 	int build_unary(AST_UnaryOp* unary);
 	int build_assigment(AST_BinaryOp* binop);
+	int build_type(AST_Type* type);
+	int build_pointer(AST_Pointer* pointer);
+	int build_return(AST_Return* ret);
+	int build_procedure_call(AST_UnaryOp* unary);
 
 	int calculate_array_size(AST_Type* type);
 	int find_address_of(AST_Expression* expression);
-	AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
+	int find_address_of_type(AST_Expression* expression);
+	//AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
 
 	ByteCode* instruction(Bytecode_Instruction instruction, int a, int b, int result, int line_number);
 public:
-	BytecodeBuilder(Interpret* interpret);
+	BytecodeBuilder(Interpret* interpret, TypeResolver* typeResolver);
 	void build(AST_Block* block);
 	vector<ByteCode*> get_instructions();
 	int get_output_register_size();

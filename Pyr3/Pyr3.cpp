@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
             auto tokens = lexer->getTokens();
 
             Parser* parser = NULL;
+            TypeResolver* type_resolver = NULL;
 
             if (!interpreter->isError()) {
                 TypeResolver* type_resolver = new TypeResolver(interpreter);
@@ -74,7 +75,7 @@ int main(int argc, char* argv[])
                 DirectiveResolver* directive_resolver = new DirectiveResolver(interpreter);
                 directive_resolver->resolve(main_block);
 
-                BytecodeBuilder* builder = new BytecodeBuilder(interpreter);
+                BytecodeBuilder* builder = new BytecodeBuilder(interpreter, type_resolver);
                 builder->build(main_block);
 
                 BytecodeDebuger* debuger = new BytecodeDebuger(builder->get_instructions());

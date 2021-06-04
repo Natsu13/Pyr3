@@ -12,6 +12,13 @@ void BytecodeDebuger::debug() {
 		printf("%7d: ", instruction->index_instruction);
 
 		switch (instruction->instruction) {
+			case BYTECODE_CALL_PROCEDURE: {
+				auto call = static_cast<Call_Record*>(instruction->big_constant._pointer);
+				auto procedure = call->procedure;
+
+				printf("%12s %s(...)\n", "call", call->name.data);
+				break;
+			}
 			case BYTECODE_INTEGER_ADD_TO_CONSTANT: {
 				printf("%12s v%d += %I64d\n", "add_int", instruction->index_r, instruction->big_constant._s64);
 				break;
@@ -28,6 +35,10 @@ void BytecodeDebuger::debug() {
 				printf("%12s v%d, [v%d]\n", "mov", instruction->index_r, instruction->index_a);
 				break;
 			}
+			case BYTECODE_MOVE_A_BY_REFERENCE_TO_R: {
+				printf("%12s v%d, *v%d\n", "mov", instruction->index_r, instruction->index_a);
+				break;
+			}
 			case BYTECODE_JUMP: {
 				printf("%12s %d\n", "jump", instruction->index_r);
 				break;
@@ -36,6 +47,18 @@ void BytecodeDebuger::debug() {
 				printf("%12s v%d == 1, %d\n", "jump_if", instruction->index_a, instruction->index_r);
 				break;
 			}
+			case BYTECODE_PUSH_TO_STACK: {
+				printf("%12s v%d\n", "push", instruction->index_r);
+				break;
+			}
+			case BYTECODE_POP_FROM_STACK: {
+				printf("%12s v%d\n", "pop", instruction->index_r);
+				break;
+			}
+			case BYTECODE_ADDRESS_OF: {
+				printf("%12s v%d = [v%d]\n", "mov", instruction->index_r, instruction->index_a);
+				break;
+			}			
 			case BYTECODE_BINOP_ISEQUAL:
 			case BYTECODE_BINOP_ISNOTEQUAL:
 			case BYTECODE_BINOP_PLUS:		

@@ -2,7 +2,7 @@
 #include "Interpret.h"
 #include "String.h"
 
-const int INSTRUCTION_COUNT = 21;
+const int INSTRUCTION_COUNT = 24;
 
 enum Bytecode_Instruction {
 	BYTECODE_UNINITIALIZED = 0,
@@ -31,7 +31,13 @@ enum Bytecode_Instruction {
 	BYTECODE_JUMP_IF = 20,
 	BYTECODE_JUMP = 21,
 
-	BYTECODE_RESERVE_STACK = 22
+	BYTECODE_RESERVE_STACK = 22,
+	BYTECODE_PUSH_TO_STACK = 24,
+	BYTECODE_POP_FROM_STACK = 25,
+	BYTECODE_CALL_PROCEDURE = 26,
+
+	BYTECODE_ADDRESS_OF = 27,
+	BYTECODE_MOVE_A_BY_REFERENCE_TO_R = 28
 };
 
 const char* InstructionNames[];
@@ -50,7 +56,7 @@ struct Register {
 
 		float _float;
 
-		char* _pointer;
+		void* _pointer;
 	};
 };
 
@@ -76,4 +82,10 @@ struct ByteCode {
 	int line_number = 0;
 
 	String comment;
+};
+
+struct Call_Record {
+	String name = NULL;
+	AST_Procedure* procedure = NULL;
+	vector<AST_Expression*> arguments;
 };

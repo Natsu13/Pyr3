@@ -1,7 +1,7 @@
 #pragma once
 #include "BytecodeBuilder.h"
 
-BytecodeBuilder::BytecodeBuilder(Interpret* interpret):interpret(interpret) {
+BytecodeBuilder::BytecodeBuilder(Interpret* interpret, TypeResolver* typeResolver):interpret(interpret), typeResolver(typeResolver) {
 
 }
 
@@ -140,22 +140,27 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 						else
 							instr->big_constant._u64 = literal->integer_value;
 					}
-				}break;
+					break;
+				}
 				default: {
 					/*
 					auto instr_initialize = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
 					instr_initialize->big_constant._s64 = 0;
 					*/
 					auto index = build_expression(declaration->value);
-					auto instr = Instruction(BYTECODE_MOVE_A_TO_R, index, -1, declaration->register_index);
-				}break;
+					if (index != -1) {
+						auto instr = Instruction(BYTECODE_MOVE_A_TO_R, index, -1, declaration->register_index);
+					}
+					break;
+				}
 			}
 		}
 
 		return declaration->register_index;
 	}break;
 	case AST_TYPE: {
-
+		AST_Type* type = static_cast<AST_Type*>(expression);
+		return build_type(type);
 	}break;
 	case AST_LITERAL: {
 		AST_Literal* literal = static_cast<AST_Literal*>(expression);
@@ -185,21 +190,29 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		
 		build(procedure->body);
 
+		//auto inst_ret = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, result_register);
+		//Instruction(BYTECODE_POP_FROM_STACK, -1, -1, result_register);
+
 		return result_register;
 	}
 	case AST_PARAMLIST: {
-
-	}break;
+		break;
+	}
 	case AST_UNARYOP: {
 		AST_UnaryOp* unary = static_cast<AST_UnaryOp*>(expression);
 		return build_unary(unary);
 	}
 	case AST_RETURN: {
-
-	}break;
+		AST_Return* retu = static_cast<AST_Return*>(expression);
+		return build_return(retu);
+	}
 	case AST_DIRECTIVE: {
 		AST_Directive* directive = static_cast<AST_Directive*>(expression);
 		break;
+	}
+	case AST_POINTER: {
+		AST_Pointer* pointer = static_cast<AST_Pointer*>(expression);
+		return build_pointer(pointer);
 	}
 	default:
 		assert(false);
@@ -210,27 +223,42 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 	return -1;
 }
 
-AST_Declaration* BytecodeBuilder::find_declaration(AST_Ident* ident, AST_Block* scope) {
-	for (int i = 0; i < scope->expressions.size(); i++) {
-		auto expression = scope->expressions[i];
-		if (expression->type == AST_DECLARATION) {
-			auto declaration = static_cast<AST_Declaration*>(expression);
-			if (declaration->ident->name->value == ident->name->value) {
-				return declaration;
+int BytecodeBuilder::build_return(AST_Return* ret) {
+	//ret->scope->
+
+	int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_u64));
+	int addr = build_expression(ret->value);
+	auto address_reg = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, output);
+	auto stackPush = Instruction(BYTECODE_PUSH_TO_STACK, -1, -1, output);
+
+	return -1;
+}
+
+int BytecodeBuilder::find_address_of_type(AST_Expression* expression) {
+	if (expression->type == AST_DECLARATION) {
+		auto declaration = static_cast<AST_Declaration*>(expression);
+		if (declaration->assigmet_type->type == AST_TYPE) {
+			auto type = static_cast<AST_Type*>(declaration->assigmet_type);
+			if (type->kind == AST_TYPE_POINTER) {
+				auto pointer = static_cast<AST_Pointer*>(type);
+				return find_address_of_type(pointer->point_to);
 			}
 		}
+		return declaration->register_index;
 	}
 
-	if (scope->scope != NULL)
-		return find_declaration(ident, scope->scope);
-
-	return NULL;
+	assert(false);
+	return 0;
 }
 
 int BytecodeBuilder::find_address_of(AST_Expression* expression) {
 	if (expression->type == AST_IDENT) {
 		auto ident = static_cast<AST_Ident*>(expression);
-		auto declaration = find_declaration(ident, ident->scope);
+		if (ident->type_declaration != NULL) {
+			return find_address_of_type(ident->type_declaration);
+		}
+
+		auto declaration = typeResolver->find_declaration(ident, ident->scope);
 		return declaration->register_index;
 	}
 	else if (expression->type == AST_UNARYOP) {
@@ -244,25 +272,75 @@ int BytecodeBuilder::find_address_of(AST_Expression* expression) {
 
 int BytecodeBuilder::build_unary(AST_UnaryOp* unary) {
 	if (unary->operation == UNOP_CALL) {
-
+		return build_procedure_call(unary);
 	}
 	else if (unary->operation == UNOP_DEF) { //*
 		int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_pointer));
 		int addr = build_expression(unary->left);
-		auto address_reg = Instruction(BYTECODE_MOVE_A_REGISTER_TO_R, addr, -1, output);
+		auto address_reg = Instruction(BYTECODE_MOVE_A_BY_REFERENCE_TO_R, addr, -1, output);
 		return output;
 	}
 	else if (unary->operation == UNOP_REF) { //&
+		int addr = build_expression(unary->left);
 		int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_u64));
-		auto address_reg = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, output);
-		int addr = find_address_of(unary->left);
-		//int addr = build_expression(unary->left);
-		address_reg->big_constant._s64 = addr;
+		auto address_reg = Instruction(BYTECODE_ADDRESS_OF, addr, -1, output);
 		return output;
 	}
 
 	assert(false);
 	return -1;
+}
+
+int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
+	int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_u64));
+
+	auto call_instr = Instruction(BYTECODE_CALL_PROCEDURE, -1, -1, output);
+
+	auto call = new Call_Record();
+
+	assert(unary->left->type == AST_IDENT);
+	auto literar = static_cast<AST_Ident*>(unary->left);
+
+	auto declaration = typeResolver->find_declaration(literar, literar->scope);
+	assert(declaration != NULL);
+	assert(declaration->value->type == AST_PROCEDURE);
+
+	call->name = declaration->ident->name->value;
+	call->procedure = static_cast<AST_Procedure*>(declaration->value);
+	
+	call->arguments.clear();
+	for (int i = 0; i < unary->arguments->expressions.size(); i++) {
+		auto expr = unary->arguments->expressions[i];
+
+		assert(expr->type == AST_DECLARATION);
+
+		call->arguments.push_back(static_cast<AST_Declaration*>(expr));
+	}
+
+	call_instr->big_constant._pointer = call;
+
+	return output;
+}
+
+int BytecodeBuilder::build_pointer(AST_Pointer* type) {
+	build_expression(type->point_to);
+
+	if (type->point_to->type == AST_DECLARATION) {
+		auto decla = static_cast<AST_Declaration*>(type->point_to);
+		return decla->register_index;
+	}
+
+	assert(false);
+	return 0;
+}
+
+int BytecodeBuilder::build_type(AST_Type* type) {
+	if (type->kind == AST_TYPE_POINTER) {
+		return build_pointer(static_cast<AST_Pointer*>(type));
+	}
+
+	assert(false);
+	return 0;
 }
 
 int BytecodeBuilder::build_condition(AST_Condition* condition) {
@@ -272,7 +350,7 @@ int BytecodeBuilder::build_condition(AST_Condition* condition) {
 }
 
 int BytecodeBuilder::build_assigment(AST_BinaryOp* binop) {
-	int addrResult = build_expression(binop->left);
+	int addrResult = find_address_of(binop->left);
 	int addr = build_expression(binop->right);
 
 	auto inst = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, addrResult);
@@ -335,8 +413,8 @@ int BytecodeBuilder::build_binary(AST_BinaryOp* binop) {
 		op = BYTECODE_BINOP_BITWISE_OR;
 	}
 
-	int left_register = build_expression(binop->left);
 	int right_register = build_expression(binop->right);
+	int left_register = build_expression(binop->left);	
 	int output_register = allocate_output_register(interpret->type_bit);
 
 	auto instr = Instruction(op, left_register, right_register, output_register);

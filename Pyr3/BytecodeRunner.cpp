@@ -54,13 +54,35 @@ int BytecodeRunner::run_expression(int address) {
 		this->registers[bc->index_r]._s64 = (this->registers[bc->index_r]._s64 + bc->big_constant._s64);
 		return bc->index_r;
 	}
+
 	if (bc->instruction == BYTECODE_MOVE_A_TO_R) {
 		this->registers[bc->index_r] = this->registers[bc->index_a];
+		return bc->index_r;
+	}
+	if (bc->instruction == BYTECODE_MOVE_A_BY_REFERENCE_TO_R) {
+		this->registers[bc->index_r] = *(static_cast<Register*>(this->registers[bc->index_a]._pointer));
 		return bc->index_r;
 	}
 	if (bc->instruction == BYTECODE_MOVE_A_REGISTER_TO_R) {
 		this->registers[bc->index_r] = this->registers[this->registers[bc->index_a]._s64];
 	}
+
+	if (bc->instruction == BYTECODE_CALL_PROCEDURE) {
+
+	}
+
+	if (bc->instruction == BYTECODE_ADDRESS_OF) {
+		this->registers[bc->index_r]._pointer = &(this->registers[bc->index_a]);
+		return bc->index_r;
+	}	
+	if (bc->instruction == BYTECODE_PUSH_TO_STACK) {
+		stack.push_back(this->registers[bc->index_r]);
+	}
+	if (bc->instruction == BYTECODE_POP_FROM_STACK) {
+		this->registers[bc->index_r] = stack.back();
+		stack.pop_back();
+	}
+	
 	if (is_binop(bc->instruction)) {
 		return run_binop(address);
 	}

@@ -8,6 +8,7 @@ private:
 	Interpret* interpret;
 	vector<ByteCode*> bytecodes;
 	vector<Register> registers;
+	vector<Register> stack;
 
 	int current_address;
 

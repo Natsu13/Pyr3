@@ -481,7 +481,7 @@ AST_Expression* Parser::parse_ident() {
 
 		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
 		unary->operation = UNOP_DEF;
-		unary->left = parse_primary();
+		unary->left = parse_expression();
 
 		return unary;
 	}
@@ -490,7 +490,7 @@ AST_Expression* Parser::parse_ident() {
 
 		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
 		unary->operation = UNOP_REF;
-		unary->left = parse_primary();
+		unary->left = parse_expression();
 
 		return unary;
 	}

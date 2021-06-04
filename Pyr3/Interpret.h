@@ -19,7 +19,8 @@ enum AST_Types {
 	AST_CONDITION = 0x12,
 	AST_LITERAL = 0x13,
 	AST_RETURN = 0x14,
-	AST_TYPE = 0x15
+	AST_TYPE = 0x15,
+	AST_POINTER = 0x16
 };
 
 const int D_COMPILER = 0x1;
@@ -43,6 +44,7 @@ struct AST_Expression {
 
 	AST_Block* scope = NULL;
 	Token* token = NULL;
+	AST_Expression* expression = NULL;
 
 	//For debug
 	int line_number = 0;
@@ -97,14 +99,14 @@ struct AST_Pointer : public AST_Type {
 	AST_Pointer() { kind = AST_TYPE_POINTER; }
 
 	AST_Expression* point_to = NULL;
-	AST_Type_Definition* point_type = NULL;
+	AST_Type* point_type = NULL;
 };
 
 struct AST_Addressof : public AST_Type {
 	AST_Addressof() { kind = AST_TYPE_ADDRESSOF; }
 
 	AST_Expression* address_of = NULL;
-	AST_Type_Definition* address_type = NULL;
+	AST_Type* address_type = NULL;
 };
 
 const int AST_IDENT_FLAG_CONSTANT = 0x1;
