@@ -375,6 +375,12 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 AST_Type* TypeResolver::find_typedefinition(AST_Ident* ident, AST_Block* scope) {
 	auto name = ident->name->value;
 
+	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_PROCEDURE) {
+		auto in_header = find_typedefinition(ident, scope->belongs_to_procedure->header);
+		if (in_header != NULL)
+			return in_header;
+	}
+
 	for (auto i = 0; i < scope->expressions.size(); i++) {
 		AST_Expression* it = scope->expressions[i];
 

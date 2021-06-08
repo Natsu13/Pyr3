@@ -8,7 +8,7 @@ private:
 	Interpret* interpret;
 	vector<ByteCode*> bytecodes;
 	vector<Register> registers;
-	vector<Register> stack;
+	vector<Register> stack; 
 
 	int current_address;
 
@@ -20,5 +20,7 @@ public:
 	void loop();
 	int run_expression(int address);
 	int run_binop(int address);
+	int get_address_of_procedure(String procedure_name, AST_Block* block);
+	void set_current_address(int address);
 };
 

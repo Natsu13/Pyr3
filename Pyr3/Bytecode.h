@@ -2,7 +2,7 @@
 #include "Interpret.h"
 #include "String.h"
 
-const int INSTRUCTION_COUNT = 24;
+const int INSTRUCTION_COUNT = 29;
 
 enum Bytecode_Instruction {
 	BYTECODE_UNINITIALIZED = 0,
@@ -37,7 +37,8 @@ enum Bytecode_Instruction {
 	BYTECODE_CALL_PROCEDURE = 26,
 
 	BYTECODE_ADDRESS_OF = 27,
-	BYTECODE_MOVE_A_BY_REFERENCE_TO_R = 28
+	BYTECODE_MOVE_A_BY_REFERENCE_TO_R = 28,
+	BYTECODE_RETURN = 29
 };
 
 const char* InstructionNames[];
@@ -82,6 +83,7 @@ struct ByteCode {
 	int line_number = 0;
 
 	String comment;
+	int serial = 0;
 };
 
 struct Call_Record {

@@ -127,7 +127,7 @@ AST_Return* Parser::parse_return() {
 	lexer->eat_token();
 
 	AST_Return* ast_return = AST_NEW(AST_Return);
-	ast_return->value = parse_expression();
+	ast_return->value = parse_primary();
 
 	return ast_return;
 }
@@ -287,8 +287,14 @@ AST_Expression* Parser::parse_param_or_function() {
 		parse_block();
 		current_scope = scope;
 	}
-		
+	
+	if (block != NULL) {
+		block->belongs_to = AST_BLOCK_BELONGS_TO_PROCEDURE;
+		block->belongs_to_procedure = function;
+	}
+
 	function->body = block;
+
 	return function;
 }
 

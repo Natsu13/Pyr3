@@ -5,29 +5,29 @@
 #include "String.h"
 
 enum AST_Types {
-	AST_EXPRESSION = 0x0,
-	AST_IDENT = 0x1,
-	AST_BLOCK = 0x2,
-	AST_DECLARATION = 0x3,
+	AST_EXPRESSION		= 0x0,
+	AST_IDENT			= 0x1,
+	AST_BLOCK			= 0x2,
+	AST_DECLARATION		= 0x3,
 	//AST_STRING = 0x5,
 	//AST_NUMBER = 0x6,
-	AST_BINARYOP = 0x7,
-	AST_PROCEDURE = 0x8,
-	AST_PARAMLIST = 0x9,
-	AST_UNARYOP = 0x10,
-	AST_DIRECTIVE = 0x11,
-	AST_CONDITION = 0x12,
-	AST_LITERAL = 0x13,
-	AST_RETURN = 0x14,
-	AST_TYPE = 0x15,
-	AST_POINTER = 0x16
+	AST_BINARYOP		= 0x7,
+	AST_PROCEDURE		= 0x8,
+	AST_PARAMLIST		= 0x9,
+	AST_UNARYOP			= 0x10, //16
+	AST_DIRECTIVE		= 0x11,
+	AST_CONDITION		= 0x12,
+	AST_LITERAL			= 0x13, //19
+	AST_RETURN			= 0x14,
+	AST_TYPE			= 0x15,
+	AST_POINTER			= 0x16
 };
 
-const int D_COMPILER = 0x1;
-const int D_FOREIGN = 0x2;
-const int D_IMPORT = 0x3;
-const int D_INTERNAL = 0x4;
-const int D_NATIVE = 0x5;
+const int D_COMPILER	= 0x1;
+const int D_FOREIGN		= 0x2;
+const int D_IMPORT		= 0x3;
+const int D_INTERNAL	= 0x4;
+const int D_NATIVE		= 0x5;
 
 using namespace std;
 
@@ -35,6 +35,7 @@ struct AST_Declaration;
 struct AST_Block;
 struct AST_Type_Definition;
 struct AST_Ident;
+struct AST_Procedure;
 
 struct AST_Expression {
 	AST_Expression() {}
@@ -50,12 +51,21 @@ struct AST_Expression {
 	int line_number = 0;
 	int character_number = 0;
 	String *file_name = NULL;
+	int bytecode_address = 0;
 };
 
 const int AST_BLOCK_FLAG_MAIN_BLOCK = 0x1;
+
+const int AST_BLOCK_BELONGS_TO_NOTHING = 0;
+const int AST_BLOCK_BELONGS_TO_PROCEDURE = 0x1;
+
 struct AST_Block : public AST_Expression {
 	AST_Block() { type = AST_BLOCK; }
+
 	vector<AST_Expression*> expressions;
+
+	int belongs_to = 0;
+	AST_Procedure* belongs_to_procedure = NULL;
 };
 
 enum AST_Internal_Types {

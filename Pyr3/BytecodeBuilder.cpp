@@ -16,8 +16,15 @@ ByteCode* BytecodeBuilder::instruction(Bytecode_Instruction instruction, int a, 
 	bc->index_instruction = ++instruction_index;
 
 	bc->line_number = line_number;
+	bc->serial = serial_counter++;
 
 	return bc;
+}
+
+int BytecodeBuilder::get_current_bytecode_address(int offset) {
+	if (current_bytecode != NULL)
+		return current_bytecode->index_instruction + offset;
+	return 0;
 }
 
 vector<ByteCode*> BytecodeBuilder::get_instructions() {
@@ -184,14 +191,13 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		AST_BinaryOp* binary = static_cast<AST_BinaryOp*>(expression);
 		return build_binary(binary);
 	}
-	case AST_PROCEDURE: {		
+	case AST_PROCEDURE: {
 		AST_Procedure* procedure = static_cast<AST_Procedure*>(expression);
 		int result_register = allocate_output_register(interpret->type_pointer);
 		
+		procedure->bytecode_address = get_current_bytecode_address();
+		build(procedure->header);
 		build(procedure->body);
-
-		//auto inst_ret = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, result_register);
-		//Instruction(BYTECODE_POP_FROM_STACK, -1, -1, result_register);
 
 		return result_register;
 	}
@@ -230,6 +236,8 @@ int BytecodeBuilder::build_return(AST_Return* ret) {
 	int addr = build_expression(ret->value);
 	auto address_reg = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, output);
 	auto stackPush = Instruction(BYTECODE_PUSH_TO_STACK, -1, -1, output);
+
+	Instruction(BYTECODE_RETURN, -1, -1, -1);
 
 	return -1;
 }
@@ -311,10 +319,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	call->arguments.clear();
 	for (int i = 0; i < unary->arguments->expressions.size(); i++) {
 		auto expr = unary->arguments->expressions[i];
-
-		assert(expr->type == AST_DECLARATION);
-
-		call->arguments.push_back(static_cast<AST_Declaration*>(expr));
+		call->arguments.push_back(expr);
 	}
 
 	call_instr->big_constant._pointer = call;

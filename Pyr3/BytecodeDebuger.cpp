@@ -51,6 +51,10 @@ void BytecodeDebuger::debug() {
 				printf("%12s v%d\n", "push", instruction->index_r);
 				break;
 			}
+			case BYTECODE_RETURN: {
+				printf("%12s\n", "return");
+				break;
+			}
 			case BYTECODE_POP_FROM_STACK: {
 				printf("%12s v%d\n", "pop", instruction->index_r);
 				break;

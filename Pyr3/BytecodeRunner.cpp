@@ -8,6 +8,15 @@ BytecodeRunner::BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes
 	for (int i = 0; i < register_size; i++) {
 		this->registers.push_back(Register());
 	}
+
+	current_address = 0;
+}
+
+void BytecodeRunner::set_current_address(int address) {
+	assert(address >= 0);
+	assert(address <= bytecodes.size());
+
+	current_address = address;
 }
 
 ByteCode* BytecodeRunner::get_bytecode(int address) {
@@ -18,6 +27,27 @@ ByteCode* BytecodeRunner::get_bytecode(int address) {
 
 	assert(false);
 	return NULL;
+}
+
+int BytecodeRunner::get_address_of_procedure(String procedure_name, AST_Block* block) {
+	for (int i = 0; i < block->expressions.size(); i++) {
+		auto expr = block->expressions[i];
+
+		if (expr->type != AST_DECLARATION) continue;
+
+		auto declaration = static_cast<AST_Declaration*>(expr); 
+		if (declaration->value->type != AST_PROCEDURE) continue;
+
+		if (declaration->ident->name->value == procedure_name)
+			return declaration->value->bytecode_address;
+	}
+
+	if (block->flags & AST_BLOCK_FLAG_MAIN_BLOCK) {
+		assert(false && "Can't find address of procedure");
+		return 0;
+	}
+
+	return get_address_of_procedure(procedure_name, block->scope);
 }
 
 bool BytecodeRunner::is_binop(Bytecode_Instruction bc_inst) {
@@ -31,7 +61,7 @@ bool BytecodeRunner::is_binop(Bytecode_Instruction bc_inst) {
 }
 
 void BytecodeRunner::loop() {
-	for (current_address = 0; current_address < bytecodes.size(); current_address++) {
+	for (; current_address < bytecodes.size(); current_address++) {
 		run_expression(current_address);
 	}
 	for (int i = 0; i < registers.size(); i++) {
@@ -46,43 +76,68 @@ void BytecodeRunner::run(int address) {
 int BytecodeRunner::run_expression(int address) {
 	auto bc = get_bytecode(address);
 
-	if (bc->instruction == BYTECODE_ASSING_TO_BIG_CONSTANT) {
-		this->registers[bc->index_r] = bc->big_constant;
-		return bc->index_r;
-	}
-	if (bc->instruction == BYTECODE_INTEGER_ADD_TO_CONSTANT) {
-		this->registers[bc->index_r]._s64 = (this->registers[bc->index_r]._s64 + bc->big_constant._s64);
-		return bc->index_r;
+	switch (bc->instruction) {
+		case BYTECODE_ASSING_TO_BIG_CONSTANT: {
+			this->registers[bc->index_r] = bc->big_constant;
+			return bc->index_r;
+		}
+		case BYTECODE_INTEGER_ADD_TO_CONSTANT: {
+			this->registers[bc->index_r]._s64 = (this->registers[bc->index_r]._s64 + bc->big_constant._s64);
+			return bc->index_r;
+		}
+
+		case BYTECODE_MOVE_A_TO_R: {
+			this->registers[bc->index_r] = this->registers[bc->index_a];
+			return bc->index_r;
+		}
+		case BYTECODE_MOVE_A_BY_REFERENCE_TO_R: {
+			this->registers[bc->index_r] = *(static_cast<Register*>(this->registers[bc->index_a]._pointer));
+			return bc->index_r;
+		}
+		case BYTECODE_MOVE_A_REGISTER_TO_R:{
+			this->registers[bc->index_r] = this->registers[this->registers[bc->index_a]._s64];
+			return 0;
+		}
+
+		case BYTECODE_CALL_PROCEDURE: {
+			auto reg = new Register();
+			reg->_s64 = current_address;
+			stack.push_back(*reg);//Store return address
+
+			auto procedure = static_cast<Call_Record*>(bc->big_constant._pointer);
+			
+			current_address = procedure->procedure->bytecode_address - 1; //je to for kde se na konci pøièítá adresa
+
+			return 0;
+		}
+
+		case BYTECODE_RETURN: {
+			// return to prev address from stack address register
+
+			//load address of call record and replace address
+			auto reg = stack.front();
+			current_address = reg._s64;
+			stack.erase(stack.begin());
+
+			return 0;
+		}
+
+		case BYTECODE_ADDRESS_OF: {
+			this->registers[bc->index_r]._pointer = &(this->registers[bc->index_a]);
+			return bc->index_r;
+		}
+		case BYTECODE_PUSH_TO_STACK: {
+			stack.push_back(this->registers[bc->index_r]);
+			return 0;
+		}
+
+		case BYTECODE_POP_FROM_STACK: {
+			this->registers[bc->index_r] = stack.front();
+			stack.erase(stack.begin());
+			return 0;
+		}		
 	}
 
-	if (bc->instruction == BYTECODE_MOVE_A_TO_R) {
-		this->registers[bc->index_r] = this->registers[bc->index_a];
-		return bc->index_r;
-	}
-	if (bc->instruction == BYTECODE_MOVE_A_BY_REFERENCE_TO_R) {
-		this->registers[bc->index_r] = *(static_cast<Register*>(this->registers[bc->index_a]._pointer));
-		return bc->index_r;
-	}
-	if (bc->instruction == BYTECODE_MOVE_A_REGISTER_TO_R) {
-		this->registers[bc->index_r] = this->registers[this->registers[bc->index_a]._s64];
-	}
-
-	if (bc->instruction == BYTECODE_CALL_PROCEDURE) {
-
-	}
-
-	if (bc->instruction == BYTECODE_ADDRESS_OF) {
-		this->registers[bc->index_r]._pointer = &(this->registers[bc->index_a]);
-		return bc->index_r;
-	}	
-	if (bc->instruction == BYTECODE_PUSH_TO_STACK) {
-		stack.push_back(this->registers[bc->index_r]);
-	}
-	if (bc->instruction == BYTECODE_POP_FROM_STACK) {
-		this->registers[bc->index_r] = stack.back();
-		stack.pop_back();
-	}
-	
 	if (is_binop(bc->instruction)) {
 		return run_binop(address);
 	}
