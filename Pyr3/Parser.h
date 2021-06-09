@@ -32,6 +32,7 @@ private:
 	AST_Type* parse_type();
 	AST_Type* parse_type_array(AST_Type* type);
 	AST_Type* parse_typedefinition();
+	AST_Expression* parse_typedefinition_or_ident();
 	bool parse_arguments(AST_Block* block);
 	bool is_typedef_keyword();
 	const char* token_to_string(int type);

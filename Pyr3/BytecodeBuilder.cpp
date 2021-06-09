@@ -196,7 +196,13 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		int result_register = allocate_output_register(interpret->type_pointer);
 		
 		procedure->bytecode_address = get_current_bytecode_address();
-		build(procedure->header);
+
+		//build(procedure->header);
+		for (int i = 0; i < procedure->header->expressions.size(); i++) {
+			auto addr = build_expression(procedure->header->expressions[i]);
+			Instruction(BYTECODE_POP_FROM_STACK, -1, -1, addr);
+		}
+
 		build(procedure->body);
 
 		return result_register;
@@ -299,11 +305,7 @@ int BytecodeBuilder::build_unary(AST_UnaryOp* unary) {
 	return -1;
 }
 
-int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
-	int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_u64));
-
-	auto call_instr = Instruction(BYTECODE_CALL_PROCEDURE, -1, -1, output);
-
+int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {	
 	auto call = new Call_Record();
 
 	assert(unary->left->type == AST_IDENT);
@@ -319,12 +321,20 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	call->arguments.clear();
 	for (int i = 0; i < unary->arguments->expressions.size(); i++) {
 		auto expr = unary->arguments->expressions[i];
+		expr->bytecode_address = build_expression(expr);
 		call->arguments.push_back(expr);
 	}
 
+	AST_Type* return_type = typeResolver->get_inferred_type(call->procedure->returnType);
+	int return_register = allocate_output_register(return_type);
+
+	auto call_instr = Instruction(BYTECODE_CALL_PROCEDURE, -1, -1, -1);
 	call_instr->big_constant._pointer = call;
 
-	return output;
+	//Curently we support only one return value
+	Instruction(BYTECODE_POP_FROM_STACK, -1, -1, return_register);
+
+	return return_register;
 }
 
 int BytecodeBuilder::build_pointer(AST_Pointer* type) {

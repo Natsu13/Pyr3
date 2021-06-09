@@ -139,7 +139,8 @@ struct AST_Declaration : public AST_Expression {
 	AST_Declaration() { type = AST_DECLARATION; }
 
 	AST_Ident* ident = NULL;
-	AST_Expression* assigmet_type = NULL; //AST_Type_Definition
+	AST_Expression* assigmet_type = NULL;
+	AST_Type* inferred_type = NULL; //AST_Type_Definition
 	AST_Expression* value = NULL;
 
 	int register_index = -1;

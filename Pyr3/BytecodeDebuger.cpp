@@ -16,7 +16,17 @@ void BytecodeDebuger::debug() {
 				auto call = static_cast<Call_Record*>(instruction->big_constant._pointer);
 				auto procedure = call->procedure;
 
-				printf("%12s %s(...)\n", "call", call->name.data);
+				String args = "";
+				for (int q = 0; q < call->arguments.size(); q++) {
+					auto arg = call->arguments[q];
+					if (!args.isEmpty()) args += ", ";
+
+					char buffer[33];
+					_itoa_s(arg->bytecode_address, buffer, 10);
+					args += "v"; 
+					args += (&buffer[0]);
+				}
+				printf("%12s %s(%s)\n", "call", call->name.data, args.data);
 				break;
 			}
 			case BYTECODE_INTEGER_ADD_TO_CONSTANT: {

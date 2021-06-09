@@ -60,13 +60,18 @@ String& String::operator+(String& second) {
 }
 
 String& String::operator+(const char* second) {
+    if (size == 0) {
+        *this = String(second);
+        return *this;
+    }
     auto oldsize = size;
     int sizeSecond = sizeOfChar(second);
-    size = size + sizeSecond - 1;
+    size = size + sizeSecond;
     char* old = data;
     realoc();
-    memcpy(data, old, oldsize - 1);
-    memcpy(data + oldsize - 1, second, sizeSecond);    
+    memcpy(data, old, oldsize);
+    memcpy(data + oldsize, second, sizeSecond);
+    data[size] = '\0';
     return *this;
 }
 
@@ -78,6 +83,11 @@ String& String::operator+=(char second) {
     memcpy(data, old, oldsize);
     memcpy(data + oldsize, &second, 1);
     data[size] = '\0';
+    return *this;
+}
+
+String& String::operator+=(const char* second) {
+    *this = *this + second;
     return *this;
 }
 

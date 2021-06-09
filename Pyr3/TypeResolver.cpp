@@ -40,6 +40,19 @@ AST_Literal* TypeResolver::make_number_literal(float value) {
 	return literal;
 }
 
+AST_Type* TypeResolver::get_inferred_type(AST_Expression* expression) {
+	if (expression->type == AST_IDENT) {
+		auto ident = static_cast<AST_Ident*>(expression);
+		return ident->type_declaration->inferred_type;
+	}
+	if (expression->type == AST_TYPE) {
+		return static_cast<AST_Type*>(expression);
+	}
+
+	assert(false);
+	return NULL;
+}
+
 void TypeResolver::addToResolve(AST_Expression* expression) {
 	to_be_resolved.push_back(expression);
 }
@@ -101,6 +114,10 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 		case AST_PROCEDURE: {
 			AST_Procedure* procedure = static_cast<AST_Procedure*>(expression);
 			resolve(procedure->body);
+			resolve(procedure->header);
+			if(procedure->returnType != NULL)
+				resolveExpression(procedure->returnType);
+
 			break;
 		}
 		case AST_PARAMLIST:
@@ -237,14 +254,14 @@ AST_Type* TypeResolver::resolveLiteral(AST_Literal* literal) {
 }
 
 AST_Type* TypeResolver::resolveIdent(AST_Ident* ident) {
-	auto type = find_typedefinition(ident, ident->scope);
+	auto type = find_typedefinition(ident, ident->scope);	
 
 	if (type == NULL) {
 		if (phase == 1)
 			addToResolve(ident); //We don't have this type jet maybe it's defined after this expression
 		else if (phase == 2)
 			interpret->report_error(ident->name, "Unkown ident '%s'", ident->name->value);
-	}	 
+	}
 
 	return type;
 }
@@ -296,7 +313,9 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 	}
 
 	if (declaration->assigmet_type != NULL && declaration->assigmet_type->type == AST_TYPE) {		
-		return resolveType(static_cast<AST_Type*>(declaration->assigmet_type));
+		auto type = resolveType(static_cast<AST_Type*>(declaration->assigmet_type));
+		declaration->inferred_type = type;
+		return type;
 	}
 
 	if (declaration->assigmet_type != NULL) {
@@ -305,6 +324,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 			assing_type = static_cast<AST_Ident*>(declaration->assigmet_type);
 		}
 
+		assert(declaration->assigmet_type != NULL);
 		if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT) {
 			if (declaration->assigmet_type->type == AST_IDENT) {
 				assing_type->flags |= AST_IDENT_FLAG_CONSTANT;
@@ -317,6 +337,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}
 
 		declaration->assigmet_type = type_def;
+		declaration->inferred_type = type_def;
 		return type_def;
 	}
 
@@ -331,8 +352,11 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 			}
 		}		
 		
-		if(declaration->assigmet_type->type == AST_TYPE)
-			return static_cast<AST_Type_Definition*>(declaration->assigmet_type);
+		if (declaration->assigmet_type->type == AST_TYPE) {
+			auto type = static_cast<AST_Type_Definition*>(declaration->assigmet_type);
+			declaration->inferred_type = type;
+			return type;
+		}
 	}
 
 	return NULL;

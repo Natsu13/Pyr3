@@ -105,6 +105,11 @@ int BytecodeRunner::run_expression(int address) {
 			stack.push_back(*reg);//Store return address
 
 			auto procedure = static_cast<Call_Record*>(bc->big_constant._pointer);
+
+			for (int i = 0; i < procedure->arguments.size(); i++) {
+				auto arg = procedure->arguments[i];
+				stack.push_back(this->registers[arg->bytecode_address]);
+			}
 			
 			current_address = procedure->procedure->bytecode_address - 1; //je to for kde se na konci pøièítá adresa
 
@@ -132,8 +137,10 @@ int BytecodeRunner::run_expression(int address) {
 		}
 
 		case BYTECODE_POP_FROM_STACK: {
-			this->registers[bc->index_r] = stack.front();
-			stack.erase(stack.begin());
+			assert(stack.size() > 0);
+
+			this->registers[bc->index_r] = stack.back();
+			stack.pop_back();
 			return 0;
 		}		
 	}

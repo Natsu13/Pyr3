@@ -234,7 +234,7 @@ AST_Expression* Parser::parse_param_or_function() {
 			interpret->report_error(token, "You need to defined return type after '->'");
 		}
 		else {
-			function->returnType = parse_ident();
+			function->returnType = parse_typedefinition_or_ident();
 		}
 	}
 	token = lexer->peek_next_token();
@@ -393,6 +393,13 @@ AST_Type* Parser::parse_type() {
 	return type;
 }
 
+AST_Expression* Parser::parse_typedefinition_or_ident() {
+	auto type = parse_typedefinition();
+	if(type == NULL)
+		return crate_ident_from_current_token();
+	return type;
+}
+
 AST_Type* Parser::parse_typedefinition() {
 	Token* token = lexer->peek_next_token();
 	int type = token->type;
@@ -445,7 +452,6 @@ AST_Type* Parser::parse_typedefinition() {
 		}
 	}
 
-	assert(false);
 	return NULL;
 }
 

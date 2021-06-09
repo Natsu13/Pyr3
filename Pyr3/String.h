@@ -17,6 +17,7 @@ public:
     String& operator+(String& second);
     String& operator+(const char* second);
     String& operator+=(char second);
+    String& operator+=(const char* second);
     bool operator==(String& second);
     bool operator!=(String& second);
     char operator[] (int index);

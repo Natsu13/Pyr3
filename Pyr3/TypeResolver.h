@@ -37,4 +37,6 @@ public:
 
 	bool is_pointer(AST_Expression* expression);
 	bool is_number(AST_Expression* expression);
+
+	AST_Type* get_inferred_type(AST_Expression* expression);
 };
