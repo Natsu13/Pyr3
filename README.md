@@ -3,13 +3,18 @@ New programming language in C++
 
 Some example
 ```
-test :: (x: u64, y: u64) -> u64 {
-	return x * y;
+Token :: struct {
+	name: u64;
+	value: u64;
+}
+
+test :: (x: u64) -> u64 {
+	return x * 2;
 }
 
 main :: () {
-	y := 2;
-	x := test(y, 3);
-	z := x + 5;
+	token: Token;
+	token.name = test(6);
+	token.value = 13;
 }
 ```
