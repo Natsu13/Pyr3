@@ -19,11 +19,14 @@ private:
 	AST_Expression* parse_primary(int prec);
 	AST_Expression* parse_expression();
 	AST_Expression* parse_ident();
-	AST_BinaryOp* parse_assigment(AST_Ident* left);
+	AST_Binary* parse_assigment(AST_Expression* left);
 	AST_Literal* parse_string();
 	AST_Literal* parse_number();
 	AST_Condition* parse_condition();
 	AST_Directive* parse_directive();
+	AST_Expression* parse_dereference(AST_Ident* ident = NULL);
+	AST_Struct* parse_struct();
+	void parse_member_struct(AST_Struct* _struct);
 	AST_Return* parse_return();
 	void parse_directives(vector<AST_Directive*> &directives);
 	AST_Expression* parse_binop(int prec, AST_Expression* left);
@@ -37,7 +40,7 @@ private:
 	bool is_typedef_keyword();
 	const char* token_to_string(int type);
 
-	AST_Ident* crate_ident_from_current_token();
+	AST_Ident* create_ident_from_current_token();
 
 	int get_current_token_prec();
 public:

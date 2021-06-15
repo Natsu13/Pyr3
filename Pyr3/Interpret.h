@@ -20,7 +20,8 @@ enum AST_Types {
 	AST_LITERAL			= 0x13, //19
 	AST_RETURN			= 0x14,
 	AST_TYPE			= 0x15,
-	AST_POINTER			= 0x16
+	AST_POINTER			= 0x16,
+	AST_STRUCT          = 0x17,
 };
 
 const int D_COMPILER	= 0x1;
@@ -52,6 +53,12 @@ struct AST_Expression {
 	int character_number = 0;
 	String *file_name = NULL;
 	int bytecode_address = 0;
+
+#if _DEBUG
+	const char* _debug_file;
+	int _debug_line;
+#endif
+
 };
 
 const int AST_BLOCK_FLAG_MAIN_BLOCK = 0x1;
@@ -90,6 +97,7 @@ enum AST_Internal_Types {
 const int AST_TYPE_DEFINITION	= 0x0;
 const int AST_TYPE_POINTER		= 0x1;
 const int AST_TYPE_ADDRESSOF	= 0x2;
+const int AST_TYPE_STRUCT		= 0x3;
 struct AST_Type : public AST_Expression {
 	AST_Type() { type = AST_TYPE; }
 
@@ -144,6 +152,7 @@ struct AST_Declaration : public AST_Expression {
 	AST_Expression* value = NULL;
 
 	int register_index = -1;
+	int offset = 0;
 };
 
 const int LITERAL_NUMBER = 0x1;
@@ -194,9 +203,13 @@ enum BinaryOp {
 	BINOP_LOGIC_OR		= 12,  //||
 	BINOP_BITWISE_AND	= '&', //38
 	BINOP_BITWISE_OR	= '|', //124
+	BINOP_DOT			= '.'  //46
 };
-struct AST_BinaryOp : public AST_Expression {
-	AST_BinaryOp() { type = AST_BINARYOP; }
+enum BinaryOpFlags {
+	BINOP_FLAG_NOTHARD = 0x01 // x := a?b
+};
+struct AST_Binary : public AST_Expression {
+	AST_Binary() { type = AST_BINARYOP; }
 
 	AST_Expression* left = NULL;
 	AST_Expression* right = NULL;
@@ -234,6 +247,13 @@ struct AST_Procedure : public AST_Expression {
 
 	AST_Literal* foreign_library = NULL;
 	AST_Expression* foreign_library_expression = NULL;
+};
+
+struct AST_Struct : public AST_Type {
+	AST_Struct() { kind = AST_TYPE_STRUCT; }
+
+	AST_Block* members = NULL;
+	int size = 0;
 };
 
 struct AST_Condition : public AST_Expression {
@@ -285,8 +305,8 @@ public:
 	AST_Type_Definition* type_u64 = NULL;
 };
 
-#define AST_NEW(type) create_expression(new type(), lexer->peek_next_token(), current_scope);
-#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr, nullptr);
+#define AST_NEW(type) create_expression(new type(), lexer->peek_next_token(), current_scope, __FILE__, __LINE__);
+#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr, nullptr, __FILE__, __LINE__);
 
 template<class T>
 T insert_and_return(vector<T>& _vector, T object) {
@@ -295,12 +315,17 @@ T insert_and_return(vector<T>& _vector, T object) {
 }
 
 template<class AST>
-AST* create_expression(AST* expression, Token* current_token, AST_Block* current_scope) {
+AST* create_expression(AST* expression, Token* current_token, AST_Block* current_scope, const char* file, int line) {
 	if(current_token != nullptr)
 		expression->token = current_token;
 
 	if (current_scope != nullptr)
 		expression->scope = current_scope;
+
+#if _DEBUG
+	expression->_debug_file = file;
+	expression->_debug_line = line;
+#endif
 
 	return expression;
 }

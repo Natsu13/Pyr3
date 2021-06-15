@@ -87,6 +87,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_RETURN) {
 		return parse_return();
 	}
+	else if (token->type == TOKEN_KEYWORD_STRUCT) {
+		return parse_struct();
+	}
 	else if (token->type == TOKEN_KEYWORD_TRUE || token->type == TOKEN_KEYWORD_FALSE) {
 		this->lexer->eat_token();
 
@@ -103,6 +106,48 @@ AST_Expression* Parser::parse_expression() {
 
 	interpret->report_error(token, "Unexpected token type '%s'", token_to_string(token->type));
 	return NULL;
+}
+
+void Parser::parse_member_struct(AST_Struct* _struct) {
+	lexer->eat_token(); //eat {
+	Token* token = lexer->peek_next_token();
+
+	_struct->members = AST_NEW(AST_Block);
+
+	while (token->type != '}' && token->type != TOKEN_EOF) {
+		if (token->type == '#') {
+
+		}
+		else {
+			auto primary = parse_expression();
+			_struct->members->expressions.push_back(primary);
+		}
+		
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+	}
+
+	assert(token->type == '}');
+}
+
+AST_Struct* Parser::parse_struct() {
+	lexer->eat_token();
+	Token* token = lexer->peek_next_token();
+
+	if (token->type != '{') {
+		interpret->report_error(token, "Struct members must be inside block");
+		return NULL;
+	}
+
+	AST_Struct* _struct = AST_NEW(AST_Struct);
+
+	parse_member_struct(_struct);
+
+	token = lexer->peek_next_token();
+	assert(token->type == '}');
+	lexer->eat_token();
+
+	return _struct;
 }
 
 AST_Condition* Parser::parse_condition() {
@@ -351,7 +396,7 @@ AST_Expression* Parser::parse_binop(int prec, AST_Expression* left) {
 			interpret->report_error(lexer->peek_next_token(), "Binary operation need right expression");
 		}
 
-		AST_BinaryOp* result = AST_NEW(AST_BinaryOp);
+		AST_Binary* result = AST_NEW(AST_Binary);
 		result->left = left;
 		result->right = right;
 		result->operation = binop;
@@ -396,7 +441,7 @@ AST_Type* Parser::parse_type() {
 AST_Expression* Parser::parse_typedefinition_or_ident() {
 	auto type = parse_typedefinition();
 	if(type == NULL)
-		return crate_ident_from_current_token();
+		return create_ident_from_current_token();
 	return type;
 }
 
@@ -485,6 +530,30 @@ int Parser::get_current_token_prec() {
 	return 0;
 }
 
+AST_Expression* Parser::parse_dereference(AST_Ident* ident) {
+	if (ident == NULL) {
+		ident = create_ident_from_current_token();
+	}
+
+	AST_Binary* binary = AST_NEW(AST_Binary);
+	binary->operation = BINOP_DOT;
+	binary->left = ident;
+
+	auto token = lexer->peek_next_token();
+	if (token->type == '.' || token->type == '?') {		
+		if (token->type == '?') {
+			binary->flags |= BINOP_FLAG_NOTHARD;
+		}
+
+		lexer->eat_token();
+		binary->right = parse_dereference();
+
+		return binary;
+	}
+	
+	return ident;	
+}
+
 AST_Expression* Parser::parse_ident() {
 	auto token = lexer->peek_next_token();
 
@@ -507,9 +576,20 @@ AST_Expression* Parser::parse_ident() {
 		return unary;
 	}
 
-	AST_Ident* ident = crate_ident_from_current_token();
-
+	AST_Ident* ident = create_ident_from_current_token();
 	token = lexer->peek_next_token();
+
+	if (token->type == '.') { // a.b.c
+		AST_Expression* expr = parse_dereference(ident);
+
+		token = lexer->peek_next_token();
+		if (token->type == '=') {
+			return parse_assigment(expr);
+		}
+
+		return expr;
+	}
+
 	if (token->type == ':') { //Create variable
 		AST_Declaration* declaration = AST_NEW(AST_Declaration);
 		declaration->ident = ident;
@@ -524,7 +604,7 @@ AST_Expression* Parser::parse_ident() {
 				declaration->assigmet_type = parse_type();
 			}
 			else {
-				type = crate_ident_from_current_token();
+				type = create_ident_from_current_token();
 				declaration->assigmet_type = type;
 			}
 			token = lexer->peek_next_token();
@@ -567,11 +647,11 @@ AST_Expression* Parser::parse_ident() {
 	return ident;
 }
 
-AST_BinaryOp* Parser::parse_assigment(AST_Ident* left) {
+AST_Binary* Parser::parse_assigment(AST_Expression* left) {
 	//Token* operation = lexer->peek_next_token();
 	lexer->eat_token();
 
-	AST_BinaryOp* assigment = AST_NEW(AST_BinaryOp);
+	AST_Binary* assigment = AST_NEW(AST_Binary);
 	assigment->left = left;
 	assigment->operation = BINOP_ASIGN;
 	assigment->right = parse_primary();
@@ -579,7 +659,7 @@ AST_BinaryOp* Parser::parse_assigment(AST_Ident* left) {
 	return assigment;
 }
 
-AST_Ident* Parser::crate_ident_from_current_token() {
+AST_Ident* Parser::create_ident_from_current_token() {
 	Token* name = this->lexer->peek_next_token();
 	this->lexer->eat_token();
 

@@ -33,6 +33,10 @@ void BytecodeDebuger::debug() {
 				printf("%12s v%d += %I64d\n", "add_int", instruction->index_r, instruction->big_constant._s64);
 				break;
 			}
+			case BYTECODE_RESERVE_MEMORY_TO_R: {
+				printf("%12s v%d >> %d\n", "malloc", instruction->index_r, instruction->index_a);
+				break;
+			}
 			case BYTECODE_ASSING_TO_BIG_CONSTANT: {
 				printf("%12s v%d = %I64d\n", "constant", instruction->index_r, instruction->big_constant._s64);
 				break;
@@ -47,6 +51,10 @@ void BytecodeDebuger::debug() {
 			}
 			case BYTECODE_MOVE_A_BY_REFERENCE_TO_R: {
 				printf("%12s v%d, *v%d\n", "mov", instruction->index_r, instruction->index_a);
+				break;
+			}
+			case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET: {
+				printf("%12s v%d, *v%d + %d\n", "mov", instruction->index_a, instruction->index_r, instruction->index_b);
 				break;
 			}
 			case BYTECODE_JUMP: {

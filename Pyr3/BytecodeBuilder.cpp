@@ -45,12 +45,13 @@ int BytecodeBuilder::allocate_output_register(AST_Type* type) {
 
 	if (type->kind == AST_TYPE_DEFINITION) {
 		AST_Type_Definition* typdef = static_cast<AST_Type_Definition*>(type);
-		
-		output_registers_index += 1;
+				
 		int save_end = output_registers_end;
 		output_registers_end += typdef->size * array_size;
 		output_registers.push_back(new output_register(save_end, output_registers_end));
 	}
+
+	output_registers_index += 1;
 
 	return save_index;
 }
@@ -132,6 +133,13 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 			//instr->big_constant._s64 = ident->type_declaration->register_index;			
 		}		
 
+		if (type->kind == AST_TYPE_STRUCT) {
+			auto _struct = static_cast<AST_Struct*>(type);
+			int size = _struct->size;
+
+			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, declaration->register_index);
+		}
+
 		if (declaration->value != NULL) {
 			switch (declaration->value->type) {
 				case AST_LITERAL: {
@@ -188,7 +196,7 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		break;
 	}
 	case AST_BINARYOP: {
-		AST_BinaryOp* binary = static_cast<AST_BinaryOp*>(expression);
+		AST_Binary* binary = static_cast<AST_Binary*>(expression);
 		return build_binary(binary);
 	}
 	case AST_PROCEDURE: {
@@ -279,6 +287,11 @@ int BytecodeBuilder::find_address_of(AST_Expression* expression) {
 		auto unary = static_cast<AST_UnaryOp*>(expression);
 		return find_address_of(unary->left);
 	}
+	else if (expression->type == AST_BINARYOP) {
+		auto binary = static_cast<AST_Binary*>(expression);
+		
+		return find_address_of(binary->left);
+	}
 
 	assert(false);
 	return 0;
@@ -364,16 +377,39 @@ int BytecodeBuilder::build_condition(AST_Condition* condition) {
 	return 0;
 }
 
-int BytecodeBuilder::build_assigment(AST_BinaryOp* binop) {
-	int addrResult = find_address_of(binop->left);
-	int addr = build_expression(binop->right);
+int BytecodeBuilder::find_offset_of(AST_Expression* expression, AST_Block* scope) {
+	if (expression->type == AST_IDENT) {
+		auto ident = static_cast<AST_Ident*>(expression);
+		auto decl = typeResolver->find_declaration(ident, ident->scope);
 
-	auto inst = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, addrResult);
+		return decl->offset;
+	}
+	else if (expression->type == AST_BINARYOP) {
+		auto binop = static_cast<AST_Binary*>(expression);
+		return find_offset_of(binop->right, binop->left->scope);
+	}
+
+	assert(false);
+}
+
+int BytecodeBuilder::build_assigment(AST_Binary* binop) {
+	int addr = build_expression(binop->right);
+	int addrResult = find_address_of(binop->left);
+
+	if (binop->left->type == AST_BINARYOP) {
+		auto _de_binop = static_cast<AST_Binary*>(binop->left);
+		int addrStruct = find_address_of(_de_binop->left);
+		int offset = find_offset_of(_de_binop->right, _de_binop->left->scope);
+		auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET, addr, offset, addrStruct);
+	}
+	else {		
+		auto inst = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, addrResult);
+	}
 
 	return addr;
 }
 
-int BytecodeBuilder::build_binary(AST_BinaryOp* binop) {
+int BytecodeBuilder::build_binary(AST_Binary* binop) {
 	Bytecode_Instruction op = BYTECODE_UNINITIALIZED;
 
 	char operation = binop->operation;

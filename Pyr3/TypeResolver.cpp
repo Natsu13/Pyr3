@@ -73,6 +73,38 @@ void TypeResolver::resolve(AST_Block* block) {
 	}	
 }
 
+void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
+	int size = 0;
+	for (int i = 0; i < _struct->members->expressions.size(); i++) {
+		auto it = _struct->members->expressions[i];
+
+		if (it->type == AST_DECLARATION) {
+			auto declaration = static_cast<AST_Declaration*>(it);
+			if (declaration->inferred_type->kind == AST_TYPE_DEFINITION) {
+				auto type_def = static_cast<AST_Type_Definition*>(declaration->inferred_type);
+				declaration->offset = offset + size;
+
+				size+= type_def->size;
+				continue;
+			}			
+			assert(false);
+		}
+		else if (it->type == AST_TYPE) {
+			auto type = static_cast<AST_Type*>(it);
+			if (type->kind == AST_STRUCT) {
+				auto _type_struct = static_cast<AST_Struct*>(type);
+				calculate_struct_size(_type_struct, size);
+				size += _type_struct->size;
+				continue;
+			}
+		}
+
+		assert(false);
+	}
+
+	_struct->size = size;
+}
+
 AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 	switch (expression->type) {
 		case AST_IDENT: {
@@ -108,7 +140,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			return resolveLiteral(literal);
 		}
 		case AST_BINARYOP: {
-			AST_BinaryOp* binop = static_cast<AST_BinaryOp*>(expression);
+			AST_Binary* binop = static_cast<AST_Binary*>(expression);
 			return resolveBinary(binop);
 		}
 		case AST_PROCEDURE: {
@@ -155,6 +187,13 @@ AST_Type* TypeResolver::resolveType(AST_Type* type) {
 		pointer->point_type = type;
 		return type;
 	}
+	else if (type->kind == AST_TYPE_STRUCT) {
+		AST_Struct* _struct = static_cast<AST_Struct*>(type);
+		resolve(_struct->members);
+		calculate_struct_size(_struct);
+
+		return type;
+	}
 
 	assert(false);
 	return NULL;
@@ -182,8 +221,51 @@ bool TypeResolver::is_number(AST_Expression* expression) {
 	return false;
 }
 
-AST_Type* TypeResolver::resolveBinary(AST_BinaryOp* binop) {
+AST_Type* TypeResolver::resolveStructDereference(AST_Struct* _struct, AST_Expression* expression) {
+	if (expression->type == AST_IDENT) { // struct.member
+		auto ident = static_cast<AST_Ident*>(expression);
+		auto type = find_declaration(ident, _struct->members);
+		ident->type_declaration = type;
+
+		resolveExpression(type);
+		resolveExpression(ident);
+		return type->inferred_type;
+	}
+
+	auto binary = static_cast<AST_Binary*>(expression);
+	auto ident = static_cast<AST_Ident*>(binary->left);
+	auto type = find_declaration(ident, _struct->members);
+	ident->type_declaration = type;
+
+	if (type->assigmet_type->type == AST_TYPE) {
+		auto struct_type = static_cast<AST_Type*>(type->assigmet_type);
+		assert(struct_type->kind == AST_TYPE_STRUCT);
+
+		return resolveStructDereference(static_cast<AST_Struct*>(struct_type), binary->right);
+	}
+}
+
+AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 	auto type = resolveExpression(binop->left);
+	
+	if (binop->operation == BINOP_DOT) { // a.b
+		auto ident = static_cast<AST_Ident*>(binop->left);
+		auto type = find_declaration(ident, binop->scope); //We know left can be only ident
+		if (type != NULL && type->assigmet_type->type == AST_TYPE) {
+			auto _type = static_cast<AST_Type*>(type->assigmet_type);
+			ident->type_declaration = type;
+			auto _struct = static_cast<AST_Struct*>(_type);
+			binop->right->scope = _struct->members;
+
+			if (_type->kind == AST_TYPE_STRUCT) {
+				return resolveStructDereference(_struct, binop->right);
+			}
+			else {
+				assert(false && "Just now we can dereference only struct");
+			}
+		}
+	}
+
 	resolveExpression(binop->right);
 
 	bool left_ispointer = is_pointer(binop->left);
@@ -213,7 +295,7 @@ AST_Type* TypeResolver::resolveBinary(AST_BinaryOp* binop) {
 	literar->value_type = LITERAL_NUMBER;
 	literar->integer_value = size;
 
-	AST_BinaryOp* count_binop = AST_NEW_EMPTY(AST_BinaryOp);
+	AST_Binary* count_binop = AST_NEW_EMPTY(AST_Binary);
 	count_binop->left = binop->right;
 	count_binop->operation = BINOP_TIMES;
 	count_binop->right = literar;
@@ -372,7 +454,7 @@ AST_Declaration* TypeResolver::find_expression_declaration(AST_Expression* expre
 		return find_expression_declaration(unary->left);
 	}
 	else if (expression->type == AST_BINARYOP) {
-		auto binary = static_cast<AST_BinaryOp*>(expression);
+		auto binary = static_cast<AST_Binary*>(expression);
 		return find_expression_declaration(binary->left);
 	}
 

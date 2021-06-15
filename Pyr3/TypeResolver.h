@@ -13,7 +13,9 @@ private:
 	void addToResolve(AST_Expression* expression);	
 	int find_internal_typeinition(Token* value);
 	AST_Declaration* find_expression_declaration(AST_Expression* expression);	
-	void resolveOther();	
+	void resolveOther();
+
+	void calculate_struct_size(AST_Struct* _struct, int offset = 0);
 public:
 	TypeResolver(Interpret* interpret);
 	void resolve_main(AST_Block* block);
@@ -22,9 +24,10 @@ public:
 	AST_Type* resolveIdent(AST_Ident* ident);
 	AST_Type* resolveDeclaration(AST_Declaration* declaration);
 	AST_Type* resolveLiteral(AST_Literal* literal);
-	AST_Type* resolveBinary(AST_BinaryOp* binop);
+	AST_Type* resolveBinary(AST_Binary* binop);
 	AST_Type* resolveUnary(AST_UnaryOp* unary);
 	AST_Type* resolveType(AST_Type* type);
+	AST_Type* resolveStructDereference(AST_Struct* _struct, AST_Expression* expression);
 	void resolveDirective(AST_Directive* directive);
 
 	AST_Type* find_typedefinition(AST_Ident* ident, AST_Block* scope);

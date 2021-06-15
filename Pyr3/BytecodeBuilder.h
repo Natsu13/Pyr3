@@ -29,18 +29,20 @@ private:
 	int allocate_output_register(AST_Type* type);
 
 	int build_expression(AST_Expression* expression);
-	int build_binary(AST_BinaryOp* binop);
+	int build_binary(AST_Binary* binop);
 	int build_condition(AST_Condition* condition);
 	int build_unary(AST_UnaryOp* unary);
-	int build_assigment(AST_BinaryOp* binop);
+	int build_assigment(AST_Binary* binop);
 	int build_type(AST_Type* type);
 	int build_pointer(AST_Pointer* pointer);
 	int build_return(AST_Return* ret);
 	int build_procedure_call(AST_UnaryOp* unary);
 
 	int calculate_array_size(AST_Type* type);
+
 	int find_address_of(AST_Expression* expression);
 	int find_address_of_type(AST_Expression* expression);
+	int find_offset_of(AST_Expression* expression, AST_Block* scope);
 	//AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
 	int get_current_bytecode_address(int offset = 0);	
 

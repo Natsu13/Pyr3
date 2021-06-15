@@ -5,7 +5,9 @@ BytecodeRunner::BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes
 	this->bytecodes = bytecodes;
 	this->registers.reserve(register_size);
 	
-	for (int i = 0; i < register_size; i++) {
+	for (int i = 0; i < register_size + 1; i++) { 
+		//hack + 1 because else it throw illegal address access idk why? only happend when alocated struct and then 
+		//push value to first position if first is empty then it's fine.... c++ pls
 		this->registers.push_back(Register());
 	}
 
@@ -97,6 +99,16 @@ int BytecodeRunner::run_expression(int address) {
 		case BYTECODE_MOVE_A_REGISTER_TO_R:{
 			this->registers[bc->index_r] = this->registers[this->registers[bc->index_a]._s64];
 			return 0;
+		}
+		case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET: {
+			void* pos = &this->registers[bc->index_r]._pointer + bc->index_b;
+			//pos = (void*)this->registers[bc->index_a]._s64;
+			memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));
+			return 0;
+		}
+		case BYTECODE_RESERVE_MEMORY_TO_R: {
+			this->registers[bc->index_r]._pointer = malloc(bc->index_a);
+			return bc->index_r;
 		}
 
 		case BYTECODE_CALL_PROCEDURE: {
