@@ -67,10 +67,25 @@ void TypeResolver::resolveOther() {
 }
 
 void TypeResolver::resolve(AST_Block* block) {
+	if (block == NULL) return;
+
+	vector<AST_Expression*> resolve_after;
 	for (auto index = 0; index < block->expressions.size(); index++) {
 		auto it = block->expressions[index];
-		resolveExpression(it);
+		if (it->type == AST_DECLARATION) {
+			auto decl = static_cast<AST_Declaration*>(it);
+			if (decl->value != NULL && decl->value->type != AST_PROCEDURE) {
+				resolveExpression(it);
+				continue;
+			}
+		}		
+		resolve_after.push_back(it);
 	}	
+
+	for (auto index = 0; index < resolve_after.size(); index++) {
+		auto it = resolve_after[index];
+		resolveExpression(it);
+	}
 }
 
 void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
@@ -146,7 +161,10 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 		case AST_PROCEDURE: {
 			AST_Procedure* procedure = static_cast<AST_Procedure*>(expression);
 			resolve(procedure->body);
-			resolve(procedure->header);
+
+			if(procedure->header != NULL)
+				resolve(procedure->header);
+
 			if(procedure->returnType != NULL)
 				resolveExpression(procedure->returnType);
 
@@ -361,7 +379,8 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 	}
 	else if (unary->operation == UNOP_REF) { //&
 		auto type = resolveExpression(unary->left);
-		auto declaration = find_expression_declaration(unary->left);
+		AST_Declaration* declaration = find_expression_declaration(unary->left);
+		assert(declaration != NULL);
 
 		AST_Pointer* address = AST_NEW_EMPTY(AST_Pointer);
 		address->scope = unary->scope;
@@ -458,7 +477,8 @@ AST_Declaration* TypeResolver::find_expression_declaration(AST_Expression* expre
 		return find_expression_declaration(binary->left);
 	}
 
-	assert(false);
+	//assert(false);
+	return NULL;
 }
 
 AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* scope) {

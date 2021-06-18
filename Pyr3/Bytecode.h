@@ -30,6 +30,7 @@ enum Bytecode_Instruction {
 
 	BYTECODE_JUMP_IF = 20,
 	BYTECODE_JUMP = 21,
+	BYTECODE_JUMP_IF_NOT = 32,
 
 	BYTECODE_RESERVE_STACK = 22,
 	BYTECODE_PUSH_TO_STACK = 24,
@@ -92,4 +93,6 @@ struct Call_Record {
 	String name = NULL;
 	AST_Procedure* procedure = NULL;
 	vector<AST_Expression*> arguments;
+	int offset = 0;
+	int calcualted_offset = -1;
 };

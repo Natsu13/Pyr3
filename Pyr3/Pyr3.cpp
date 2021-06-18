@@ -78,8 +78,10 @@ int main(int argc, char* argv[])
                 BytecodeBuilder* builder = new BytecodeBuilder(interpreter, type_resolver);
                 builder->build(main_block);
 
+#if _DEBUG
                 BytecodeDebuger* debuger = new BytecodeDebuger(builder->get_instructions());
                 debuger->debug();
+#endif
 
                 BytecodeRunner* runner = new BytecodeRunner(interpreter, builder->get_instructions(), builder->get_output_register_size(), builder->get_output_stack_size());
                 //runner->run(0);

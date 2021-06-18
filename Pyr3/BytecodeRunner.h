@@ -1,14 +1,17 @@
 #pragma once
 #include "Interpret.h"
 #include "Bytecode.h"
+#include "Array.h"
 
 class BytecodeRunner
 {
 private:
 	Interpret* interpret;
 	vector<ByteCode*> bytecodes;
-	vector<Register> registers;
+	//vector<Register> registers;
 	vector<Register> stack; 
+	vector<int> addressStack;
+	Array<Register> registers;
 
 	int current_address;
 

@@ -58,11 +58,15 @@ void BytecodeDebuger::debug() {
 				break;
 			}
 			case BYTECODE_JUMP: {
-				printf("%12s %d\n", "jump", instruction->index_r);
+				printf("%12s %d\n", "jump", instruction->index_r + 1);
 				break;
 			}
 			case BYTECODE_JUMP_IF: {
-				printf("%12s v%d == 1, %d\n", "jump_if", instruction->index_a, instruction->index_r);
+				printf("%12s v%d == 1, %d\n", "jump_if", instruction->index_a, instruction->index_r + 1);
+				break;
+			}
+			case BYTECODE_JUMP_IF_NOT: {
+				printf("%12s v%d != 1, %d\n", "jump_if", instruction->index_a, instruction->index_r + 1);
 				break;
 			}
 			case BYTECODE_PUSH_TO_STACK: {
@@ -87,6 +91,12 @@ void BytecodeDebuger::debug() {
 			case BYTECODE_BINOP_MINUS:
 			case BYTECODE_BINOP_DIV: 
 			case BYTECODE_BINOP_MOD:
+			case BYTECODE_BINOP_LOGIC_AND:
+			case BYTECODE_BINOP_LOGIC_OR:
+			case BYTECODE_BINOP_GREATER:
+			case BYTECODE_BINOP_GREATEREQUAL:
+			case BYTECODE_BINOP_LESS:
+			case BYTECODE_BINOP_LESSEQUAL:
 			case BYTECODE_BINOP_TIMES: {
 				String operation = "";
 
@@ -104,6 +114,18 @@ void BytecodeDebuger::debug() {
 					operation = "==";
 				else if (instruction->instruction == BYTECODE_BINOP_ISNOTEQUAL)
 					operation = "!=";
+				else if (instruction->instruction == BYTECODE_BINOP_LOGIC_AND)
+					operation = "&&";
+				else if (instruction->instruction == BYTECODE_BINOP_LOGIC_OR)
+					operation = "||";
+				else if (instruction->instruction == BYTECODE_BINOP_GREATER)
+					operation = ">";
+				else if (instruction->instruction == BYTECODE_BINOP_GREATEREQUAL)
+					operation = ">=";
+				else if (instruction->instruction == BYTECODE_BINOP_LESS)
+					operation = "<";
+				else if (instruction->instruction == BYTECODE_BINOP_LESSEQUAL)
+					operation = "<=";
 
 				printf("%12s v%d, v%d %s v%d\n", "binop", instruction->index_r, instruction->index_a, operation.data, instruction->index_b);
 				break;

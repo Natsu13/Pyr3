@@ -110,7 +110,8 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 	}break;
 	case AST_BLOCK: {
 		AST_Block* _block = static_cast<AST_Block*>(expression);
-
+		build(_block);
+		return -1;//maybe return something?
 	}break;
 	case AST_CONDITION: {
 		AST_Condition* condition = static_cast<AST_Condition*>(expression);
@@ -212,6 +213,10 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		}
 
 		build(procedure->body);
+
+		if (procedure->returnType == NULL) {
+			Instruction(BYTECODE_RETURN, -1, -1, -1);
+		}
 
 		return result_register;
 	}
@@ -330,6 +335,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 
 	call->name = declaration->ident->name->value;
 	call->procedure = static_cast<AST_Procedure*>(declaration->value);
+	call->offset = get_current_bytecode_address();
 	
 	call->arguments.clear();
 	for (int i = 0; i < unary->arguments->expressions.size(); i++) {
@@ -373,7 +379,21 @@ int BytecodeBuilder::build_type(AST_Type* type) {
 
 int BytecodeBuilder::build_condition(AST_Condition* condition) {
 	int condition_register = build_expression(condition->condition);
-	auto instr_if = Instruction(BYTECODE_JUMP_IF, condition_register, -1, instruction_index + 2);
+	auto instr_if = Instruction(BYTECODE_JUMP_IF_NOT, condition_register, -1, -1);
+
+	build_expression(condition->body_pass);	
+
+	instr_if->index_r = get_current_bytecode_address(0);
+
+	if (condition->body_fail != NULL) {
+		auto instr_go_after_else = Instruction(BYTECODE_JUMP, -1, -1, -1);
+		instr_if->index_r += 1;
+
+		build_expression(condition->body_fail);
+
+		instr_go_after_else->index_r = get_current_bytecode_address(0);
+	}
+
 	return 0;
 }
 
