@@ -130,6 +130,10 @@ void BytecodeDebuger::debug() {
 				printf("%12s v%d, v%d %s v%d\n", "binop", instruction->index_r, instruction->index_a, operation.data, instruction->index_b);
 				break;
 			}
+			case BYTECODE_INSTRICT_PRINT: {
+				printf("%12s v%d\n", "print", instruction->index_r);
+				break;
+			}
 			default: {
 				printf("%12s %s\n", "unkown", InstructionNames[instruction->instruction - 1]);
 				break;

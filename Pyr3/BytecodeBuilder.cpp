@@ -212,7 +212,9 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 			Instruction(BYTECODE_POP_FROM_STACK, -1, -1, addr);
 		}
 
-		build(procedure->body);
+		if (procedure->body != NULL) {
+			build(procedure->body);
+		}
 
 		if (procedure->returnType == NULL) {
 			Instruction(BYTECODE_RETURN, -1, -1, -1);
@@ -327,7 +329,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	auto call = new Call_Record();
 
 	assert(unary->left->type == AST_IDENT);
-	auto literar = static_cast<AST_Ident*>(unary->left);
+	auto literar = static_cast<AST_Ident*>(unary->left);	
 
 	auto declaration = typeResolver->find_declaration(literar, literar->scope);
 	assert(declaration != NULL);
@@ -336,6 +338,18 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	call->name = declaration->ident->name->value;
 	call->procedure = static_cast<AST_Procedure*>(declaration->value);
 	call->offset = get_current_bytecode_address();
+
+	if (call->procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) {
+		free(call);
+
+		if (COMPARE(literar->name->value, "print")) {
+			int arg1 = build_expression(unary->arguments->expressions[0]);
+			Instruction(BYTECODE_INSTRICT_PRINT, -1, -1, arg1);
+			return 0;
+		}
+
+		return 0;
+	}
 	
 	call->arguments.clear();
 	for (int i = 0; i < unary->arguments->expressions.size(); i++) {

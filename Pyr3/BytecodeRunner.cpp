@@ -73,10 +73,11 @@ void BytecodeRunner::loop() {
 	for (int i = 0; i < registers.size() - 1; i++) {
 		printf("\nv%d: %15I64d, %15f", i, registers[i]._s64, registers[i]._float);
 	}
-	*/
+	
 
 	printf("\nv%d: %15I64d, %15f", 6, registers[6]._s64, registers[6]._float);
 	printf("\nv%d: %15I64d, %15f", 4, registers[4]._s64, registers[4]._float);
+	*/
 }
 
 void BytecodeRunner::run(int address) {
@@ -87,6 +88,10 @@ int BytecodeRunner::run_expression(int address) {
 	auto bc = get_bytecode(address);
 
 	switch (bc->instruction) {
+		case BYTECODE_INSTRICT_PRINT: {
+			printf("%d\n", this->registers[bc->index_r]._s64);
+			return 0;
+		}
 		case BYTECODE_ASSING_TO_BIG_CONSTANT: {
 			this->registers[bc->index_r] = bc->big_constant;
 			return bc->index_r;

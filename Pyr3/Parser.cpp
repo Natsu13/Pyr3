@@ -295,8 +295,8 @@ AST_Expression* Parser::parse_param_or_function() {
 			function->flags |= AST_PROCEDURE_FLAG_COMPILER;
 		else if (COMPARE(name, "internal"))
 			function->flags |= AST_PROCEDURE_FLAG_INTERNAL;
-		else if (COMPARE(name, "native"))
-			function->flags |= AST_PROCEDURE_FLAG_NATIVE;
+		else if (COMPARE(name, "intrinsic"))
+			function->flags |= AST_PROCEDURE_FLAG_INTRINSIC;
 		else if (COMPARE(name, "foreign")) {
 			function->flags |= AST_PROCEDURE_FLAG_FOREIGN;
 

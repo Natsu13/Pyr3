@@ -236,7 +236,7 @@ struct AST_Return : public AST_Expression {
 
 const int AST_PROCEDURE_FLAG_COMPILER = 0x1;
 const int AST_PROCEDURE_FLAG_INTERNAL = 0x2;
-const int AST_PROCEDURE_FLAG_NATIVE = 0x4;
+const int AST_PROCEDURE_FLAG_INTRINSIC = 0x4;
 const int AST_PROCEDURE_FLAG_FOREIGN = 0x8;
 struct AST_Procedure : public AST_Expression {
 	AST_Procedure() { type = AST_PROCEDURE; }

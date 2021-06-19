@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
                 BytecodeBuilder* builder = new BytecodeBuilder(interpreter, type_resolver);
                 builder->build(main_block);
 
-#if _DEBUG
+#if _DEBUG && 1==0
                 BytecodeDebuger* debuger = new BytecodeDebuger(builder->get_instructions());
                 debuger->debug();
 #endif
