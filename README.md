@@ -2,19 +2,20 @@
 New programming language in C++
 
 Some example
+Factorial!
+
+Calculated in 0.005 ms
+
 ```
-Token :: struct {
-	name: u64;
-	value: u64;
-}
-
-test :: (x: u64) -> u64 {
-	return x * 2;
-}
-
 main :: () {
-	token: Token;
-	token.name = test(6);
-	token.value = 13;
+	fact := factorial(20);
+}
+
+factorial :: (x: u64) -> u64 {
+	if x > 1 {
+		return x * factorial(x - 1);
+	}
+
+	return 1;
 }
 ```
