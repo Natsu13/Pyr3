@@ -53,6 +53,7 @@ struct AST_Expression {
 	int character_number = 0;
 	String *file_name = NULL;
 	int bytecode_address = 0;
+	int bytecode_index = 0;
 
 #if _DEBUG
 	const char* _debug_file;

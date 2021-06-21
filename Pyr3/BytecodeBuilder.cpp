@@ -205,6 +205,7 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		int result_register = allocate_output_register(interpret->type_pointer);
 		
 		procedure->bytecode_address = get_current_bytecode_address();
+		procedure->bytecode_index = output_registers_index;
 
 		//build(procedure->header);
 		auto size = procedure->header->expressions.size();
@@ -338,7 +339,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 
 	call->name = declaration->ident->name->value;
 	call->procedure = static_cast<AST_Procedure*>(declaration->value);
-	call->offset = get_current_bytecode_address();
+	call->offset = output_registers_index;// get_current_bytecode_address();
 
 	if (call->procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) {
 		free(call);

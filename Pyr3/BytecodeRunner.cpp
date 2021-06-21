@@ -158,7 +158,7 @@ int BytecodeRunner::run_expression(int address) {
 
 			auto procedure = static_cast<Call_Record*>(bc->big_constant._pointer);
 			if (procedure->calcualted_offset == -1) {
-				procedure->calcualted_offset = procedure->offset - procedure->procedure->bytecode_address;
+				procedure->calcualted_offset = procedure->offset - procedure->procedure->bytecode_index;
 			}
 			if (procedure->calcualted_offset < 0) {
 				procedure->calcualted_offset = 0;
@@ -174,9 +174,10 @@ int BytecodeRunner::run_expression(int address) {
 			}
 			
 			Stack_Record* st = new Stack_Record();
-			st->start_index = procedure->procedure->bytecode_address - 1;
+			st->start_index = procedure->procedure->bytecode_index;
 			for (int i = st->start_index; i <= st->start_index + procedure->calcualted_offset; i++) {
 				st->registers.push_back(this->registers[i]);
+				//printf("\n  <== %lld(v%d)", this->registers[i]._s64, i);
 			}
 			Register rstack = Register();
 			rstack._pointer = st;
@@ -226,7 +227,7 @@ int BytecodeRunner::run_expression(int address) {
 			return bc->index_r;
 		}
 		case BYTECODE_PUSH_TO_STACK: {			
-			//printf("\n  -> %lld(v%d)", this->registers[bc->index_r]._s64, bc->index_r);
+			//printf("\n  ->[PUSH] %lld(v%d)", this->registers[bc->index_r]._s64, bc->index_r);
 			stack.push_back(this->registers[bc->index_r]);
 			return 0;
 		}
@@ -234,7 +235,7 @@ int BytecodeRunner::run_expression(int address) {
 		case BYTECODE_POP_FROM_STACK: {
 			assert(stack.size() > 0);
 			this->registers[bc->index_r] = stack.back();
-			//printf("\n  <- %lld(v%d)", this->registers[bc->index_r]._s64, bc->index_r);
+			//printf("\n  <-[POP] %lld(v%d)", this->registers[bc->index_r]._s64, bc->index_r);
 			auto xo = this->registers[bc->index_r]._s64;
 			stack.pop_back();
 			return 0;
