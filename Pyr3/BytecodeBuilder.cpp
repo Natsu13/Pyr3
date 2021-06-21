@@ -348,6 +348,12 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 			return 0;
 		}
 
+		if (COMPARE(literar->name->value, "assert")) {
+			int arg1 = build_expression(unary->arguments->expressions[0]);
+			Instruction(BYTECODE_INSTRICT_ASSERT, -1, -1, arg1);
+			return 0;
+		}
+
 		return 0;
 	}
 	

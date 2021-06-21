@@ -5,7 +5,7 @@ BytecodeRunner::BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes
 	this->bytecodes = bytecodes;
 
 	this->registers = Array<Register>();
-	this->registers.reserve(register_size);
+	this->registers.reserve(register_size * 10);
 	
 	for (int i = 0; i < register_size + 1; i++) { 
 		//hack + 1 because else it throw illegal address access idk why? only happend when alocated struct and then 
@@ -88,8 +88,13 @@ int BytecodeRunner::run_expression(int address) {
 	auto bc = get_bytecode(address);
 
 	switch (bc->instruction) {
+		case BYTECODE_INSTRICT_ASSERT: {
+			auto x = this->registers[bc->index_r]._s64;
+			assert(this->registers[bc->index_r]._s64 == 1);
+			return 0;
+		}
 		case BYTECODE_INSTRICT_PRINT: {
-			printf("%d\n", this->registers[bc->index_r]._s64);
+			printf("\n%d", this->registers[bc->index_r]._s64);
 			return 0;
 		}
 		case BYTECODE_ASSING_TO_BIG_CONSTANT: {
@@ -121,6 +126,7 @@ int BytecodeRunner::run_expression(int address) {
 		}
 
 		case BYTECODE_MOVE_A_TO_R: {
+			//printf("\n  v%d <= %lld(%d)", bc->index_r, this->registers[bc->index_a]._s64, bc->index_a);
 			this->registers[bc->index_r] = this->registers[bc->index_a];
 			return bc->index_r;
 		}
@@ -144,7 +150,9 @@ int BytecodeRunner::run_expression(int address) {
 		}
 
 		case BYTECODE_CALL_PROCEDURE: {
-			addressStack.push_back(current_address);
+			Register raddr = Register();
+			raddr._s64 = current_address;
+			addressStack.push_back(raddr);
 
 			auto procedure = static_cast<Call_Record*>(bc->big_constant._pointer);
 			if (procedure->calcualted_offset == -1) {
@@ -154,14 +162,26 @@ int BytecodeRunner::run_expression(int address) {
 				procedure->calcualted_offset = 0;
 			}
 
-			addressStack.push_back(procedure->calcualted_offset);
+			/*Register raddr = Register();
+			raddr._s64 = procedure->calcualted_offset;
+			addressStack.push_back(raddr);*/
 
 			for (int i = 0; i < procedure->arguments.size(); i++) {
 				auto arg = procedure->arguments[i];
 				stack.push_back(this->registers[arg->bytecode_address]);
 			}
+			
+			Stack_Record* st = new Stack_Record();
+			st->start_index = procedure->procedure->bytecode_address;
+			for (int i = st->start_index; i < st->start_index + procedure->calcualted_offset; i++) {
+				st->registers.push_back(this->registers[i]);
+			}
+			Register rstack = Register();
+			rstack._pointer = st;
+			addressStack.push_back(rstack);
 
-			this->registers.set_offset(this->registers.get_offset() + procedure->calcualted_offset);
+			//this->registers.set_offset(this->registers.get_offset() + procedure->calcualted_offset);
+			//printf("\n ---- >OFFSET %d -----", this->registers.get_offset());
 			
 			current_address = procedure->procedure->bytecode_address - 1; //je to for kde se na konci pøièítá adresa
 
@@ -178,13 +198,18 @@ int BytecodeRunner::run_expression(int address) {
 			}
 			else {
 				auto reg = addressStack.back();
-				if (reg > 0 && this->registers.get_offset() > 0) {					
+				/*if (reg > 0 && this->registers.get_offset() > 0) {					
 					this->registers.set_offset(this->registers.get_offset() - reg);
+				}*/
+				Stack_Record* srec = (Stack_Record*)reg._pointer;
+				for (int i = 0; i < srec->registers.size(); i++) {
+					this->registers[srec->start_index + i] = srec->registers[i];
 				}
 				addressStack.pop_back();
+				//printf("\n ---- <OFFSET %d -----", this->registers.get_offset());
 
 				reg = addressStack.back();
-				current_address = reg;
+				current_address = reg._s64;
 				addressStack.pop_back();				
 			}
 
@@ -195,16 +220,16 @@ int BytecodeRunner::run_expression(int address) {
 			this->registers[bc->index_r]._pointer = &(this->registers[bc->index_a]);
 			return bc->index_r;
 		}
-		case BYTECODE_PUSH_TO_STACK: {
-			auto xx = this->registers[bc->index_r];
+		case BYTECODE_PUSH_TO_STACK: {			
+			//printf("\n-> %lld(v%d)", this->registers[bc->index_r]._s64, bc->index_r);
 			stack.push_back(this->registers[bc->index_r]);
 			return 0;
 		}
 
 		case BYTECODE_POP_FROM_STACK: {
 			assert(stack.size() > 0);
-
 			this->registers[bc->index_r] = stack.back();
+			//printf("\n<- %lld(v%d)", this->registers[bc->index_r]._s64, bc->index_r);
 			auto xo = this->registers[bc->index_r]._s64;
 			stack.pop_back();
 			return 0;
@@ -233,9 +258,7 @@ int BytecodeRunner::run_binop(int address) {
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 / this->registers[bc->index_b]._s64;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_TIMES) {
-		auto x = this->registers[bc->index_a]._s64;
-		auto x2 = this->registers[bc->index_b]._s64;
-		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 * this->registers[bc->index_b]._s64;
+		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 * this->registers[bc->index_b]._s64;		
 	}
 	else if (bc->instruction == BYTECODE_BINOP_MOD) {
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 % this->registers[bc->index_b]._s64;
@@ -246,8 +269,8 @@ int BytecodeRunner::run_binop(int address) {
 	else if (bc->instruction == BYTECODE_BINOP_ISNOTEQUAL) {
 		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 != this->registers[bc->index_b]._s64;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_GREATER) {
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 > this->registers[bc->index_b]._s64;
+	else if (bc->instruction == BYTECODE_BINOP_GREATER) {	
+		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 > this->registers[bc->index_b]._s64;		
 	}
 	else if (bc->instruction == BYTECODE_BINOP_GREATEREQUAL) {
 		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 >= this->registers[bc->index_b]._s64;
@@ -268,6 +291,5 @@ int BytecodeRunner::run_binop(int address) {
 		assert(false);
 	}
 
-	auto xo = this->registers[bc->index_r]._s64;
 	return bc->index_r;
 }

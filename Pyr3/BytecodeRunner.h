@@ -10,7 +10,7 @@ private:
 	vector<ByteCode*> bytecodes;
 	//vector<Register> registers;
 	vector<Register> stack; 
-	vector<int> addressStack;
+	vector<Register> addressStack;
 	Array<Register> registers;
 
 	int current_address;
