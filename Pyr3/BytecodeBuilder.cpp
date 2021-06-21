@@ -207,7 +207,8 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		procedure->bytecode_address = get_current_bytecode_address();
 
 		//build(procedure->header);
-		for (int i = 0; i < procedure->header->expressions.size(); i++) {
+		auto size = procedure->header->expressions.size();
+		for (int i = size - 1; i >= 0; i--) {
 			auto addr = build_expression(procedure->header->expressions[i]);
 			Instruction(BYTECODE_POP_FROM_STACK, -1, -1, addr);
 		}
@@ -255,8 +256,8 @@ int BytecodeBuilder::build_return(AST_Return* ret) {
 
 	int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_u64));
 	int addr = build_expression(ret->value);
-	auto address_reg = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, output);
-	auto stackPush = Instruction(BYTECODE_PUSH_TO_STACK, -1, -1, output);
+	//auto address_reg = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, output);
+	auto stackPush = Instruction(BYTECODE_PUSH_TO_STACK, -1, -1, addr);
 
 	Instruction(BYTECODE_RETURN, -1, -1, -1);
 
