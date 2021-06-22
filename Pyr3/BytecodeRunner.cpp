@@ -178,9 +178,19 @@ int BytecodeRunner::run_expression(int address) {
 			addressStack.push_back(raddr);*/
 
 			for (int i = 0; i < procedure->arguments.size(); i++) {
-				auto arg = procedure->arguments[i];
-				auto xx = this->registers[arg->bytecode_address]._pointer;
-				stack.push_back(this->registers[arg->bytecode_address]);
+				AST_Ident* arg = (AST_Ident*)procedure->arguments[i];
+
+				auto reg = this->registers[arg->bytecode_address];
+				if (arg->type_declaration != NULL && arg->type_declaration->inferred_type->kind == AST_TYPE_STRUCT) {
+					AST_Struct* strct = (AST_Struct*)arg->type_declaration->inferred_type;
+					Register copy_reg = Register();
+					copy_reg._pointer = malloc(strct->size);
+					memcpy(copy_reg._pointer, reg._pointer, strct->size);
+					reg = copy_reg;
+					//Copy the struct so wee don't give to the function reference but only copy of it!
+				}
+				//auto xx = this->registers[arg->bytecode_address]._pointer;
+				stack.push_back(reg);
 			}
 			
 			Stack_Record* st = new Stack_Record();
