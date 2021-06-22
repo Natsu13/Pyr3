@@ -144,6 +144,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 		}
 		case AST_DECLARATION: {
 			AST_Declaration* declaration = static_cast<AST_Declaration*>(expression);
+			
 			return resolveDeclaration(declaration);
 		}
 		case AST_TYPE: {
@@ -268,14 +269,13 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 	
 	if (binop->operation == BINOP_DOT) { // a.b
 		auto ident = static_cast<AST_Ident*>(binop->left);
-		auto type = find_declaration(ident, binop->scope); //We know left can be only ident
-		if (type != NULL && type->assigmet_type->type == AST_TYPE) {
-			auto _type = static_cast<AST_Type*>(type->assigmet_type);
-			ident->type_declaration = type;
-			auto _struct = static_cast<AST_Struct*>(_type);
+		auto type = find_typedefinition(ident, binop->scope); //We know left can be only ident
+		if (type != NULL && type->type == AST_TYPE) {
+			ident->type_declaration = find_declaration(ident, binop->scope);
+			auto _struct = static_cast<AST_Struct*>(type);
 			binop->right->scope = _struct->members;
 
-			if (_type->kind == AST_TYPE_STRUCT) {
+			if (type->kind == AST_TYPE_STRUCT) {
 				return resolveStructDereference(_struct, binop->right);
 			}
 			else {
@@ -454,7 +454,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}		
 		
 		if (declaration->assigmet_type->type == AST_TYPE) {
-			auto type = static_cast<AST_Type_Definition*>(declaration->assigmet_type);
+			auto type = static_cast<AST_Type*>(declaration->assigmet_type);
 			declaration->inferred_type = type;
 			return type;
 		}

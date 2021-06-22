@@ -145,6 +145,11 @@ int BytecodeRunner::run_expression(int address) {
 			memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));
 			return 0;
 		}
+		case BYTECODE_MOVE_A_PLUS_OFFSET_TO_R: {
+			void* pos = &this->registers[bc->index_a]._pointer + bc->index_b;
+			this->registers[bc->index_r] = *(static_cast<Register*>(pos));
+			return bc->index_r;
+		}
 		case BYTECODE_RESERVE_MEMORY_TO_R: {
 			this->registers[bc->index_r]._pointer = malloc(bc->index_a);
 			auto owo = this->registers[bc->index_r]._pointer;

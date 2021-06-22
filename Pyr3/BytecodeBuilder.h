@@ -37,12 +37,16 @@ private:
 	int build_pointer(AST_Pointer* pointer);
 	int build_return(AST_Return* ret);
 	int build_procedure_call(AST_UnaryOp* unary);
+	int build_declaration(AST_Declaration* declaration);
+	int build_procedure(AST_Procedure* procedure);
+	int build_reference(AST_Binary* binary);
 
 	int calculate_array_size(AST_Type* type);
 
 	int find_address_of(AST_Expression* expression);
 	int find_address_of_type(AST_Expression* expression);
 	int find_offset_of(AST_Expression* expression, AST_Block* scope);
+	AST_Declaration* find_member_of(AST_Expression* expression, AST_Block* scope);
 	//AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
 	int get_current_bytecode_address(int offset = 0);	
 

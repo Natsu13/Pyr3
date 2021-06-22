@@ -57,6 +57,10 @@ void BytecodeDebuger::debug() {
 				printf("%12s v%d, *v%d + %d\n", "mov", instruction->index_a, instruction->index_r, instruction->index_b);
 				break;
 			}
+			case BYTECODE_MOVE_A_PLUS_OFFSET_TO_R: {
+				printf("%12s v%d, *v%d + %d\n", "mov", instruction->index_r, instruction->index_a, instruction->index_b);
+				break;
+			}
 			case BYTECODE_JUMP: {
 				printf("%12s %d\n", "jump", instruction->index_r + 1);
 				break;

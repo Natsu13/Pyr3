@@ -119,60 +119,7 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 	}break;
 	case AST_DECLARATION: {
 		AST_Declaration* declaration = static_cast<AST_Declaration*>(expression);
-
-		if (declaration->value != NULL && declaration->value->type == AST_TYPE) {
-			return -1;
-		}
-
-		AST_Type* type = static_cast<AST_Type*>(declaration->assigmet_type);
-
-		if (declaration->register_index == -1) {
-			int output_register = allocate_output_register(static_cast<AST_Type_Definition*>(declaration->assigmet_type));
-			declaration->register_index = output_register;
-
-			//auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, -1);
-			//instr->big_constant._s64 = ident->type_declaration->register_index;			
-		}		
-
-		if (type->kind == AST_TYPE_STRUCT) {
-			auto _struct = static_cast<AST_Struct*>(type);
-			int size = _struct->size;
-
-			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, declaration->register_index);
-		}
-
-		if (declaration->value != NULL) {
-			switch (declaration->value->type) {
-				case AST_LITERAL: {
-					auto literal = static_cast<AST_Literal*>(declaration->value);
-
-					if (literal->value_type == LITERAL_NUMBER) {
-						auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
-
-						if (literal->number_flags & NUMBER_FLAG_FLOAT)
-							instr->big_constant._float = literal->float_value;
-						else if (literal->number_flags & NUMBER_FLAG_SIGNED)
-							instr->big_constant._s64 = literal->integer_value;
-						else
-							instr->big_constant._u64 = literal->integer_value;
-					}
-					break;
-				}
-				default: {
-					/*
-					auto instr_initialize = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
-					instr_initialize->big_constant._s64 = 0;
-					*/
-					auto index = build_expression(declaration->value);
-					if (index != -1) {
-						auto instr = Instruction(BYTECODE_MOVE_A_TO_R, index, -1, declaration->register_index);
-					}
-					break;
-				}
-			}
-		}
-
-		return declaration->register_index;
+		return build_declaration(declaration);
 	}break;
 	case AST_TYPE: {
 		AST_Type* type = static_cast<AST_Type*>(expression);
@@ -202,27 +149,7 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 	}
 	case AST_PROCEDURE: {
 		AST_Procedure* procedure = static_cast<AST_Procedure*>(expression);
-		int result_register = allocate_output_register(interpret->type_pointer);
-		
-		procedure->bytecode_address = get_current_bytecode_address();
-		procedure->bytecode_index = output_registers_index;
-
-		//build(procedure->header);
-		auto size = procedure->header->expressions.size();
-		for (int i = size - 1; i >= 0; i--) {
-			auto addr = build_expression(procedure->header->expressions[i]);
-			Instruction(BYTECODE_POP_FROM_STACK, -1, -1, addr);
-		}
-
-		if (procedure->body != NULL) {
-			build(procedure->body);
-		}
-
-		if (procedure->returnType == NULL) {
-			Instruction(BYTECODE_RETURN, -1, -1, -1);
-		}
-
-		return result_register;
+		return build_procedure(procedure);
 	}
 	case AST_PARAMLIST: {
 		break;
@@ -250,6 +177,86 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 
 	assert(false);
 	return -1;
+}
+
+int BytecodeBuilder::build_procedure(AST_Procedure* procedure) {
+	int result_register = allocate_output_register(interpret->type_pointer);
+
+	procedure->bytecode_address = get_current_bytecode_address();
+	procedure->bytecode_index = output_registers_index;
+
+	//build(procedure->header);
+	auto size = procedure->header->expressions.size();
+	for (int i = size - 1; i >= 0; i--) {
+		auto addr = build_expression(procedure->header->expressions[i]);
+		Instruction(BYTECODE_POP_FROM_STACK, -1, -1, addr);
+	}
+
+	if (procedure->body != NULL) {
+		build(procedure->body);
+	}
+
+	if (procedure->returnType == NULL) {
+		Instruction(BYTECODE_RETURN, -1, -1, -1);
+	}
+
+	return result_register;
+}
+
+int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
+	if (declaration->value != NULL && declaration->value->type == AST_TYPE) {
+		return -1;
+	}
+
+	AST_Type* type = static_cast<AST_Type*>(declaration->assigmet_type);
+
+	if (declaration->register_index == -1) {
+		int output_register = allocate_output_register(static_cast<AST_Type_Definition*>(declaration->assigmet_type));
+		declaration->register_index = output_register;
+
+		//auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, -1);
+		//instr->big_constant._s64 = ident->type_declaration->register_index;			
+	}
+
+	if (type->kind == AST_TYPE_STRUCT) {
+		auto _struct = static_cast<AST_Struct*>(type);
+		int size = _struct->size;
+
+		Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, declaration->register_index);
+	}
+
+	if (declaration->value != NULL) {
+		switch (declaration->value->type) {
+		case AST_LITERAL: {
+			auto literal = static_cast<AST_Literal*>(declaration->value);
+
+			if (literal->value_type == LITERAL_NUMBER) {
+				auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
+
+				if (literal->number_flags & NUMBER_FLAG_FLOAT)
+					instr->big_constant._float = literal->float_value;
+				else if (literal->number_flags & NUMBER_FLAG_SIGNED)
+					instr->big_constant._s64 = literal->integer_value;
+				else
+					instr->big_constant._u64 = literal->integer_value;
+			}
+			break;
+		}
+		default: {
+			/*
+			auto instr_initialize = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
+			instr_initialize->big_constant._s64 = 0;
+			*/
+			auto index = build_expression(declaration->value);
+			if (index != -1) {
+				auto instr = Instruction(BYTECODE_MOVE_A_TO_R, index, -1, declaration->register_index);
+			}
+			break;
+		}
+		}
+	}
+
+	return declaration->register_index;
 }
 
 int BytecodeBuilder::build_return(AST_Return* ret) {
@@ -423,12 +430,25 @@ int BytecodeBuilder::find_offset_of(AST_Expression* expression, AST_Block* scope
 	if (expression->type == AST_IDENT) {
 		auto ident = static_cast<AST_Ident*>(expression);
 		auto decl = typeResolver->find_declaration(ident, ident->scope);
-
 		return decl->offset;
 	}
 	else if (expression->type == AST_BINARYOP) {
 		auto binop = static_cast<AST_Binary*>(expression);
 		return find_offset_of(binop->right, binop->left->scope);
+	}
+
+	assert(false);
+}
+
+AST_Declaration* BytecodeBuilder::find_member_of(AST_Expression* expression, AST_Block* scope) {
+	if (expression->type == AST_IDENT) {
+		auto ident = static_cast<AST_Ident*>(expression);
+		auto decl = typeResolver->find_declaration(ident, ident->scope);
+		return decl;
+	}
+	else if (expression->type == AST_BINARYOP) {
+		auto binop = static_cast<AST_Binary*>(expression);
+		return find_member_of(binop->right, binop->left->scope);
 	}
 
 	assert(false);
@@ -451,6 +471,17 @@ int BytecodeBuilder::build_assigment(AST_Binary* binop) {
 	return addr;
 }
 
+int BytecodeBuilder::build_reference(AST_Binary* binary) {	
+	auto ident = static_cast<AST_Ident*>(binary->left);
+	int addrStruct = find_address_of(binary->left);
+	auto member = find_member_of(binary->right, binary->left->scope);
+	int reg = allocate_output_register(member->inferred_type);
+
+	auto inst = Instruction(BYTECODE_MOVE_A_PLUS_OFFSET_TO_R, addrStruct, member->offset, reg);
+
+	return reg;
+}
+
 int BytecodeBuilder::build_binary(AST_Binary* binop) {
 	Bytecode_Instruction op = BYTECODE_UNINITIALIZED;
 
@@ -458,6 +489,9 @@ int BytecodeBuilder::build_binary(AST_Binary* binop) {
 
 	if (operation == '=') {
 		return build_assigment(binop);
+	}
+	if (operation == '.') {
+		return build_reference(binop);
 	}
 
 	if (operation == '+') {
