@@ -376,7 +376,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	int return_register = -1;
 	if (call->procedure->returnType != NULL) {
 		AST_Type* return_type = typeResolver->get_inferred_type(call->procedure->returnType);
-		int return_register = allocate_output_register(return_type);
+		return_register = allocate_output_register(return_type);
 	}
 
 	auto call_instr = Instruction(BYTECODE_CALL_PROCEDURE, -1, -1, -1);
