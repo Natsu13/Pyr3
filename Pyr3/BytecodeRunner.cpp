@@ -87,6 +87,8 @@ void BytecodeRunner::run(int address) {
 int BytecodeRunner::run_expression(int address) {
 	auto bc = get_bytecode(address);
 
+	auto oplplp = this->registers[10]._pointer;
+
 	switch (bc->instruction) {
 		case BYTECODE_INSTRICT_ASSERT: {
 			auto x = this->registers[bc->index_r]._s64;
@@ -140,13 +142,15 @@ int BytecodeRunner::run_expression(int address) {
 			return 0;
 		}
 		case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET: {
-			void* pos = &this->registers[bc->index_r]._pointer + bc->index_b;
-			//pos = (void*)this->registers[bc->index_a]._s64;
+			void* pos = (int8_t*)this->registers[bc->index_r]._pointer + bc->index_b;
+			//pos = &this->registers[bc->index_a]._s64;
 			memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));
 			return 0;
 		}
 		case BYTECODE_MOVE_A_PLUS_OFFSET_TO_R: {
-			void* pos = &this->registers[bc->index_a]._pointer + bc->index_b;
+			auto xxx = this->registers[bc->index_a]._pointer;
+			auto xxy = &xxx;
+			void* pos = (int8_t*)this->registers[bc->index_a]._pointer + bc->index_b;
 			this->registers[bc->index_r] = *(static_cast<Register*>(pos));
 			return bc->index_r;
 		}
@@ -175,6 +179,7 @@ int BytecodeRunner::run_expression(int address) {
 
 			for (int i = 0; i < procedure->arguments.size(); i++) {
 				auto arg = procedure->arguments[i];
+				auto xx = this->registers[arg->bytecode_address]._pointer;
 				stack.push_back(this->registers[arg->bytecode_address]);
 			}
 			
@@ -241,7 +246,7 @@ int BytecodeRunner::run_expression(int address) {
 			assert(stack.size() > 0);
 			this->registers[bc->index_r] = stack.back();
 			//printf("\n  <-[POP] %lld(v%d)", this->registers[bc->index_r]._s64, bc->index_r);
-			auto xo = this->registers[bc->index_r]._s64;
+			auto xo = this->registers[bc->index_r]._pointer;
 			stack.pop_back();
 			return 0;
 		}		

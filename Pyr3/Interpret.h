@@ -143,6 +143,7 @@ const int TYPE_DEFINITION_STRING = 0x1;
 const int TYPE_DEFINITION_NUMBER = 0x2;
 const int TYPE_DEFINITION_STRUCT = 0x3;
 const int TYPE_DEFINITION_IDENT  = 0x4;
+const int DECLARATION_IN_HEAD	 = 0x1;
 
 struct AST_Declaration : public AST_Expression {
 	AST_Declaration() { type = AST_DECLARATION; }

@@ -161,10 +161,16 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 		}
 		case AST_PROCEDURE: {
 			AST_Procedure* procedure = static_cast<AST_Procedure*>(expression);
-			resolve(procedure->body);
 
-			if(procedure->header != NULL)
+			if (procedure->header != NULL) {
 				resolve(procedure->header);
+				for (int index = 0; index < procedure->header->expressions.size(); index++) {
+					AST_Expression* expr = procedure->header->expressions[index];
+					expr->flags |= DECLARATION_IN_HEAD;
+				}
+			}				
+
+			resolve(procedure->body);			
 
 			if(procedure->returnType != NULL)
 				resolveExpression(procedure->returnType);
@@ -489,6 +495,13 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 			if (declaration->ident->name->value == ident->name->value) {
 				return declaration;
 			}
+		}
+	}
+
+	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_PROCEDURE) {
+		auto decl = find_declaration(ident, scope->belongs_to_procedure->header);
+		if (decl != NULL) {
+			return decl;
 		}
 	}
 

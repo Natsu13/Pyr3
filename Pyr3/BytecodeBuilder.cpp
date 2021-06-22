@@ -216,16 +216,16 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 
 		//auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, -1);
 		//instr->big_constant._s64 = ident->type_declaration->register_index;			
-	}
+	}	
 
-	if (type->kind == AST_TYPE_STRUCT) {
+	if (type->kind == AST_TYPE_STRUCT && !(declaration->flags & DECLARATION_IN_HEAD)){
 		auto _struct = static_cast<AST_Struct*>(type);
 		int size = _struct->size;
 
 		Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, declaration->register_index);
 	}
 
-	if (declaration->value != NULL) {
+	if (declaration->value != NULL) {		
 		switch (declaration->value->type) {
 		case AST_LITERAL: {
 			auto literal = static_cast<AST_Literal*>(declaration->value);
@@ -373,16 +373,22 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 		call->arguments.push_back(expr);
 	}
 
-	AST_Type* return_type = typeResolver->get_inferred_type(call->procedure->returnType);
-	int return_register = allocate_output_register(return_type);
+	int return_register = -1;
+	if (call->procedure->returnType != NULL) {
+		AST_Type* return_type = typeResolver->get_inferred_type(call->procedure->returnType);
+		int return_register = allocate_output_register(return_type);
+	}
 
 	auto call_instr = Instruction(BYTECODE_CALL_PROCEDURE, -1, -1, -1);
 	call_instr->big_constant._pointer = call;
 
-	//Curently we support only one return value
-	Instruction(BYTECODE_POP_FROM_STACK, -1, -1, return_register);
+	if (call->procedure->returnType != NULL) {
+		//Curently we support only one return value
+		Instruction(BYTECODE_POP_FROM_STACK, -1, -1, return_register);
 
-	return return_register;
+		return return_register;
+	}
+	return 0;
 }
 
 int BytecodeBuilder::build_pointer(AST_Pointer* type) {
