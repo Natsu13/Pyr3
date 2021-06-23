@@ -338,8 +338,19 @@ AST_Type* TypeResolver::resolveType(AST_Type* type) {
 		return type;
 	}
 	else if(type->kind == AST_TYPE_ARRAY) { 
-		AST_Array* arr = static_cast<AST_Array*>(type);
-		resolveExpression(arr->point_to);
+		AST_Array* _array = static_cast<AST_Array*>(type);
+		resolveExpression(_array->point_to);
+
+		if (!is_static(_array->size)) {
+			interpret->report_error(_array->token, "Declaration of array size must be constant");
+			return NULL;
+		}
+
+		int size = calculate_array_size(_array);
+		if (size < 1) {
+			interpret->report_error(_array->token, "Declaration of array size must be more then 0");
+			return NULL;
+		}
 
 		return type;
 	}

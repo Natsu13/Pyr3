@@ -207,16 +207,10 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 
 		if (type->kind == AST_TYPE_ARRAY) {
 			auto _array = static_cast<AST_Array*>(type);
-			if (!typeResolver->is_static(_array->size)) {
-				interpret->report_error(_array->token, "Declaration of array size must be constant");
-				return 0;
-			}
+			assert(!typeResolver->is_static(_array->size));
 
 			int size = typeResolver->calculate_array_size(_array);
-			if (size < 1) {
-				interpret->report_error(_array->token, "Declaration of array size must be more then 0");
-				return 0;
-			}
+			assert(size > 0);
 
 			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, declaration->register_index);
 		}
