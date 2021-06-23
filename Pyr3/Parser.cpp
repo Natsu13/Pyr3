@@ -405,18 +405,23 @@ AST_Expression* Parser::parse_binop(int prec, AST_Expression* left) {
 	}
 }
 
-AST_Type* Parser::parse_type_array(AST_Type* type) {
+AST_Expression* Parser::parse_type_array(AST_Expression* type) {
 	auto token = lexer->peek_next_token();	
 	while (token->type == TOKEN_LBRACKET) {
 		lexer->eat_token();
 
+		AST_Array* arr = AST_NEW(AST_Array);
+		arr->token = lexer->peek_next_token();
+		
 		token = lexer->peek_next_token();
-		if (token->type == TOKEN_NUMBER) {
-			type->array_size.push_back(parse_number());
+		if (token->type == TOKEN_RANGE) {
+			arr->flags |= ARRAY_DYNAMIC;
 		}
 		else {
-			interpret->report_error("Currently si supported only numbers");
-		}
+			arr->size = parse_primary();
+		}		
+		arr->point_to = type;
+		type = arr;
 
 		token = lexer->peek_next_token();
 		assert(token->type == TOKEN_RBRACKET);
@@ -429,11 +434,6 @@ AST_Type* Parser::parse_type_array(AST_Type* type) {
 
 AST_Type* Parser::parse_type() {
 	auto type = parse_typedefinition();
-		
-	auto token = lexer->peek_next_token();
-	if (token->type == TOKEN_LBRACKET) {
-		return parse_type_array(type);
-	}
 
 	return type;
 }
@@ -608,6 +608,9 @@ AST_Expression* Parser::parse_ident() {
 				declaration->assigmet_type = type;
 			}
 			token = lexer->peek_next_token();
+			if (token->type == TOKEN_LBRACKET) {
+				declaration->assigmet_type = parse_type_array(declaration->assigmet_type);
+			}
 		}
 
 		if (token->type == ':') { //Constant

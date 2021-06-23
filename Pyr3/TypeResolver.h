@@ -15,7 +15,6 @@ private:
 	AST_Declaration* find_expression_declaration(AST_Expression* expression);	
 	void resolveOther();
 
-	void calculate_struct_size(AST_Struct* _struct, int offset = 0);
 public:
 	TypeResolver(Interpret* interpret);
 	void resolve_main(AST_Block* block);
@@ -37,6 +36,12 @@ public:
 	AST_Literal* make_string_literal(String value);
 	AST_Literal* make_number_literal(long long value);
 	AST_Literal* make_number_literal(float value);
+
+	void calculate_struct_size(AST_Struct* _struct, int offset = 0);
+	bool is_static(AST_Expression* expression);
+	int do_int_operation(int left, int right, int op);
+	int calculate_size_of_static_expression(AST_Expression* expression);
+	int calculate_array_size(AST_Type* type);
 
 	bool is_pointer(AST_Expression* expression);
 	bool is_number(AST_Expression* expression);

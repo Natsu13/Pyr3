@@ -41,8 +41,6 @@ private:
 	int build_procedure(AST_Procedure* procedure);
 	int build_reference(AST_Binary* binary);
 
-	int calculate_array_size(AST_Type* type);
-
 	int find_address_of(AST_Expression* expression);
 	int find_address_of_type(AST_Expression* expression);
 	int find_offset_of(AST_Expression* expression, AST_Block* scope);

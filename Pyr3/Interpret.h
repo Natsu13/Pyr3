@@ -11,7 +11,7 @@ enum AST_Types {
 	AST_DECLARATION		= 0x3,
 	//AST_STRING = 0x5,
 	//AST_NUMBER = 0x6,
-	AST_BINARYOP		= 0x7,
+	AST_BINARY		= 0x7,
 	AST_PROCEDURE		= 0x8,
 	AST_PARAMLIST		= 0x9,
 	AST_UNARYOP			= 0x10, //16
@@ -77,33 +77,36 @@ struct AST_Block : public AST_Expression {
 };
 
 enum AST_Internal_Types {
-	AST_Type_unitialized = 0x0,
-	AST_Type_s8 = 0x1,
-	AST_Type_s16 = 0x2,
-	AST_Type_s32 = 0x4,
-	AST_Type_s64 = 0x8,
-	AST_Type_u8 = 0x10,
-	AST_Type_u16 = 0x12,
-	AST_Type_u32 = 0x14,
-	AST_Type_u64 = 0x18,
-	AST_Type_char = 0x20,
-	AST_Type_struct = 0x21,
-	AST_Type_enum = 0x22,
-	AST_Type_float = 0x24,
-	AST_Type_long = 0x28,
-	AST_Type_bit = 0x30,
-	AST_Type_pointer = 0x31
+	AST_Type_unitialized	= 0x0,
+	AST_Type_s8				= 0x1,
+	AST_Type_s16			= 0x2,
+	AST_Type_s32			= 0x4,
+	AST_Type_s64			= 0x8,
+	AST_Type_u8				= 0x10,
+	AST_Type_u16			= 0x12,
+	AST_Type_u32			= 0x14,
+	AST_Type_u64			= 0x18,
+	AST_Type_char			= 0x20,
+	AST_Type_struct			= 0x21,
+	AST_Type_enum			= 0x22,
+	AST_Type_float			= 0x24,
+	AST_Type_long			= 0x28,
+	AST_Type_bit			= 0x30,
+	AST_Type_pointer		= 0x31
 };
 
-const int AST_TYPE_DEFINITION	= 0x0;
-const int AST_TYPE_POINTER		= 0x1;
-const int AST_TYPE_ADDRESSOF	= 0x2;
-const int AST_TYPE_STRUCT		= 0x3;
+enum AST_Type_Types {
+	AST_TYPE_DEFINITION		= 0x0,
+	AST_TYPE_POINTER		= 0x1,
+	AST_TYPE_ADDRESSOF		= 0x2,
+	AST_TYPE_STRUCT			= 0x3,
+	AST_TYPE_ARRAY			= 0x4
+};
+
 struct AST_Type : public AST_Expression {
 	AST_Type() { type = AST_TYPE; }
 
 	int kind = AST_TYPE_DEFINITION;
-	vector<AST_Expression*> array_size;
 };
 
 struct AST_Type_Definition : public AST_Type {
@@ -112,6 +115,23 @@ struct AST_Type_Definition : public AST_Type {
 	int size = 1;
 	int aligment = 1;
 	int internal_type = 0;
+};
+
+struct AST_Struct : public AST_Type {
+	AST_Struct() { kind = AST_TYPE_STRUCT; }
+
+	AST_Block* members = NULL;
+	int size = 0;
+};
+
+enum AST_ARRAY_FLAGS {
+	ARRAY_DYNAMIC = 0x1,
+};
+struct AST_Array : public AST_Type {
+	AST_Array() { kind = AST_TYPE_ARRAY; }
+
+	AST_Expression* size = NULL;
+	AST_Expression* point_to = NULL;
 };
 
 struct AST_Pointer : public AST_Type {
@@ -211,7 +231,7 @@ enum BinaryOpFlags {
 	BINOP_FLAG_NOTHARD = 0x01 // x := a?b
 };
 struct AST_Binary : public AST_Expression {
-	AST_Binary() { type = AST_BINARYOP; }
+	AST_Binary() { type = AST_BINARY; }
 
 	AST_Expression* left = NULL;
 	AST_Expression* right = NULL;
@@ -249,13 +269,6 @@ struct AST_Procedure : public AST_Expression {
 
 	AST_Literal* foreign_library = NULL;
 	AST_Expression* foreign_library_expression = NULL;
-};
-
-struct AST_Struct : public AST_Type {
-	AST_Struct() { kind = AST_TYPE_STRUCT; }
-
-	AST_Block* members = NULL;
-	int size = 0;
 };
 
 struct AST_Condition : public AST_Expression {

@@ -88,6 +88,122 @@ void TypeResolver::resolve(AST_Block* block) {
 	}
 }
 
+bool TypeResolver::is_static(AST_Expression* expression) {
+	if (expression->type == AST_IDENT) {
+		AST_Ident* ident = static_cast<AST_Ident*>(expression);
+		auto decl = find_declaration(ident, ident->scope);
+		AST_Expression* expr = decl->value;
+
+		if (!decl->flags & AST_IDENT_FLAG_CONSTANT) {
+			return false;
+		}
+
+		if (is_static(expr)) {
+			return true;
+		}
+
+		return false;
+	}
+	if (expression->type == AST_LITERAL) {
+		return true;
+	}
+	if (expression->type == AST_BINARY) {
+		AST_Binary* binop = static_cast<AST_Binary*>(expression);
+
+		if (is_static(binop->left) && is_static(binop->right)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+int TypeResolver::do_int_operation(int left, int right, int op) {
+	switch (op) {
+	case BINOP_PLUS: return left + right;
+	case BINOP_MINUS: return left - right;
+	case BINOP_TIMES: return left * right;
+	case BINOP_DIV: return left / right;
+	case BINOP_MOD: return left % right;
+	case BINOP_ISEQUAL: return left == right;
+	case BINOP_ISNOTEQUAL: return left != right;
+	case BINOP_GREATER: return left > right;
+	case BINOP_GREATEREQUAL: return left >= right;
+	case BINOP_LESS: return left < right;
+	case BINOP_LESSEQUAL: return left <= right;
+	case BINOP_LOGIC_AND: return left && right;
+	case BINOP_LOGIC_OR: return left || right;
+	case BINOP_BITWISE_AND: return left & right;
+	case BINOP_BITWISE_OR: return left | right;
+	}
+
+	return -1;
+}
+
+int TypeResolver::calculate_size_of_static_expression(AST_Expression* expression) {
+	if (!is_static(expression)) {
+		assert(false && "Expression is not static!");
+	}
+
+	if (expression->type == AST_LITERAL) {
+		AST_Literal* lit = static_cast<AST_Literal*>(expression);
+		if (lit->value_type == LITERAL_NUMBER) {
+			return lit->integer_value;
+		}
+		assert(false && "Literar must be type of integer");
+	}
+	if (expression->type == AST_IDENT) {
+		AST_Ident* ident = static_cast<AST_Ident*>(expression);
+		auto decl = find_declaration(ident, ident->scope);
+		return calculate_size_of_static_expression(decl->value);
+	}
+	if (expression->type == AST_BINARY) {
+		AST_Binary* binop = static_cast<AST_Binary*>(expression);
+
+		int size_left = calculate_size_of_static_expression(binop->left);
+		int size_right = calculate_size_of_static_expression(binop->right);
+
+		return do_int_operation(size_left, size_right, binop->operation);
+	}
+
+	throw "Unsuported expression type";
+}
+
+int TypeResolver::calculate_array_size(AST_Type* type) {
+	uint64_t resolveSize = 1;
+
+	if (type->kind == AST_TYPE_ARRAY) {
+		AST_Array* arr = static_cast<AST_Array*>(type);
+		if (!is_static(arr->size)) {
+			interpret->report_error(arr->token, "Size of array must be constant");
+			return 0;
+		}
+
+		int resolveSize = calculate_size_of_static_expression(arr->size);
+		if (arr->point_to->type == AST_TYPE) {
+			AST_Type* type = static_cast<AST_Type*>(arr->point_to);
+
+			return resolveSize * calculate_array_size(type);
+		}
+
+		return resolveSize;
+	}
+	else if (type->kind == AST_TYPE_DEFINITION) {
+		AST_Type_Definition* type_def = static_cast<AST_Type_Definition*>(type);
+		return type_def->size;
+	}
+	else if (type->kind == AST_TYPE_STRUCT) {
+		AST_Struct* _struct = static_cast<AST_Struct*>(type);
+		calculate_struct_size(_struct);
+		return _struct->size;
+	}
+	else { 
+		return 1;
+	}
+
+	return resolveSize;
+}
+
 void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 	int size = 0;
 	for (int i = 0; i < _struct->members->expressions.size(); i++) {
@@ -155,7 +271,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			AST_Literal* literal = static_cast<AST_Literal*>(expression);
 			return resolveLiteral(literal);
 		}
-		case AST_BINARYOP: {
+		case AST_BINARY: {
 			AST_Binary* binop = static_cast<AST_Binary*>(expression);
 			return resolveBinary(binop);
 		}
@@ -204,18 +320,26 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 AST_Type* TypeResolver::resolveType(AST_Type* type) {
 	if (type->kind == AST_TYPE_DEFINITION) {
 		AST_Type_Definition* def = static_cast<AST_Type_Definition*>(type);
+
 		return def;
 	}
 	else if (type->kind == AST_TYPE_POINTER) {
 		AST_Pointer* pointer = static_cast<AST_Pointer*>(type);
 		auto type = resolveExpression(pointer->point_to);
 		pointer->point_type = type;
+
 		return type;
 	}
 	else if (type->kind == AST_TYPE_STRUCT) {
 		AST_Struct* _struct = static_cast<AST_Struct*>(type);
 		resolve(_struct->members);
 		calculate_struct_size(_struct);
+
+		return type;
+	}
+	else if(type->kind == AST_TYPE_ARRAY) { 
+		AST_Array* arr = static_cast<AST_Array*>(type);
+		resolveExpression(arr->point_to);
 
 		return type;
 	}
@@ -478,7 +602,7 @@ AST_Declaration* TypeResolver::find_expression_declaration(AST_Expression* expre
 		auto unary = static_cast<AST_UnaryOp*>(expression);
 		return find_expression_declaration(unary->left);
 	}
-	else if (expression->type == AST_BINARYOP) {
+	else if (expression->type == AST_BINARY) {
 		auto binary = static_cast<AST_Binary*>(expression);
 		return find_expression_declaration(binary->left);
 	}

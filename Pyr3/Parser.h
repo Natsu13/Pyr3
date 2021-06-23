@@ -33,7 +33,7 @@ private:
 	AST_Expression* parse_param_or_function();
 	AST_Expression* parse_block_or_expression();
 	AST_Type* parse_type();
-	AST_Type* parse_type_array(AST_Type* type);
+	AST_Expression* parse_type_array(AST_Expression* type);
 	AST_Type* parse_typedefinition();
 	AST_Expression* parse_typedefinition_or_ident();
 	bool parse_arguments(AST_Block* block);

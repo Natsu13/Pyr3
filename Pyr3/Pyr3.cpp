@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
             TypeResolver* type_resolver = NULL;
 
             if (!interpreter->isError()) {
-                TypeResolver* type_resolver = new TypeResolver(interpreter);
+                type_resolver = new TypeResolver(interpreter);
 
                 parser = new Parser(interpreter, lexer, type_resolver);
                 main_block = parser->parse();

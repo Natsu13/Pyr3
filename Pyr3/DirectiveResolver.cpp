@@ -9,7 +9,7 @@ void DirectiveResolver::resolve(AST_Block* block) {
 	for (auto index = 0; index < block->expressions.size(); index++) {
 		auto it = block->expressions[index];
 
-		if (it->type != AST_DIRECTIVE/* && it->type != AST_DECLARATION && it->type != AST_BINARYOP*/) {
+		if (it->type != AST_DIRECTIVE/* && it->type != AST_DECLARATION && it->type != AST_BINARY*/) {
 			continue;
 		}		
 
