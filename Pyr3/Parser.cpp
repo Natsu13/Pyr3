@@ -590,7 +590,17 @@ AST_Expression* Parser::parse_ident() {
 		return expr;
 	}
 
-	if (token->type == ':') { //Create variable
+	if (token->type == '[') { //Array
+		auto arr = parse_type_array(ident);
+
+		token = lexer->peek_next_token();
+		if (token->type == '=') {
+			return parse_assigment(arr);
+		}
+
+		return arr;
+	}
+	else if (token->type == ':') { //Create variable
 		AST_Declaration* declaration = AST_NEW(AST_Declaration);
 		declaration->ident = ident;
 

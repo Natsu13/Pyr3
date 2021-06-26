@@ -137,19 +137,29 @@ int BytecodeRunner::run_expression(int address) {
 			this->registers[bc->index_r] = *(static_cast<Register*>(this->registers[bc->index_a]._pointer));
 			return bc->index_r;
 		}
+		case BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R: {
+			void* pos = &this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);
+			this->registers[bc->index_r]._s64 = *(int64_t*)pos;
+			return bc->index_r;
+		}
 		case BYTECODE_MOVE_A_REGISTER_TO_R:{
 			this->registers[bc->index_r] = this->registers[this->registers[bc->index_a]._s64];
-			return 0;
+			return bc->index_r;
 		}
 		case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET: {
 			void* pos = (int8_t*)this->registers[bc->index_r]._pointer + bc->index_b;
 			//pos = &this->registers[bc->index_a]._s64;
 			memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));
-			return 0;
+			return bc->index_r;
+		}
+		case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG: {
+			auto xx = this->registers[bc->index_a]._s64;
+			auto off = this->registers[bc->index_b]._s64;
+			void* pos = &this->registers[bc->index_r]._pointer + this->registers[bc->index_b]._s64;
+			memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));			
+			return bc->index_r;
 		}
 		case BYTECODE_MOVE_A_PLUS_OFFSET_TO_R: {
-			auto xxx = this->registers[bc->index_a]._pointer;
-			auto xxy = &xxx;
 			void* pos = (int8_t*)this->registers[bc->index_a]._pointer + bc->index_b;
 			this->registers[bc->index_r] = *(static_cast<Register*>(pos));
 			return bc->index_r;

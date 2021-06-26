@@ -48,6 +48,8 @@ private:
 	//AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
 	int get_current_bytecode_address(int offset = 0);	
 
+	int build_array_offset(AST_Array* arr);
+
 	ByteCode* instruction(Bytecode_Instruction instruction, int a, int b, int result, int line_number);
 public:
 	BytecodeBuilder(Interpret* interpret, TypeResolver* typeResolver);

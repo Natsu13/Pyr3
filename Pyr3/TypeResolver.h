@@ -11,7 +11,6 @@ private:
 	int phase = 0;
 
 	void addToResolve(AST_Expression* expression);	
-	int find_internal_typeinition(Token* value);
 	AST_Declaration* find_expression_declaration(AST_Expression* expression);	
 	void resolveOther();
 
@@ -25,8 +24,9 @@ public:
 	AST_Type* resolveLiteral(AST_Literal* literal);
 	AST_Type* resolveBinary(AST_Binary* binop);
 	AST_Type* resolveUnary(AST_UnaryOp* unary);
-	AST_Type* resolveType(AST_Type* type);
+	AST_Type* resolveType(AST_Type* type, bool as_declaration = false);
 	AST_Type* resolveStructDereference(AST_Struct* _struct, AST_Expression* expression);
+	AST_Type* resolveArray(AST_Array * arr);
 	void resolveDirective(AST_Directive* directive);
 
 	AST_Type* find_typedefinition(AST_Ident* ident, AST_Block* scope);
@@ -34,6 +34,7 @@ public:
 	AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
 
 	AST_Literal* make_string_literal(String value);
+	AST_Literal* make_number_literal(int value);
 	AST_Literal* make_number_literal(long long value);
 	AST_Literal* make_number_literal(float value);
 
@@ -45,6 +46,8 @@ public:
 
 	bool is_pointer(AST_Expression* expression);
 	bool is_number(AST_Expression* expression);
+	bool is_type_integer(AST_Type* type);
 
 	AST_Type* get_inferred_type(AST_Expression* expression);
+	void copy_token(AST_Expression* old, AST_Expression* news);
 };

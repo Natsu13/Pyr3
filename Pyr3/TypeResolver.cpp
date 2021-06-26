@@ -31,6 +31,22 @@ void TypeResolver::resolve_main(AST_Block* block) {
 	resolveOther();
 }
 
+void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news)
+{
+	news->token = new Token();
+	news->token->file_name = old->token->file_name;
+	news->token->column = old->token->column;
+	news->token->row = old->token->row;
+}
+
+AST_Literal* TypeResolver::make_number_literal(int value) {
+	AST_Literal* literal = AST_NEW_EMPTY(AST_Literal);
+	literal->value_type = LITERAL_NUMBER;
+	literal->integer_value = value;	
+
+	return literal;
+}
+
 AST_Literal* TypeResolver::make_number_literal(float value) {
 	AST_Literal* literal = AST_NEW_EMPTY(AST_Literal);
 	literal->value_type = LITERAL_NUMBER;
@@ -317,7 +333,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 	return NULL;
 }
 
-AST_Type* TypeResolver::resolveType(AST_Type* type) {
+AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration) {
 	if (type->kind == AST_TYPE_DEFINITION) {
 		AST_Type_Definition* def = static_cast<AST_Type_Definition*>(type);
 
@@ -337,19 +353,21 @@ AST_Type* TypeResolver::resolveType(AST_Type* type) {
 
 		return type;
 	}
-	else if(type->kind == AST_TYPE_ARRAY) { 
-		AST_Array* _array = static_cast<AST_Array*>(type);
+	else if(type->kind == AST_TYPE_ARRAY) {
+		AST_Array* _array = static_cast<AST_Array*>(type);		
 		resolveExpression(_array->point_to);
 
-		if (!is_static(_array->size)) {
-			interpret->report_error(_array->token, "Declaration of array size must be constant");
-			return NULL;
-		}
+		if (as_declaration) {
+			if (!is_static(_array->size)) {
+				interpret->report_error(_array->token, "Declaration of array size must be constant");
+				return NULL;
+			}
 
-		int size = calculate_array_size(_array);
-		if (size < 1) {
-			interpret->report_error(_array->token, "Declaration of array size must be more then 0");
-			return NULL;
+			int size = calculate_array_size(_array);
+			if (size < 1) {
+				interpret->report_error(_array->token, "Declaration of array size must be more then 0");
+				return NULL;
+			}
 		}
 
 		return type;
@@ -381,6 +399,18 @@ bool TypeResolver::is_number(AST_Expression* expression) {
 	return false;
 }
 
+bool TypeResolver::is_type_integer(AST_Type* type) {
+	if (type->kind == AST_TYPE_DEFINITION) {
+		auto type_def = static_cast<AST_Type_Definition*>(type);
+		auto intern = type_def->internal_type;
+		if (intern == AST_Type_s8 || intern == AST_Type_s16 || intern == AST_Type_s32 || intern == AST_Type_s64 ||
+			intern == AST_Type_u8 || intern == AST_Type_u16 || intern == AST_Type_u32 || intern == AST_Type_u64)
+			return true;
+	}
+
+	return false;
+}
+
 AST_Type* TypeResolver::resolveStructDereference(AST_Struct* _struct, AST_Expression* expression) {
 	if (expression->type == AST_IDENT) { // struct.member
 		auto ident = static_cast<AST_Ident*>(expression);
@@ -405,9 +435,25 @@ AST_Type* TypeResolver::resolveStructDereference(AST_Struct* _struct, AST_Expres
 	}
 }
 
+AST_Type* TypeResolver::resolveArray(AST_Array* arr) {
+	if (arr->point_to->type == AST_TYPE_ARRAY) {
+		return resolveArray(static_cast<AST_Array*>(arr->point_to));
+	}
+
+	resolveExpression(arr->size);
+	return resolveExpression(arr->point_to);
+}
+
 AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
-	auto type = resolveExpression(binop->left);
-	
+	AST_Type* type;
+	if (binop->left->type == AST_TYPE && static_cast<AST_Type*>(binop->left)->kind == AST_TYPE_ARRAY) {
+		auto arr = static_cast<AST_Array*>(binop->left);
+		type = resolveArray(arr);
+	}
+	else {
+		type = resolveExpression(binop->left);
+	}
+
 	if (binop->operation == BINOP_DOT) { // a.b
 		auto ident = static_cast<AST_Ident*>(binop->left);
 		auto type = find_typedefinition(ident, binop->scope); //We know left can be only ident
@@ -468,6 +514,24 @@ AST_Type_Definition* TypeResolver::find_typedefinition_from_type(AST_Type* type)
 	if (type->kind == AST_TYPE_POINTER) {
 		auto pointer = static_cast<AST_Pointer*>(type);
 		return find_typedefinition_from_type(pointer->point_type);
+	}
+	if (type->kind == AST_TYPE_ARRAY) {
+		auto arr = static_cast<AST_Array*>(type);
+		if (arr->point_to->type == AST_TYPE) {
+			auto t = static_cast<AST_Type*>(arr->point_to);
+			if (t->kind == AST_TYPE_ARRAY) {
+				return find_typedefinition_from_type(t);
+			}
+			if (t->kind == AST_TYPE_DEFINITION) {
+				return static_cast<AST_Type_Definition*>(t);
+			}
+			assert(false);
+		}
+		if (arr->point_to->type == AST_IDENT) {
+			auto ident = static_cast<AST_Ident*>(arr->point_to);
+			auto tdef = find_typedefinition(ident, ident->scope);
+			return find_typedefinition_from_type(tdef);
+		}
 	}
 
 	auto typdef = static_cast<AST_Type_Definition*>(type);
@@ -549,24 +613,25 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 
 AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 	AST_Type* valueType = NULL;
+	AST_Type* type = NULL;
 
 	if (declaration->value != NULL) {
 		valueType = resolveExpression(declaration->value);
 	}
 
 	if (declaration->assigmet_type != NULL && declaration->assigmet_type->type == AST_TYPE) {		
-		auto type = resolveType(static_cast<AST_Type*>(declaration->assigmet_type));
+		type = resolveType(static_cast<AST_Type*>(declaration->assigmet_type), true);
 		declaration->inferred_type = type;
-		return type;
 	}
-
-	if (declaration->assigmet_type != NULL) {
+	else if (declaration->assigmet_type != NULL) {
 		AST_Ident* assing_type = NULL;
 		if (declaration->assigmet_type->type == AST_IDENT) {
 			assing_type = static_cast<AST_Ident*>(declaration->assigmet_type);
 		}
 
 		assert(declaration->assigmet_type != NULL);
+		assert(assing_type != NULL);
+
 		if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT) {
 			if (declaration->assigmet_type->type == AST_IDENT) {
 				assing_type->flags |= AST_IDENT_FLAG_CONSTANT;
@@ -580,24 +645,43 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 
 		declaration->assigmet_type = type_def;
 		declaration->inferred_type = type_def;
-		return type_def;
+		type = type_def;
 	}
-
-	if (declaration->value != NULL) {
+	else if (declaration->value != NULL) {
 		declaration->assigmet_type = valueType;
 
 		if (declaration->value->type == AST_IDENT) {
 			auto ident = static_cast<AST_Ident*>(declaration->value);
 			if (ident->type_declaration->type == AST_DECLARATION) {
-				auto type = find_typedefinition(ident, declaration->scope);
+				type = find_typedefinition(ident, declaration->scope);
 				declaration->value = type;
 			}
 		}		
+
+		if (declaration->value->type == AST_TYPE) {
+			auto type = static_cast<AST_Type*>(declaration->value);
+			
+		}
 		
 		if (declaration->assigmet_type->type == AST_TYPE) {
-			auto type = static_cast<AST_Type*>(declaration->assigmet_type);
+			type = static_cast<AST_Type*>(declaration->assigmet_type);
 			declaration->inferred_type = type;
-			return type;
+		}
+	}
+
+	if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT && type->kind != AST_TYPE_STRUCT) {
+		if (declaration->value != NULL && declaration->value->type != AST_PROCEDURE) {
+			if (!is_static(declaration->value)) {
+				interpret->report_error(declaration->value->token, "You must pass only constatnt values to constant declaration");
+			}
+
+			if (declaration->value->type != AST_LITERAL) {				
+				if (is_type_integer(type)) {
+					auto old = declaration->value;
+					declaration->value = make_number_literal(calculate_size_of_static_expression(declaration->value));
+					copy_token(old, declaration->value);
+				}
+			}
 		}
 	}
 
@@ -699,19 +783,6 @@ AST_Type* TypeResolver::find_typedefinition(AST_Ident* ident, AST_Block* scope) 
 	
 	if (scope->scope != NULL)
 		return find_typedefinition(ident, scope->scope);
-
-	return NULL;
-}
-
-int TypeResolver::find_internal_typeinition(Token* value) {
-	auto name = value->value.data;
-
-	if (COMPARE(name, "int")) {
-		return TYPE_DEFINITION_NUMBER;
-	}
-	if (COMPARE(name, "char")) {
-		return TYPE_DEFINITION_STRING;
-	}
 
 	return NULL;
 }
