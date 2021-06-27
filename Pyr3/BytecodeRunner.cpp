@@ -87,7 +87,7 @@ void BytecodeRunner::run(int address) {
 int BytecodeRunner::run_expression(int address) {
 	auto bc = get_bytecode(address);
 
-	auto oplplp = this->registers[10]._pointer;
+	auto oplplp = this->registers[4]._pointer;
 
 	switch (bc->instruction) {
 		case BYTECODE_INSTRICT_ASSERT: {
@@ -138,8 +138,10 @@ int BytecodeRunner::run_expression(int address) {
 			return bc->index_r;
 		}
 		case BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R: {
-			void* pos = &this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);
+			void* pos = (int8_t*)this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);
 			this->registers[bc->index_r]._s64 = *(int64_t*)pos;
+			//printf("\nmov v%d = %lld (*v%d + %lld)", bc->index_r, this->registers[bc->index_r]._s64, bc->index_a, this->registers[bc->index_b]._s64);
+
 			return bc->index_r;
 		}
 		case BYTECODE_MOVE_A_REGISTER_TO_R:{
@@ -153,10 +155,11 @@ int BytecodeRunner::run_expression(int address) {
 			return bc->index_r;
 		}
 		case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG: {
-			auto xx = this->registers[bc->index_a]._s64;
-			auto off = this->registers[bc->index_b]._s64;
-			void* pos = &this->registers[bc->index_r]._pointer + this->registers[bc->index_b]._s64;
-			memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));			
+			//printf("\nmov *v%d + %lld = %lld", bc->index_r, this->registers[bc->index_b]._s64, this->registers[bc->index_a]._s64);
+			void* pos = (int8_t*)this->registers[bc->index_r]._pointer + this->registers[bc->index_b]._s64;
+			//void* pos = &this->registers[bc->index_r]._pointer + this->registers[bc->index_b]._s64;
+			memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));	
+
 			return bc->index_r;
 		}
 		case BYTECODE_MOVE_A_PLUS_OFFSET_TO_R: {
@@ -166,7 +169,9 @@ int BytecodeRunner::run_expression(int address) {
 		}
 		case BYTECODE_RESERVE_MEMORY_TO_R: {
 			this->registers[bc->index_r]._pointer = malloc(bc->index_a);
-			auto owo = this->registers[bc->index_r]._pointer;
+			auto xox = this->registers[bc->index_r]._pointer;
+			memset(this->registers[bc->index_r]._pointer, 0, bc->index_a);//fill it with NULL
+			auto xcasf = this->registers[4]._pointer;
 			return bc->index_r;
 		}
 
@@ -295,7 +300,7 @@ int BytecodeRunner::run_binop(int address) {
 	}
 	else if (bc->instruction == BYTECODE_BINOP_TIMES) {		
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 * this->registers[bc->index_b]._s64;		
-		//printf("\n%lld * %lld = %lld", this->registers[bc->index_a]._s64, this->registers[bc->index_b]._s64, this->registers[bc->index_r]._s64);
+		//printf("\n%lld (v%d) * %lld (v%d) = %lld", this->registers[bc->index_a]._s64, bc->index_a, this->registers[bc->index_b]._s64, bc->index_b, this->registers[bc->index_r]._s64);
 	}
 	else if (bc->instruction == BYTECODE_BINOP_MOD) {
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 % this->registers[bc->index_b]._s64;

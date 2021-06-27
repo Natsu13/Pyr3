@@ -355,6 +355,7 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration) {
 	}
 	else if(type->kind == AST_TYPE_ARRAY) {
 		AST_Array* _array = static_cast<AST_Array*>(type);		
+		resolveExpression(_array->size);
 		resolveExpression(_array->point_to);
 
 		if (as_declaration) {
