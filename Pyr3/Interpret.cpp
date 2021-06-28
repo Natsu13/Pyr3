@@ -30,6 +30,7 @@ void Interpret::initialize() {
 	create_new_type(type_u64, AST_Type_u64, 8, 8); //u64
 
 	create_new_type(type_char, AST_Type_char, 1, 1); //char
+	create_new_type(type_string, AST_Type_string, 1, 1);
 }
 
 bool Interpret::isError() {

@@ -2,6 +2,7 @@
 #include "Interpret.h"
 #include "Bytecode.h"
 #include "TypeResolver.h"
+#include "Array.h"
 
 struct output_register {
 	int start = -1;
@@ -25,6 +26,7 @@ private:
 	ByteCode* current_bytecode = nullptr;
 
 	vector<ByteCode*> bytecodes;	
+	vector<AST_Type*> bytecode_types;
 	vector<output_register*> output_registers;
 	int allocate_output_register(AST_Type* type);
 
@@ -55,6 +57,7 @@ public:
 	BytecodeBuilder(Interpret* interpret, TypeResolver* typeResolver);
 	void build(AST_Block* block);
 	vector<ByteCode*> get_instructions();
+	vector<AST_Type*> get_types();
 	int get_output_register_size();
 	int get_output_stack_size();
 };

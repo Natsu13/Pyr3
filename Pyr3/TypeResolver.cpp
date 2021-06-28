@@ -555,8 +555,8 @@ void TypeResolver::resolveDirective(AST_Directive* directive) {
 
 AST_Type* TypeResolver::resolveLiteral(AST_Literal* literal) {
 	if (literal->value_type == LITERAL_STRING)
-		return interpret->type_char;
-	return interpret->type_u64;
+		return interpret->type_string;
+	return interpret->type_s64;
 }
 
 AST_Type* TypeResolver::resolveIdent(AST_Ident* ident) {
@@ -655,7 +655,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 			auto ident = static_cast<AST_Ident*>(declaration->value);
 			if (ident->type_declaration->type == AST_DECLARATION) {
 				type = find_typedefinition(ident, declaration->scope);
-				declaration->value = type;
+				declaration->assigmet_type = type;//value = type????
 			}
 		}		
 

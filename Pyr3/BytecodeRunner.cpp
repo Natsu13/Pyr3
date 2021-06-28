@@ -1,8 +1,9 @@
 #include "BytecodeRunner.h"
 
-BytecodeRunner::BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, int register_size, int memory_size) {
+BytecodeRunner::BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> bytecode_types, int register_size, int memory_size) {
 	this->interpret = interpret;
 	this->bytecodes = bytecodes;
+	this->bytecode_types = bytecode_types;
 
 	this->registers = Array<Register>();
 	this->registers.reserve(register_size * 10);
@@ -84,6 +85,16 @@ void BytecodeRunner::run(int address) {
 	run_expression(address);
 }
 
+#define ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(index, pointer, offset) \
+	{\
+		auto type = (AST_Type_Definition*)bytecode_types[pointer];\
+		if(type->internal_type == AST_Type_string) { New_String* pos = (New_String*)this->registers[pointer]._pointer; this->registers[index]._u8 = pos->data[offset]; }\
+		else { \
+			void* pos = (int8_t*)this->registers[pointer]._pointer + (offset); \
+			this->registers[index]._s64 = *(int64_t*)pos; \
+		}\
+	}
+
 int BytecodeRunner::run_expression(int address) {
 	auto bc = get_bytecode(address);
 
@@ -91,13 +102,15 @@ int BytecodeRunner::run_expression(int address) {
 
 	switch (bc->instruction) {
 		case BYTECODE_INSTRICT_ASSERT: {
-			auto x = this->registers[bc->index_r]._s64;
+			auto x = this->registers[bc->index_r]._s64;			
 			assert(this->registers[bc->index_r]._s64 == 1);
 			return 0;
 		}
 		case BYTECODE_INSTRICT_PRINT: {
 			auto x = this->registers[bc->index_r];
-			printf("\n%d", this->registers[bc->index_r]._s64);
+			//auto type = (AST_Type_Definition*)bytecode_types[bc->index_r];
+			auto c = (char)this->registers[bc->index_r]._u8;
+			printf("\n%lld", this->registers[bc->index_r]._s64);
 			return 0;
 		}
 		case BYTECODE_ASSING_TO_BIG_CONSTANT: {
@@ -137,9 +150,18 @@ int BytecodeRunner::run_expression(int address) {
 			this->registers[bc->index_r] = *(static_cast<Register*>(this->registers[bc->index_a]._pointer));
 			return bc->index_r;
 		}
-		case BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R: {
-			void* pos = (int8_t*)this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);
-			this->registers[bc->index_r]._s64 = *(int64_t*)pos;
+		case BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R: {			
+			//auto type = (AST_Type_Definition*)bytecode_types[bc->index_a];
+			ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(bc->index_r, bc->index_a, this->registers[bc->index_b]._s64);
+			/*
+			if (type->internal_type == AST_Type_string) {
+				New_String* pos = (New_String*)this->registers[bc->index_a]._pointer;
+				this->registers[bc->index_r]._u8 = pos->data[this->registers[bc->index_b]._s64];
+			}
+			else {
+				void* pos = (int8_t*)this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);
+				this->registers[bc->index_r]._s64 = *(int64_t*)pos;
+			}*/
 			//printf("\nmov v%d = %lld (*v%d + %lld)", bc->index_r, this->registers[bc->index_r]._s64, bc->index_a, this->registers[bc->index_b]._s64);
 
 			return bc->index_r;

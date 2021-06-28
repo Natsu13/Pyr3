@@ -469,7 +469,7 @@ AST_Type* Parser::parse_typedefinition() {
 			return interpret->type_long;
 		}
 		case TOKEN_KEYWORD_STRING: {
-			return interpret->type_char;
+			return interpret->type_string;
 		}
 		case TOKEN_KEYWORD_S8: {
 			return interpret->type_s8;

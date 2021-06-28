@@ -62,6 +62,11 @@ struct AST_Expression {
 
 };
 
+struct New_String {
+	char* data;
+	long long size;
+};
+
 const int AST_BLOCK_FLAG_MAIN_BLOCK = 0x1;
 
 const int AST_BLOCK_BELONGS_TO_NOTHING = 0;
@@ -85,14 +90,15 @@ enum AST_Internal_Types {
 	AST_Type_u8				= 0x10,
 	AST_Type_u16			= 0x12,
 	AST_Type_u32			= 0x14,
-	AST_Type_u64			= 0x18,
+	AST_Type_u64			= 0x18, //24
 	AST_Type_char			= 0x20,
 	AST_Type_struct			= 0x21,
 	AST_Type_enum			= 0x22,
 	AST_Type_float			= 0x24,
 	AST_Type_long			= 0x28,
 	AST_Type_bit			= 0x30,
-	AST_Type_pointer		= 0x31
+	AST_Type_pointer		= 0x31,
+	AST_Type_string			= 0x32  //50
 };
 
 enum AST_Type_Types {
@@ -303,6 +309,7 @@ public:
 
 	AST_Type_Definition* type_bit = NULL;
 	AST_Type_Definition* type_pointer = NULL;
+	AST_Type_Definition* type_string = NULL;
 
 	AST_Type_Definition* type_int = NULL;
 	AST_Type_Definition* type_float = NULL;

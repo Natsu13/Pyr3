@@ -6,9 +6,11 @@
 class BytecodeDebuger
 {
 private:
+	Interpret* interpret;
 	vector<ByteCode*> instructions;
+	vector<AST_Type*> types;
 public:
-	BytecodeDebuger(vector<ByteCode*> inst) :instructions(inst) {};
+	BytecodeDebuger(Interpret* inter, vector<ByteCode*> inst, vector<AST_Type*> ts) :instructions(inst), types(ts), interpret(inter) {};
 	void debug();
 };
 

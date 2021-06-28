@@ -32,6 +32,10 @@ vector<ByteCode*> BytecodeBuilder::get_instructions() {
 	return bytecodes;
 }
 
+vector<AST_Type*> BytecodeBuilder::get_types() {
+	return bytecode_types;
+}
+
 int BytecodeBuilder::get_output_register_size() {
 	return output_registers_index;
 }
@@ -43,6 +47,17 @@ int BytecodeBuilder::get_output_stack_size() {
 int BytecodeBuilder::allocate_output_register(AST_Type* type) {
 	int save_index = output_registers_index;
 	int array_size = typeResolver->calculate_array_size(type);
+
+	if (bytecode_types.size() <= save_index) {
+		int resize = (save_index * 2 < 30) ? save_index * 2 : 30;
+		bytecode_types.resize(resize);
+	}
+	if (bytecode_types.size() == save_index) {
+		bytecode_types.push_back(type);
+	}
+	else {
+		bytecode_types[save_index] = type;
+	}
 
 	if (type->kind == AST_TYPE_DEFINITION) {
 		AST_Type_Definition* typdef = static_cast<AST_Type_Definition*>(type);
@@ -107,6 +122,7 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 	case AST_LITERAL: {
 		AST_Literal* literal = static_cast<AST_Literal*>(expression);
 
+		//There is two literal resolve fix me!
 		if (literal->value_type == LITERAL_NUMBER) {
 			int output_register = allocate_output_register(interpret->type_s64);
 			auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, output_register);
@@ -117,6 +133,14 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 				instr->big_constant._s64 = literal->integer_value;
 			else
 				instr->big_constant._u64 = literal->integer_value;
+
+			return output_register;
+		}
+		else if (literal->value_type == LITERAL_STRING) {
+			int output_register = allocate_output_register(interpret->type_string);
+			auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, output_register);
+
+			instr->big_constant._pointer = new New_String{ literal->string_value.data, literal->string_value.size };
 
 			return output_register;
 		}
@@ -235,7 +259,11 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 					instr->big_constant._s64 = literal->integer_value;
 				else
 					instr->big_constant._u64 = literal->integer_value;
+			}else if (literal->value_type == LITERAL_STRING) {
+				auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
+				instr->big_constant._pointer = new New_String{ literal->string_value.data, literal->string_value.size };
 			}
+
 			break;
 		}
 		default: {

@@ -38,7 +38,14 @@ void BytecodeDebuger::debug() {
 				break;
 			}
 			case BYTECODE_ASSING_TO_BIG_CONSTANT: {
-				printf("%12s v%d = %I64d\n", "constant", instruction->index_r, instruction->big_constant._s64);
+				auto type = (AST_Type_Definition*)types[instruction->index_r];
+				if (type->internal_type == AST_Type_string) {
+					New_String* str = (New_String*)instruction->big_constant._pointer;
+					printf("%12s v%d = '%s'\n", "constant", instruction->index_r, str->data);
+				}
+				else {
+					printf("%12s v%d = %I64d\n", "constant", instruction->index_r, instruction->big_constant._s64);
+				}				
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R: {
