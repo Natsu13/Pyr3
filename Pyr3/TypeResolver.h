@@ -43,6 +43,7 @@ public:
 	int do_int_operation(int left, int right, int op);
 	int calculate_size_of_static_expression(AST_Expression* expression);
 	int calculate_array_size(AST_Type* type);
+	String get_string_from_literal(AST_Expression* expression);
 
 	bool is_pointer(AST_Expression* expression);
 	bool is_number(AST_Expression* expression);

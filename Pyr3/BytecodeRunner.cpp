@@ -1,5 +1,89 @@
 #include "BytecodeRunner.h"
 
+#define RegisterVal(name, reg, type) \
+	void* name;\
+	{\
+		 AST_Type_Definition* tdef = (AST_Type_Definition*)type;\
+		if (tdef->internal_type == AST_Type_s64) name = (void*)reg._s64;\
+		if (tdef->internal_type == AST_Type_float) name = (void*)(int*)&reg._float;\
+		if (tdef->internal_type == AST_Type_char) name = (void*)reg._u8;\
+		if (tdef->internal_type == AST_Type_string) name = (void*)((New_String*)reg._pointer)->data;\
+		if (tdef->internal_type == AST_Type_pointer) name = (void*)reg._pointer;\
+	}\
+
+void* CallDllFunction(HMODULE hModule, const char* fun, vector<Register> regs, vector<AST_Type*> types) {
+	if (regs.size() == 0) {
+		FARPROC funci = GetProcAddress(hModule, fun);
+		return (void*)funci();
+	}
+	else if (regs.size() == 1) {
+		RegisterVal(a1, regs[0], types[0]);
+		auto tuple = make_tuple(a1);
+		return (void*)DLLCALL::DLLCall<void*>(hModule, fun, tuple);
+	}
+	else if (regs.size() == 2) {
+		RegisterVal(a1, regs[0], types[0]);
+		RegisterVal(a2, regs[1], types[1]);
+
+		auto tuple = make_tuple(a1, a2);
+		return (void*)DLLCALL::DLLCall<void*>(hModule, fun, tuple);
+	}
+	else if (regs.size() == 3) {
+		RegisterVal(a1, regs[0], types[0]);
+		RegisterVal(a2, regs[1], types[1]);
+		RegisterVal(a3, regs[2], types[2]);
+		auto tuple = make_tuple(a1, a2, a3);
+		return (void*)DLLCALL::DLLCall<void*>(hModule, fun, tuple);
+	}
+	else if (regs.size() == 4) {
+		RegisterVal(a1, regs[0], types[0]);
+		RegisterVal(a2, regs[1], types[1]);
+		RegisterVal(a3, regs[2], types[2]);
+		RegisterVal(a4, regs[3], types[3]);
+		auto tuple = make_tuple(a1, a2, a3, a4);
+		return (void*)DLLCALL::DLLCall<void*>(hModule, fun, tuple);
+	}
+	else if (regs.size() == 5) {
+		RegisterVal(a1, regs[0], types[0]);
+		RegisterVal(a2, regs[1], types[1]);
+		RegisterVal(a3, regs[2], types[2]);
+		RegisterVal(a4, regs[3], types[3]);
+		RegisterVal(a5, regs[4], types[4]);
+		auto tuple = make_tuple(a1, a2, a3, a4, a5);
+		return (void*)DLLCALL::DLLCall<void*>(hModule, fun, tuple);
+	}
+	else if (regs.size() == 6) {
+		RegisterVal(a1, regs[0], types[0]);
+		RegisterVal(a2, regs[1], types[1]);
+		RegisterVal(a3, regs[2], types[2]);
+		RegisterVal(a4, regs[3], types[3]);
+		RegisterVal(a5, regs[4], types[4]);
+		RegisterVal(a6, regs[5], types[5]);
+
+		auto tuple = make_tuple(a1, a2, a3, a4, a5, a6);
+		return (void*)DLLCALL::DLLCall<void*>(hModule, fun, tuple);
+	}
+	else if (regs.size() == 12) {
+		RegisterVal(a1, regs[0], types[0]);
+		RegisterVal(a2, regs[1], types[1]);
+		RegisterVal(a3, regs[2], types[2]);
+		RegisterVal(a4, regs[3], types[3]);
+		RegisterVal(a5, regs[4], types[4]);
+		RegisterVal(a6, regs[5], types[5]);
+		RegisterVal(a7, regs[6], types[6]);
+		RegisterVal(a8, regs[7], types[7]);
+		RegisterVal(a9, regs[8], types[8]);
+		RegisterVal(a10, regs[9], types[9]);
+		RegisterVal(a11, regs[10], types[10]);
+		RegisterVal(a12, regs[11], types[11]);
+
+		auto tuple = make_tuple(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12);
+		return (void*)DLLCALL::DLLCall<void*>(hModule, fun, tuple);
+	}
+
+	abort();
+}
+
 BytecodeRunner::BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> bytecode_types, int register_size, int memory_size) {
 	this->interpret = interpret;
 	this->bytecodes = bytecodes;
@@ -85,6 +169,20 @@ void BytecodeRunner::run(int address) {
 	run_expression(address);
 }
 
+HMODULE BytecodeRunner::get_hmodule(const char* name) {
+	for (int i = 0; i < foreignLibrary.size(); i++) {
+		auto lib = foreignLibrary[i];
+		if (COMPARE(name, lib.name)) {
+			return lib.mod;
+		}
+	}
+
+	auto lib = ForeignLibrary{ name, LoadLibraryA(name) };
+	foreignLibrary.push_back(lib);
+
+	return lib.mod;
+}
+
 #define ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(index, pointer, offset) \
 	{\
 		auto type = (AST_Type_Definition*)bytecode_types[pointer];\
@@ -109,8 +207,9 @@ int BytecodeRunner::run_expression(int address) {
 		case BYTECODE_INSTRICT_PRINT: {
 			auto x = this->registers[bc->index_r];
 			//auto type = (AST_Type_Definition*)bytecode_types[bc->index_r];
-			auto c = (char)this->registers[bc->index_r]._u8;
+			//auto c = (New_String*)this->registers[bc->index_r]._pointer;
 			printf("\n%lld", this->registers[bc->index_r]._s64);
+			//printf("\n%c", (char)this->registers[bc->index_r]._u8);
 			return 0;
 		}
 		case BYTECODE_ASSING_TO_BIG_CONSTANT: {
@@ -200,7 +299,6 @@ int BytecodeRunner::run_expression(int address) {
 		case BYTECODE_CALL_PROCEDURE: {
 			Register raddr = Register();
 			raddr._s64 = current_address;
-			addressStack.push_back(raddr);
 
 			auto procedure = static_cast<Call_Record*>(bc->big_constant._pointer);
 			if (procedure->calcualted_offset == -1) {
@@ -214,22 +312,56 @@ int BytecodeRunner::run_expression(int address) {
 			raddr._s64 = procedure->calcualted_offset;
 			addressStack.push_back(raddr);*/
 
+			vector<Register> regs;
+			vector<AST_Type*> types;
 			for (int i = 0; i < procedure->arguments.size(); i++) {
-				AST_Ident* arg = (AST_Ident*)procedure->arguments[i];
-
+				auto arg = procedure->arguments[i];
 				auto reg = this->registers[arg->bytecode_address];
-				if (arg->type_declaration != NULL && arg->type_declaration->inferred_type->kind == AST_TYPE_STRUCT) {
-					AST_Struct* strct = (AST_Struct*)arg->type_declaration->inferred_type;
-					Register copy_reg = Register();
-					copy_reg._pointer = malloc(strct->size);
-					memcpy(copy_reg._pointer, reg._pointer, strct->size);
-					reg = copy_reg;
-					//Copy the struct so wee don't give to the function reference but only copy of it!
+
+				if (procedure->arguments[i]->type == AST_IDENT) {
+					AST_Ident* ident = (AST_Ident*)procedure->arguments[i];
+					
+					if (ident->type_declaration != NULL && ident->type_declaration->inferred_type->kind == AST_TYPE_STRUCT) {
+						AST_Struct* strct = (AST_Struct*)ident->type_declaration->inferred_type;
+						Register copy_reg = Register();
+						copy_reg._pointer = malloc(strct->size);
+						memcpy(copy_reg._pointer, reg._pointer, strct->size);
+						reg = copy_reg;
+						//Copy the struct so wee don't give to the function reference but only copy of it!
+					}
 				}
 				//auto xx = this->registers[arg->bytecode_address]._pointer;
-				stack.push_back(reg);
+				regs.push_back(reg);
+				types.push_back(this->bytecode_types[arg->bytecode_index]);
 			}
 			
+			if (procedure->procedure->flags & AST_PROCEDURE_FLAG_FOREIGN) {
+				auto lit = static_cast<AST_Literal*>(procedure->procedure->foreign_library_expression);				
+				auto result = CallDllFunction(get_hmodule(lit->string_value.data), procedure->name.data, regs, types);
+
+				if (procedure->procedure->returnType != NULL) {
+					auto type = static_cast<AST_Type_Definition*>(bytecode_types[procedure->return_register]);
+					if (type->internal_type == AST_Type_pointer) {
+						registers[procedure->return_register]._pointer = result;
+					}
+					else if (type->internal_type == AST_Type_string) {
+						auto str = String((const char*)result);
+						registers[procedure->return_register]._pointer = new New_String{ str.data, str.size };
+					}
+					else {
+						registers[procedure->return_register]._s64 = (int64_t)result;
+					}
+
+					stack.push_back(registers[procedure->return_register]);
+				}
+				return 0;
+			}
+
+			addressStack.push_back(raddr);
+			for (int i = 0; i < regs.size(); i++) {
+				stack.push_back(regs[i]);
+			}
+				 
 			Stack_Record* st = new Stack_Record();
 			st->start_index = procedure->procedure->bytecode_index;
 			for (int i = st->start_index; i <= st->start_index + procedure->calcualted_offset; i++) {

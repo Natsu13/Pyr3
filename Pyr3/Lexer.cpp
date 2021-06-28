@@ -229,6 +229,7 @@ int Lexer::decide_token_keyword(const char* word) {
 	if (COMPARE(word, "u16"))			return TOKEN_KEYWORD_U16;
 	if (COMPARE(word, "u32"))			return TOKEN_KEYWORD_U32;
 	if (COMPARE(word, "u64"))			return TOKEN_KEYWORD_U64;
+	if (COMPARE(word, "pointer"))		return TOKEN_KEYWORD_POINTER;
 	return 0;
 }
 

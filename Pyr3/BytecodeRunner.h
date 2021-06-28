@@ -2,6 +2,13 @@
 #include "Interpret.h"
 #include "Bytecode.h"
 #include "Array.h"
+#include "Utils.h"
+
+struct ForeignLibrary {
+	const char* name;
+	HMODULE mod;
+};
+
 
 class BytecodeRunner
 {
@@ -12,12 +19,14 @@ private:
 	//vector<Register> registers;
 	vector<Register> stack; 
 	vector<Register> addressStack;
+	vector<ForeignLibrary> foreignLibrary;
 	Array<Register> registers;
 
 	int current_address;
 
 	ByteCode* get_bytecode(int address);
 	bool is_binop(Bytecode_Instruction bc_inst);
+	HMODULE get_hmodule(const char* name);
 public:
 	BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> bytecode_types, int register_size, int memory_size);
 	void run(int address);
@@ -27,4 +36,3 @@ public:
 	int get_address_of_procedure(String procedure_name, AST_Block* block);
 	void set_current_address(int address);
 };
-

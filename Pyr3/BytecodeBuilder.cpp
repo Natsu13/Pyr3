@@ -49,7 +49,7 @@ int BytecodeBuilder::allocate_output_register(AST_Type* type) {
 	int array_size = typeResolver->calculate_array_size(type);
 
 	if (bytecode_types.size() <= save_index) {
-		int resize = (save_index * 2 < 30) ? save_index * 2 : 30;
+		int resize = (save_index * 2 < 30) ? save_index * 2 : bytecode_types.size() + 30;
 		bytecode_types.resize(resize);
 	}
 	if (bytecode_types.size() == save_index) {
@@ -191,18 +191,20 @@ int BytecodeBuilder::build_procedure(AST_Procedure* procedure) {
 	procedure->bytecode_index = output_registers_index;
 
 	//build(procedure->header);
-	auto size = procedure->header->expressions.size();
-	for (int i = size - 1; i >= 0; i--) {
-		auto addr = build_expression(procedure->header->expressions[i]);
-		Instruction(BYTECODE_POP_FROM_STACK, -1, -1, addr);
-	}
+	if (!(procedure->flags & AST_PROCEDURE_FLAG_FOREIGN)) {
+		auto size = procedure->header->expressions.size();
+		for (int i = size - 1; i >= 0; i--) {
+			auto addr = build_expression(procedure->header->expressions[i]);
+			Instruction(BYTECODE_POP_FROM_STACK, -1, -1, addr);
+		}
 
-	if (procedure->body != NULL) {
-		build(procedure->body);
-	}
+		if (procedure->body != NULL) {
+			build(procedure->body);
+		}
 
-	if (procedure->returnType == NULL) {
-		Instruction(BYTECODE_RETURN, -1, -1, -1);
+		if (procedure->returnType == NULL) {
+			Instruction(BYTECODE_RETURN, -1, -1, -1);
+		}
 	}
 
 	return result_register;
@@ -408,6 +410,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	if (call->procedure->returnType != NULL) {
 		AST_Type* return_type = typeResolver->get_inferred_type(call->procedure->returnType);
 		return_register = allocate_output_register(return_type);
+		call->return_register = return_register;
 	}
 
 	auto call_instr = Instruction(BYTECODE_CALL_PROCEDURE, -1, -1, -1);

@@ -273,7 +273,6 @@ struct AST_Procedure : public AST_Expression {
 	AST_Block* header = NULL;
 	AST_Block* body = NULL;
 
-	AST_Literal* foreign_library = NULL;
 	AST_Expression* foreign_library_expression = NULL;
 };
 

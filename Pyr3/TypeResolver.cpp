@@ -134,6 +134,21 @@ bool TypeResolver::is_static(AST_Expression* expression) {
 	return false;
 }
 
+String TypeResolver::get_string_from_literal(AST_Expression* expression) {
+	if (expression->type == AST_LITERAL) {
+		auto lit = static_cast<AST_Literal*>(expression);
+		return lit->string_value;
+	}
+	if (expression->type == AST_IDENT) {
+		auto ident = static_cast<AST_Ident*>(expression);
+		auto decl = find_declaration(ident, ident->scope);
+
+		return get_string_from_literal(decl);
+	}
+
+	assert(false);
+}
+
 int TypeResolver::do_int_operation(int left, int right, int op) {
 	switch (op) {
 	case BINOP_PLUS: return left + right;
@@ -301,6 +316,21 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 					expr->flags |= DECLARATION_IN_HEAD;
 				}
 			}				
+
+			if (procedure->foreign_library_expression != NULL) {
+				resolveExpression(procedure->foreign_library_expression);
+				if (procedure->foreign_library_expression->type != AST_LITERAL) {
+					if (!is_static(procedure->foreign_library_expression)) {
+						interpret->report_error(procedure->foreign_library_expression->token, "Name of foreign library must be constant");
+					}
+					else {
+						auto old = procedure->foreign_library_expression;
+						auto news = get_string_from_literal(old);
+						procedure->foreign_library_expression = make_string_literal(news);
+						copy_token(old, procedure->foreign_library_expression);
+					}
+				}
+			}
 
 			resolve(procedure->body);			
 

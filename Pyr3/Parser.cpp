@@ -302,15 +302,7 @@ AST_Expression* Parser::parse_param_or_function() {
 
 			lexer->eat_token();
 			token = lexer->peek_next_token();
-			if (token->type != TOKEN_STRING) {
-				function->foreign_library = parse_string();
-			}
-			else if (token->type != TOKEN_IDENT) {
-				function->foreign_library_expression = parse_expression();
-			}
-			else {
-				interpret->report_error(token, "foreign procedure need name of DLL");
-			}			
+			function->foreign_library_expression = parse_expression();		
 		}
 		else {
 			interpret->report_error(token, "unkown directive in procedure");			
@@ -494,6 +486,9 @@ AST_Type* Parser::parse_typedefinition() {
 		}
 		case TOKEN_KEYWORD_U64: {
 			return interpret->type_u64;
+		}
+		case TOKEN_KEYWORD_POINTER: {
+			return interpret->type_pointer;
 		}
 	}
 
@@ -736,6 +731,8 @@ const char* Parser::token_to_string(int type) {
 	switch (type) {
 	case TOKEN_KEYWORD_IDENT:
 		return "ident";
+	case TOKEN_KEYWORD_POINTER:
+		return "pointer";
 	case TOKEN_KEYWORD_TRUE:
 		return "true";
 	case TOKEN_KEYWORD_FALSE:
@@ -794,7 +791,7 @@ bool Parser::is_typedef_keyword() {
 	if (   type == TOKEN_KEYWORD_FLOAT	|| type == TOKEN_KEYWORD_LONG
 		|| type == TOKEN_KEYWORD_S8		|| type == TOKEN_KEYWORD_S16	|| type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
 		|| type == TOKEN_KEYWORD_U8		|| type == TOKEN_KEYWORD_U16	|| type == TOKEN_KEYWORD_U32 || type == TOKEN_KEYWORD_U64
-		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL			|| type == TOKEN_BAND )
+		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL			|| type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER)
 		return true;
 
 	return false;

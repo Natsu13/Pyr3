@@ -49,7 +49,7 @@ enum Bytecode_Instruction {
 	BYTECODE_RESERVE_MEMORY_TO_R = 30,	
 
 	BYTECODE_INSTRICT_PRINT = 50,
-	BYTECODE_INSTRICT_ASSERT = 51,	
+	BYTECODE_INSTRICT_ASSERT = 51
 };
 
 const char* InstructionNames[];
@@ -103,6 +103,7 @@ struct Call_Record {
 	vector<AST_Expression*> arguments;
 	int offset = 0;
 	int calcualted_offset = -1;
+	int return_register = -1;
 };
 
 struct Stack_Record {

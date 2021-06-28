@@ -27,6 +27,7 @@ const int TOKEN_KEYWORD_U32 = 10022;
 const int TOKEN_KEYWORD_U64 = 10023;
 const int TOKEN_KEYWORD_S8 = 10024;
 const int TOKEN_KEYWORD_U8 = 10025;
+const int TOKEN_KEYWORD_POINTER = 10026;
 
 const int TOKEN_DIRECTIVE = '#';
 const int TOKEN_PLUS = '+';
