@@ -18,4 +18,6 @@ factorial :: (x: u64) -> u64 {
 
 	return 1;
 }
+
+GetForegroundWindow :: () -> ptr #foreign "USER32.DLL";
 ```
