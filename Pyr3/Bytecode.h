@@ -1,7 +1,6 @@
 #pragma once
 #include "Interpret.h"
 #include "String.h"
-#include <functional>
 
 const int INSTRUCTION_COUNT = 29;
 
@@ -74,28 +73,6 @@ struct Register {
 
 		void* _pointer;		
 	};
-};
-
-struct FunRegister: Register {
-	FunRegister(AST_Procedure* proc) {
-		
-	}
-	void* _pointer = NULL;
-	/*
-	std::function<void*(void* arg1, void* arg2, void* arg3, void* arg4)> _function;
-
-	void* operator() (void* arg1) {
-		return _function(arg1, NULL, NULL, NULL);
-	}
-	void* operator() (void* arg1, void* arg2) {
-		return _function(arg1, arg2, NULL, NULL);
-	}
-	void* operator() (void* arg1, void* arg2, void* arg3) {
-		return _function(arg1, arg2, arg3, NULL);
-	}
-	void* operator() (void* arg1, void* arg2, void* arg3, void* arg4) {
-		return _function(arg1, arg2, arg3, arg4);
-	}*/
 };
 
 struct ByteCode {
