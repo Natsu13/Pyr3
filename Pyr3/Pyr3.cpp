@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
                 builder->build(main_block);
 
 #if _DEBUG
-                BytecodeDebuger* debuger = new BytecodeDebuger(interpreter, builder->get_instructions(), builder->get_types());
+                BytecodeDebuger* debuger = new BytecodeDebuger(interpreter, type_resolver, builder->get_instructions(), builder->get_types());
                 debuger->debug();
 #endif
 
@@ -106,6 +106,8 @@ int main(int argc, char* argv[])
     
 #ifdef _DEBUG
     printf("\n!!! DEBUG MODE");
+    int x;
+    cin >> x;
 #endif // _debug
 
     printf("\nTotal time: %4.3f ms", el);

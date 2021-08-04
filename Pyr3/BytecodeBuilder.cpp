@@ -97,9 +97,52 @@ void BytecodeBuilder::build(AST_Block* block) {
 }
 
 int BytecodeBuilder::build_expression(AST_Expression* expression) {
+	if (expression->substitution != NULL) {
+		expression = expression->substitution;
+	}
+
 	switch (expression->type) {
 	case AST_IDENT: {
 		AST_Ident* ident = static_cast<AST_Ident*>(expression);
+
+		auto type_def = typeResolver->find_declaration(ident, ident->scope);
+		if (type_def != NULL && type_def->value != NULL && type_def->value->type == AST_PROCEDURE) {
+			AST_Procedure* proc = (AST_Procedure*)type_def->value;
+			if (proc->flags & AST_PROCEDURE_FLAG_C_CALL) {
+				int reg_c = allocate_output_register(interpret->type_c_call);
+				auto inst_c = Instruction(BYTECODE_C_CALL_FROM_PROCEDURE, -1, -1, reg_c);
+				inst_c->big_constant._pointer = proc;
+				return reg_c;
+			}
+		}
+
+		/*
+		if (member->value != NULL && member->value->type == AST_PROCEDURE) {
+		AST_Procedure* proc = (AST_Procedure*)member->value;
+		if (proc->flags & AST_PROCEDURE_FLAG_C_CALL) {
+			int reg_c = allocate_output_register(interpret->type_c_call);
+			auto inst_c = Instruction(BYTECODE_C_CALL_FROM_PROCEDURE, -1, -1, reg_c);
+			inst_c->big_constant._pointer = proc;
+
+			auto inst = Instruction(BYTECODE_MOVE_A_PLUS_OFFSET_TO_R, addrStruct, member->offset, reg);
+
+			return reg;
+		}
+	}
+		*/
+		/*
+		if (ident->flags & AST_IDENT_FLAG_C_CALL) {
+			auto reg = allocate_output_register(interpret->type_pointer);
+			auto decl = typeResolver->find_declaration(ident, ident->scope);
+
+			assert(decl->value->type == AST_PROCEDURE);
+
+			auto instr = Instruction(BYTECODE_C_CALL_FROM_PROCEDURE, -1, -1, reg);
+			instr->big_constant._pointer = decl;
+
+			return reg;
+		}
+		*/
 		return ident->type_declaration->register_index;
 	}break;
 	case AST_BLOCK: {
@@ -172,6 +215,37 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 	case AST_POINTER: {
 		AST_Pointer* pointer = static_cast<AST_Pointer*>(expression);
 		return build_pointer(pointer);
+	}
+	case AST_CAST: {
+		AST_Cast* cast = static_cast<AST_Cast*>(expression);
+
+		if (cast->flags & CAST_NOCHECK) {
+			//need to create new value and return the new value
+			return build_expression(cast->cast_expression);
+		}
+
+		AST_Type* type = static_cast<AST_Type*>(cast->cast_to);
+		int result_register = allocate_output_register(type);
+		int from_register = build_expression(cast->cast_expression);
+
+		auto inst = Instruction(BYTECODE_CAST, from_register, -1, result_register);
+		//auto type = this->typeResolver->find_typeof(cast->cast_expression);
+		//inst->options = 0;
+
+		/*if (type->kind == AST_TYPE_DEFINITION) {
+			auto type_kind = static_cast<AST_Type_Definition*>(type);
+			inst->options = type_kind->internal_type;
+		} else if (type->kind == AST_TYPE_STRUCT) {
+			auto type_struct = static_cast<AST_Struct*>(type);
+			inst->options = AST_Type_struct; //Just copy object to new result, in typechecker we need to check if it is possible
+		} else if (type->kind == AST_TYPE_POINTER) {
+			inst->options = AST_Type_pointer;
+		} else */
+		if(!(type->kind == AST_TYPE_DEFINITION || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_POINTER)) {
+			assert(false);
+		}
+
+		return result_register;
 	}
 	default:
 		assert(false);
@@ -358,7 +432,7 @@ int BytecodeBuilder::build_unary(AST_UnaryOp* unary) {
 	}
 	else if (unary->operation == UNOP_REF) { //&
 		int addr = build_expression(unary->left);
-		int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_u64));
+		int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_address));
 		auto address_reg = Instruction(BYTECODE_ADDRESS_OF, addr, -1, output);
 		return output;
 	}
@@ -400,6 +474,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	}
 	
 	call->arguments.clear();
+
 	for (int i = 0; i < unary->arguments->expressions.size(); i++) {
 		auto expr = unary->arguments->expressions[i];
 		expr->bytecode_address = build_expression(expr);
@@ -426,15 +501,17 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 }
 
 int BytecodeBuilder::build_pointer(AST_Pointer* type) {
-	build_expression(type->point_to);
+	auto index = build_expression(type->point_to);
 
 	if (type->point_to->type == AST_DECLARATION) {
 		auto decla = static_cast<AST_Declaration*>(type->point_to);
 		return decla->register_index;
 	}
+	
+	return index;
 
-	assert(false);
-	return 0;
+	//assert(false);
+	//return 0;
 }
 
 int BytecodeBuilder::build_type(AST_Type* type) {

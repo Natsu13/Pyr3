@@ -29,6 +29,7 @@ public:
 	AST_Type* resolveArray(AST_Array * arr);
 	void resolveDirective(AST_Directive* directive);
 
+	AST_Type* find_typeof(AST_Expression* expression);
 	AST_Type* find_typedefinition(AST_Ident* ident, AST_Block* scope);
 	AST_Type_Definition* find_typedefinition_from_type(AST_Type* type);
 	AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
@@ -51,4 +52,7 @@ public:
 
 	AST_Type* get_inferred_type(AST_Expression* expression);
 	void copy_token(AST_Expression* old, AST_Expression* news);
+
+	String expressionTypeToString(AST_Expression* type);
+	String typeToString(AST_Type* type);
 };

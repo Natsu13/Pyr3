@@ -119,7 +119,8 @@ String Lexer::peek_next_numer() {
 				return "0";
 			}
 
-			has_x = true; }
+			has_x = true; 
+		}
 		/*else if (ch == 'l') { 
 			has_l = true; 
 		}*/
@@ -216,10 +217,14 @@ int Lexer::decide_token_keyword(const char* word) {
 	if (COMPARE(word, "defer"))			return TOKEN_KEYWORD_DEFER;
 	if (COMPARE(word, "constructor"))	return TOKEN_KEYWORD_CONSTRUCTOR;
 	if (COMPARE(word, "destructor"))	return TOKEN_KEYWORD_DESCRUCTOR;
+	if (COMPARE(word, "cast"))			return TOKEN_KEYWORD_CAST;
+	if (COMPARE(word, "static"))		return TOKEN_KEYWORD_STATIC;
+	if (COMPARE(word, "no_check"))		return TOKEN_KEYWORD_NOCHECK;
 
 	if (COMPARE(word, "float"))			return TOKEN_KEYWORD_FLOAT;
 	if (COMPARE(word, "long"))			return TOKEN_KEYWORD_LONG;
 	if (COMPARE(word, "string"))		return TOKEN_KEYWORD_STRING;
+	if (COMPARE(word, "char"))			return TOKEN_KEYWORD_CHAR;
 
 	if (COMPARE(word, "s8"))			return TOKEN_KEYWORD_S8;
 	if (COMPARE(word, "s16"))			return TOKEN_KEYWORD_S16;
@@ -229,7 +234,7 @@ int Lexer::decide_token_keyword(const char* word) {
 	if (COMPARE(word, "u16"))			return TOKEN_KEYWORD_U16;
 	if (COMPARE(word, "u32"))			return TOKEN_KEYWORD_U32;
 	if (COMPARE(word, "u64"))			return TOKEN_KEYWORD_U64;
-	if (COMPARE(word, "pointer"))		return TOKEN_KEYWORD_POINTER;
+	if (COMPARE(word, "ptr"))			return TOKEN_KEYWORD_POINTER;
 	return 0;
 }
 
@@ -443,7 +448,7 @@ TokenDefine Lexer::get_next_token() {
 		break;
 	case '<':
 		if (peek_next_character() == '=') {
-			token_value_string = ">=";
+			token_value_string = "<=";
 			eat_character();
 			token = TOKEN_LESSEQUAL;
 			break;

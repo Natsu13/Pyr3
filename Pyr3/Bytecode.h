@@ -1,6 +1,7 @@
 #pragma once
 #include "Interpret.h"
 #include "String.h"
+#include <functional>
 
 const int INSTRUCTION_COUNT = 29;
 
@@ -49,7 +50,10 @@ enum Bytecode_Instruction {
 	BYTECODE_RESERVE_MEMORY_TO_R = 30,	
 
 	BYTECODE_INSTRICT_PRINT = 50,
-	BYTECODE_INSTRICT_ASSERT = 51
+	BYTECODE_INSTRICT_ASSERT = 51,
+
+	BYTECODE_CAST = 52,
+	BYTECODE_C_CALL_FROM_PROCEDURE = 53
 };
 
 const char* InstructionNames[];
@@ -68,8 +72,30 @@ struct Register {
 
 		float _float;
 
-		void* _pointer;
+		void* _pointer;		
 	};
+};
+
+struct FunRegister: Register {
+	FunRegister(AST_Procedure* proc) {
+		
+	}
+	void* _pointer = NULL;
+	/*
+	std::function<void*(void* arg1, void* arg2, void* arg3, void* arg4)> _function;
+
+	void* operator() (void* arg1) {
+		return _function(arg1, NULL, NULL, NULL);
+	}
+	void* operator() (void* arg1, void* arg2) {
+		return _function(arg1, arg2, NULL, NULL);
+	}
+	void* operator() (void* arg1, void* arg2, void* arg3) {
+		return _function(arg1, arg2, arg3, NULL);
+	}
+	void* operator() (void* arg1, void* arg2, void* arg3, void* arg4) {
+		return _function(arg1, arg2, arg3, arg4);
+	}*/
 };
 
 struct ByteCode {

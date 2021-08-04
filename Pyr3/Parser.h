@@ -28,6 +28,7 @@ private:
 	AST_Struct* parse_struct();
 	void parse_member_struct(AST_Struct* _struct);
 	AST_Return* parse_return();
+	AST_Cast* parse_cast();
 	void parse_directives(vector<AST_Directive*> &directives);
 	AST_Expression* parse_binop(int prec, AST_Expression* left);
 	AST_Expression* parse_param_or_function();

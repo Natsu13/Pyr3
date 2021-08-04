@@ -12,6 +12,18 @@ void BytecodeDebuger::debug() {
 		printf("%7d: ", instruction->index_instruction);
 
 		switch (instruction->instruction) {
+			case BYTECODE_CAST: {
+				auto type_from = (AST_Type*)types[instruction->index_a];
+				auto type_to = (AST_Type*)types[instruction->index_r];
+
+				printf("%12s v%d(%s) -> v%d(%s)\n", "cast", instruction->index_a, typeResolver->typeToString(type_from).data, instruction->index_r, typeResolver->typeToString(type_to).data);
+				break;
+			}
+			case BYTECODE_C_CALL_FROM_PROCEDURE: {
+				auto procedure = (AST_Procedure*)instruction->big_constant._pointer;
+				printf("%12s v%d -> v%d\n", "c_call", procedure->bytecode_address, instruction->index_r);
+				break;
+			}
 			case BYTECODE_CALL_PROCEDURE: {
 				auto call = static_cast<Call_Record*>(instruction->big_constant._pointer);
 				auto procedure = call->procedure;
@@ -25,8 +37,13 @@ void BytecodeDebuger::debug() {
 					_itoa_s(arg->bytecode_address, buffer, 10);
 					args += "v"; 
 					args += (&buffer[0]);
+				}				
+				printf("%12s %s(%s)", "call", call->name.data, args.data);
+				if (call->return_register != -1) {
+					printf(" -> v%d", call->return_register);
 				}
-				printf("%12s %s(%s)\n", "call", call->name.data, args.data);
+				printf("\n");
+
 				break;
 			}
 			case BYTECODE_INTEGER_ADD_TO_CONSTANT: {

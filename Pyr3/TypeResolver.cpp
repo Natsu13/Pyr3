@@ -31,8 +31,7 @@ void TypeResolver::resolve_main(AST_Block* block) {
 	resolveOther();
 }
 
-void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news)
-{
+void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news) {
 	news->token = new Token();
 	news->token->file_name = old->token->file_name;
 	news->token->column = old->token->column;
@@ -248,7 +247,12 @@ void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 
 				size+= type_def->size;
 				continue;
-			}			
+			}
+			else if (declaration->inferred_type->kind == AST_TYPE_POINTER) {
+				declaration->offset = offset + size;
+				size += interpret->type_pointer->size; 
+				continue;
+			}
 			assert(false);
 		}
 		else if (it->type == AST_TYPE) {
@@ -355,6 +359,17 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			resolveDirective(directive);
 			return NULL;
 		}
+		case AST_CAST: {
+			AST_Cast* cast = static_cast<AST_Cast*>(expression);
+
+			if (cast->cast_to->type != AST_TYPE) {
+				interpret->report_error(cast->cast_to->token, "Cast to must by type");
+				return NULL;
+			}
+
+			resolveExpression(cast->cast_to);
+			return resolveExpression(cast->cast_expression);
+		}
 		default:
 			assert(false);
 			break;
@@ -374,7 +389,7 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration) {
 		auto type = resolveExpression(pointer->point_to);
 		pointer->point_type = type;
 
-		return type;
+		return pointer;
 	}
 	else if (type->kind == AST_TYPE_STRUCT) {
 		AST_Struct* _struct = static_cast<AST_Struct*>(type);
@@ -611,17 +626,19 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 		pointer->point_to = unary->left;
 		pointer->point_type = type;
 		*/
-		return interpret->type_s64;
+		return interpret->type_pointer;
 	}
 	else if (unary->operation == UNOP_REF) { //&
 		auto type = resolveExpression(unary->left);
-		AST_Declaration* declaration = find_expression_declaration(unary->left);
-		assert(declaration != NULL);
+		//AST_Declaration* declaration = find_expression_declaration(unary->left);
+		//assert(declaration != NULL);
 
 		AST_Pointer* address = AST_NEW_EMPTY(AST_Pointer);
 		address->scope = unary->scope;
-		address->point_to = declaration;
+		address->point_to = unary->left;
 		address->point_type = type;
+
+		unary->substitution = address;
 
 		return address;
 	}
@@ -636,7 +653,17 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 			interpret->report_error(unary->left->token, "You can call only procedures not '%s'", unary->left->token->value);
 		}
 
-		return interpret->type_s64; //WTF?
+		auto proc = static_cast<AST_Procedure*>(declaration->value);
+		if (proc->returnType != NULL && proc->returnType->type == AST_TYPE) {
+			auto type = static_cast<AST_Type*>(proc->returnType);
+			if (type->kind == AST_TYPE_DEFINITION) {
+				auto tdef = static_cast<AST_Type_Definition*>(type);
+				return tdef;
+			}
+		}
+
+		//return interpret->type_void;
+		return interpret->type_s64; //WTF? on top we check if return type is type definition else we drop here o.o
 	}
 
 	assert(false && "this type of unarry not handled");
@@ -675,7 +702,19 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}
 
 		declaration->assigmet_type = type_def;
-		declaration->inferred_type = type_def;
+
+		if (type_def != NULL) {
+			if (type_def->type == AST_PROCEDURE) {
+				AST_Procedure* proc = (AST_Procedure*)type_def;
+				if (proc->flags & AST_PROCEDURE_FLAG_C_CALL) {
+					declaration->inferred_type = interpret->type_c_call;
+				}
+			}
+		}
+		
+		if(declaration->inferred_type == NULL) {
+			declaration->inferred_type = type_def;
+		}
 		type = type_def;
 	}
 	else if (declaration->value != NULL) {
@@ -722,7 +761,12 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 AST_Declaration* TypeResolver::find_expression_declaration(AST_Expression* expression) {
 	if (expression->type == AST_IDENT) {
 		auto ident = static_cast<AST_Ident*>(expression);
-		return find_declaration(ident, ident->scope);
+		auto decl = find_declaration(ident, ident->scope);
+		if (decl->type == AST_DECLARATION && decl->value != NULL && decl->value->type != AST_PROCEDURE) {
+			return find_expression_declaration(decl->value);
+		}
+
+		return decl;
 	}
 	else if (expression->type == AST_UNARYOP) {
 		auto unary = static_cast<AST_UnaryOp*>(expression);
@@ -743,6 +787,10 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 		if (expression->type == AST_DECLARATION) {
 			auto declaration = static_cast<AST_Declaration*>(expression);
 			if (declaration->ident->name->value == ident->name->value) {
+				if (declaration->value != NULL && declaration->value->type == AST_IDENT) {
+					auto new_ident = static_cast<AST_Ident*>(declaration->value);
+					return find_declaration(new_ident, new_ident->scope);
+				}
 				return declaration;
 			}
 		}
@@ -759,6 +807,76 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 		return find_declaration(ident, scope->scope);
 
 	return NULL;
+}
+
+AST_Type* TypeResolver::find_typeof(AST_Expression* expression) {
+	if (expression->type == AST_TYPE) {
+		return static_cast<AST_Type*>(expression);
+	}
+	else if (expression->type == AST_CAST) {
+		auto cast = static_cast<AST_Cast*>(expression);
+		return find_typeof(cast->cast_to);
+	}
+	else if (expression->type == AST_IDENT) {
+		auto ident = static_cast<AST_Ident*>(expression);
+		return find_typedefinition(ident, ident->scope);
+	}
+	else if (expression->type == AST_BINARY) {
+		auto bin = static_cast<AST_Binary*>(expression);
+		return find_typeof(bin->left);
+	}
+	else if (expression->type == AST_UNARYOP) {
+		auto unar = static_cast<AST_UnaryOp*>(expression);
+		return find_typeof(unar->left);
+	}
+	else if (expression->type == AST_TYPE_ARRAY) {
+		auto arr = static_cast<AST_Array*>(expression);
+		return find_typeof(arr->point_to);
+	}
+	
+	assert(false && "Unkown type for typeof");
+}
+
+String TypeResolver::expressionTypeToString(AST_Expression* type) {
+	if (type->type == AST_TYPE) {
+		AST_Type* _type = static_cast<AST_Type*>(type);
+		return typeToString(_type);
+	}
+
+	assert(false && "Only type can be translated");
+}
+
+String TypeResolver::typeToString(AST_Type* type) {
+	if (type->kind == AST_TYPE_DEFINITION) {
+		auto tdef = static_cast<AST_Type_Definition*>(type);
+		if (tdef->internal_type == AST_Type_s8)  return "s8";
+		if (tdef->internal_type == AST_Type_s16) return "s16";
+		if (tdef->internal_type == AST_Type_s32) return "s32";
+		if (tdef->internal_type == AST_Type_s64) return "s64";
+		if (tdef->internal_type == AST_Type_u8)	 return "u8";
+		if (tdef->internal_type == AST_Type_u16) return "u16";
+		if (tdef->internal_type == AST_Type_u32) return "u32";
+		if (tdef->internal_type == AST_Type_u64) return "u64";
+		if (tdef->internal_type == AST_Type_char) return "char";
+		if (tdef->internal_type == AST_Type_float) return "float";
+		if (tdef->internal_type == AST_Type_long) return "long";
+		if (tdef->internal_type == AST_Type_bit) return "bit";
+		if (tdef->internal_type == AST_Type_string) return "string";
+		if (tdef->internal_type == AST_Type_c_call) return "c_call";
+	}
+	else if (type->kind == AST_TYPE_STRUCT) {		
+		return "struct";
+	}
+	else if (type->kind == AST_TYPE_POINTER) {
+		auto point = static_cast<AST_Pointer*>(type);
+		return expressionTypeToString(point->point_to) + "*";
+	}
+	else if (type->kind == AST_TYPE_ARRAY) {
+		AST_Array* arr = static_cast<AST_Array*>(type);
+		return (String)("Array<") + expressionTypeToString(arr->point_to) + ">";
+	}
+
+	assert(false && "This type is not transatable");
 }
 
 AST_Type* TypeResolver::find_typedefinition(AST_Ident* ident, AST_Block* scope) {

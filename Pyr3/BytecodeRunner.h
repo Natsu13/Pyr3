@@ -15,7 +15,7 @@ class BytecodeRunner
 private:
 	Interpret* interpret;
 	vector<ByteCode*> bytecodes;
-	vector<AST_Type*> bytecode_types;
+	vector<AST_Type*> types;
 	//vector<Register> registers;
 	vector<Register> stack; 
 	vector<Register> addressStack;
@@ -28,7 +28,7 @@ private:
 	bool is_binop(Bytecode_Instruction bc_inst);
 	HMODULE get_hmodule(const char* name);
 public:
-	BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> bytecode_types, int register_size, int memory_size);
+	BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> types, int register_size, int memory_size);
 	void run(int address);
 	void loop();
 	int run_expression(int address);

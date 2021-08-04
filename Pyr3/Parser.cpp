@@ -90,6 +90,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_STRUCT) {
 		return parse_struct();
 	}
+	else if (token->type == TOKEN_KEYWORD_CAST) {
+		return parse_cast();
+	}
 	else if (token->type == TOKEN_KEYWORD_TRUE || token->type == TOKEN_KEYWORD_FALSE) {
 		this->lexer->eat_token();
 
@@ -106,6 +109,42 @@ AST_Expression* Parser::parse_expression() {
 
 	interpret->report_error(token, "Unexpected token type '%s'", token_to_string(token->type));
 	return NULL;
+}
+
+AST_Cast* Parser::parse_cast() {
+	lexer->eat_token(); //eat cast
+
+	AST_Cast* cst = AST_NEW(AST_Cast);
+
+	Token* token = lexer->peek_next_token();
+	while (token->type == ',') {
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+
+		if (token->type == TOKEN_KEYWORD_STATIC) {
+			cst->flags |= CAST_STATIC;
+		}
+		else if (token->type == TOKEN_KEYWORD_NOCHECK) {
+			cst->flags |= CAST_NOCHECK;
+		}
+		else {
+			interpret->report_error(token, "Unexpected cast operator '%s'", token_to_string(token->type));
+			return NULL;
+		}
+
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+	}
+
+	assert(token->type == '(');
+	lexer->eat_token();
+	cst->cast_to = parse_typedefinition_or_ident();
+	assert(lexer->peek_next_token()->type == ')');
+	lexer->eat_token();
+
+	cst->cast_expression = parse_primary();
+
+	return cst;
 }
 
 void Parser::parse_member_struct(AST_Struct* _struct) {
@@ -297,6 +336,9 @@ AST_Expression* Parser::parse_param_or_function() {
 			function->flags |= AST_PROCEDURE_FLAG_INTERNAL;
 		else if (COMPARE(name, "intrinsic"))
 			function->flags |= AST_PROCEDURE_FLAG_INTRINSIC;
+		else if (COMPARE(name, "c_call")) {
+			function->flags |= AST_PROCEDURE_FLAG_C_CALL;
+		}
 		else if (COMPARE(name, "foreign")) {
 			function->flags |= AST_PROCEDURE_FLAG_FOREIGN;
 
@@ -305,7 +347,7 @@ AST_Expression* Parser::parse_param_or_function() {
 			function->foreign_library_expression = parse_expression();		
 		}
 		else {
-			interpret->report_error(token, "unkown directive in procedure");			
+			interpret->report_error(token, "unkown directive '%s' in procedure", name);
 		}
 
 		lexer->eat_token();
@@ -443,56 +485,77 @@ AST_Type* Parser::parse_typedefinition() {
 
 	this->lexer->eat_token();
 
+	AST_Type* _type = NULL;
+
 	switch (type) {
-		case TOKEN_MUL: {
-			AST_Pointer* pointer = AST_NEW(AST_Pointer);
-			pointer->point_to = parse_typedefinition();
-			return pointer;
-		}
-		case TOKEN_BAND: {
-			AST_Addressof* addressof = AST_NEW(AST_Addressof);
-			addressof->address_of = parse_typedefinition();
-			return addressof;
+		case TOKEN_KEYWORD_CHAR: {
+			_type = interpret->type_char;
+			break;
 		}
 		case TOKEN_KEYWORD_FLOAT: {
-			return interpret->type_float;
+			_type = interpret->type_float;
+			break;
 		}
 		case TOKEN_KEYWORD_LONG: {
-			return interpret->type_long;
+			_type = interpret->type_long;
+			break;
 		}
 		case TOKEN_KEYWORD_STRING: {
-			return interpret->type_string;
+			_type = interpret->type_string;
+			break;
 		}
 		case TOKEN_KEYWORD_S8: {
-			return interpret->type_s8;
+			_type = interpret->type_s8;
+			break;
 		}
 		case TOKEN_KEYWORD_S16: {
-			return interpret->type_s16;
+			_type = interpret->type_s16;
+			break;
 		}
 		case TOKEN_KEYWORD_S32: {
-			return interpret->type_s32;
+			_type = interpret->type_s32;
+			break;
 		}
 		case TOKEN_KEYWORD_S64: {
-			return interpret->type_s64;
+			_type = interpret->type_s64;
+			break;
 		}
 		case TOKEN_KEYWORD_U8: {
-			return interpret->type_u8;
+			_type = interpret->type_u8;
+			break;
 		}
 		case TOKEN_KEYWORD_U16: {
-			return interpret->type_u16;
+			_type = interpret->type_u16;
+			break;
 		}
 		case TOKEN_KEYWORD_U32: {
-			return interpret->type_u32;
+			_type = interpret->type_u32;
+			break;
 		}
 		case TOKEN_KEYWORD_U64: {
-			return interpret->type_u64;
+			_type = interpret->type_u64;
+			break;
 		}
 		case TOKEN_KEYWORD_POINTER: {
-			return interpret->type_pointer;
+			_type = interpret->type_pointer;
+			break;
 		}
 	}
 
-	return NULL;
+	if (_type != NULL) {
+		token = lexer->peek_next_token();
+
+		while (token->type == TOKEN_MUL) {
+			AST_Pointer* pointer = AST_NEW(AST_Pointer);
+			pointer->point_to = _type;
+			_type = pointer;
+
+			this->lexer->eat_token();
+			token = lexer->peek_next_token();
+		}
+	}
+
+	return _type;
 }
 
 int Parser::get_current_token_prec() {
@@ -650,7 +713,7 @@ AST_Expression* Parser::parse_ident() {
 		call->operation = UNOP_CALL;
 		parse_arguments(call->arguments);
 		return call;
-	}
+	}	
 
 	return ident;
 }
@@ -788,7 +851,7 @@ const char* Parser::token_to_string(int type) {
 bool Parser::is_typedef_keyword() {
 	Token* token = lexer->peek_next_token();
 	int type = token->type;
-	if (   type == TOKEN_KEYWORD_FLOAT	|| type == TOKEN_KEYWORD_LONG
+	if (   type == TOKEN_KEYWORD_FLOAT	|| type == TOKEN_KEYWORD_LONG	|| type == TOKEN_KEYWORD_CHAR
 		|| type == TOKEN_KEYWORD_S8		|| type == TOKEN_KEYWORD_S16	|| type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
 		|| type == TOKEN_KEYWORD_U8		|| type == TOKEN_KEYWORD_U16	|| type == TOKEN_KEYWORD_U32 || type == TOKEN_KEYWORD_U64
 		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL			|| type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER)

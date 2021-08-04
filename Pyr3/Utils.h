@@ -49,7 +49,12 @@ namespace DLLCALL
 	R ActualCall(seq<S...>, std::tuple<Args...> tpl, std::function<R(Args...)> func)
 	{
 		// It calls the function while expanding the std::tuple to it's arguments via std::get<S>
-		return func(std::get<S>(tpl) ...);
+		try {
+			return func(std::get<S>(tpl) ...);
+		}
+		catch (...) {
+			std::exception_ptr p = std::current_exception();
+		}
 	}
 
 #pragma warning(disable:4290)
@@ -73,3 +78,26 @@ namespace DLLCALL
 		return return_value;
 	}
 }
+
+struct Lambda {
+	template<typename Tret, typename T>
+	static Tret lambda_ptr_exec(void* data1, void* data2, void* data3, void* data4, void* data5, void* data6, void* data7, void* data8, void* data9, void* data10, void* data11, void* data12) {
+		return (Tret)(*(T*)fn<T>())(data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data12);
+	}
+
+	template<typename Tret = void, typename Tfp = Tret(*)(void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*), typename T>
+	static Tfp ptr(T& t) {
+		fn<T>(&t);
+		return (Tfp)lambda_ptr_exec<Tret, T>;
+	}
+
+	template<typename T>
+	static void* fn(void* new_fn = nullptr) {
+		static void* fn;
+		if (new_fn != nullptr)
+			fn = new_fn;
+		return fn;
+	}
+};
+
+typedef void* (*WNDPROCFUN)(void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);

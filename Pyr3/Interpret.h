@@ -11,7 +11,7 @@ enum AST_Types {
 	AST_DECLARATION		= 0x3,
 	//AST_STRING = 0x5,
 	//AST_NUMBER = 0x6,
-	AST_BINARY		= 0x7,
+	AST_BINARY			= 0x7,
 	AST_PROCEDURE		= 0x8,
 	AST_PARAMLIST		= 0x9,
 	AST_UNARYOP			= 0x10, //16
@@ -22,6 +22,7 @@ enum AST_Types {
 	AST_TYPE			= 0x15,
 	AST_POINTER			= 0x16,
 	AST_STRUCT          = 0x17,
+	AST_CAST			= 0x18
 };
 
 const int D_COMPILER	= 0x1;
@@ -47,6 +48,7 @@ struct AST_Expression {
 	AST_Block* scope = NULL;
 	Token* token = NULL;
 	AST_Expression* expression = NULL;
+	AST_Expression* substitution = NULL;
 
 	//For debug
 	int line_number = 0;
@@ -98,7 +100,9 @@ enum AST_Internal_Types {
 	AST_Type_long			= 0x28,
 	AST_Type_bit			= 0x30,
 	AST_Type_pointer		= 0x31,
-	AST_Type_string			= 0x32  //50
+	AST_Type_string			= 0x32, //50
+	AST_Type_address		= 0x33,
+	AST_Type_c_call			= 0x34
 };
 
 enum AST_Type_Types {
@@ -130,6 +134,17 @@ struct AST_Struct : public AST_Type {
 	int size = 0;
 };
 
+enum AST_CAST_FLAGS {
+	CAST_STATIC = 0x1,
+	CAST_NOCHECK = 0x2
+};
+struct AST_Cast : public AST_Expression {
+	AST_Cast() { type = AST_CAST; }
+
+	AST_Expression* cast_to = NULL;
+	AST_Expression* cast_expression = NULL;
+};
+
 enum AST_ARRAY_FLAGS {
 	ARRAY_DYNAMIC = 0x1,
 };
@@ -155,6 +170,7 @@ struct AST_Addressof : public AST_Type {
 };
 
 const int AST_IDENT_FLAG_CONSTANT = 0x1;
+const int AST_IDENT_FLAG_C_CALL = 0x2;
 struct AST_Ident : public AST_Expression {
 	AST_Ident() { type = AST_IDENT; }
 
@@ -262,10 +278,11 @@ struct AST_Return : public AST_Expression {
 	AST_Expression* value = NULL;
 };
 
-const int AST_PROCEDURE_FLAG_COMPILER = 0x1;
-const int AST_PROCEDURE_FLAG_INTERNAL = 0x2;
+const int AST_PROCEDURE_FLAG_COMPILER  = 0x1;
+const int AST_PROCEDURE_FLAG_INTERNAL  = 0x2;
 const int AST_PROCEDURE_FLAG_INTRINSIC = 0x4;
-const int AST_PROCEDURE_FLAG_FOREIGN = 0x8;
+const int AST_PROCEDURE_FLAG_FOREIGN   = 0x8;
+const int AST_PROCEDURE_FLAG_C_CALL	   = 0x10;
 struct AST_Procedure : public AST_Expression {
 	AST_Procedure() { type = AST_PROCEDURE; }
 
@@ -308,7 +325,9 @@ public:
 
 	AST_Type_Definition* type_bit = NULL;
 	AST_Type_Definition* type_pointer = NULL;
+	AST_Type_Definition* type_address = NULL;
 	AST_Type_Definition* type_string = NULL;
+	AST_Type_Definition* type_c_call = NULL;
 
 	AST_Type_Definition* type_int = NULL;
 	AST_Type_Definition* type_float = NULL;
