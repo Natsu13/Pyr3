@@ -326,6 +326,12 @@ TokenDefine Lexer::get_next_token() {
 			token = TOKEN_INCREMENT;
 			break;
 		}
+		if (peek_next_character() == '=') {
+			eat_character();
+			token_value_string = "+=";
+			token = TOKEN_INCREMENT_ASIGN;
+			break;
+		}
 		token = TOKEN_PLUS;
 		break;
 	case '-':
@@ -341,10 +347,22 @@ TokenDefine Lexer::get_next_token() {
 			token = TOKEN_DECREMENT;
 			break;
 		}
+		if (peek_next_character() == '=') {
+			token_value_string = "-=";
+			eat_character();
+			token = TOKEN_DECREMENT_ASIGN;
+			break;
+		}
 		token = TOKEN_MINUS;
 		break;
 	case '*':
-		token = TOKEN_MUL;
+		if (peek_next_character() == '=') {
+			token_value_string = "*=";
+			eat_character();
+			token = TOKEN_MUL_ASING;
+			break;
+		}
+		token = TOKEN_MUL;		
 		break;
 	case '/':
 		if (peek_next_character() == '/') {
@@ -352,6 +370,12 @@ TokenDefine Lexer::get_next_token() {
 			eat_character();
 			eat_comment();
 			type = TOKEN_NOP;
+			break;
+		}
+		if (peek_next_character() == '=') {
+			token_value_string = "/=";
+			eat_character();
+			token = TOKEN_DIV_ASING;
 			break;
 		}
 		token = TOKEN_DIV;

@@ -436,6 +436,43 @@ int BytecodeBuilder::build_unary(AST_UnaryOp* unary) {
 		auto address_reg = Instruction(BYTECODE_ADDRESS_OF, addr, -1, output);
 		return output;
 	}
+	else if (unary->operation == UNOP_INCREMENT) {
+		int addr = build_expression(unary->left);
+
+		AST_Literal* literal = AST_NEW_EMPTY(AST_Literal);
+		literal->value_type = LITERAL_NUMBER;
+		literal->integer_value = 1;
+		int plus1 = build_expression(literal);		
+
+		if (unary->isPreppend) {
+			auto address_reg = Instruction(BYTECODE_BINOP_PLUS, addr, plus1, addr);
+			return addr;
+		}
+
+		int output = allocate_output_register(typeResolver->find_typeof(unary->left));
+		auto address_reg = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, output);
+		auto address_reg2 = Instruction(BYTECODE_BINOP_PLUS, addr, plus1, addr);
+		return output;
+	}
+	else if (unary->operation == UNOP_DECREMENT) {
+		int addr = build_expression(unary->left);
+
+		AST_Literal* literal = AST_NEW_EMPTY(AST_Literal);
+		literal->value_type = LITERAL_NUMBER;
+		literal->integer_value = 1;
+		int plus1 = build_expression(literal);		
+
+		if (unary->isPreppend) {
+			//int output = allocate_output_register(typeResolver->find_typeof(unary->left));
+			auto address_reg = Instruction(BYTECODE_BINOP_MINUS, addr, plus1, addr);
+			return addr;
+		}
+
+		int output = allocate_output_register(typeResolver->find_typeof(unary->left));
+		auto address_reg = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, output);
+		auto address_reg2 = Instruction(BYTECODE_BINOP_MINUS, addr, plus1, addr);
+		return output;
+	}
 
 	assert(false);
 	return -1;
@@ -604,8 +641,28 @@ int BytecodeBuilder::build_array_offset(AST_Array* arr) {
 int BytecodeBuilder::build_assigment(AST_Binary* binop) {
 	int addr = build_expression(binop->right);
 	int addrResult = find_address_of(binop->left);
+	int addrResultSave = addrResult;
 
-	if (binop->left->type == AST_TYPE && static_cast<AST_Type*>(binop->left)->kind == AST_TYPE_ARRAY) {
+	auto resultType = typeResolver->find_typeof(binop->left);
+
+	// not handling array and struct
+	if (binop->operation == BINOP_PLUS_ASIGN) {
+		//addrResult = allocate_output_register(resultType);
+		auto plus_instr = Instruction(BYTECODE_BINOP_PLUS, addrResultSave, addr, addrResult);
+	}
+	else if (binop->operation == BINOP_MINUS_ASIGN) {
+		//addrResult = allocate_output_register(resultType);
+		auto plus_instr = Instruction(BYTECODE_BINOP_MINUS, addrResultSave, addr, addrResult);
+	}
+	else if (binop->operation == BINOP_TIMES_ASIGN) {
+		//addrResult = allocate_output_register(resultType);
+		auto plus_instr = Instruction(BYTECODE_BINOP_TIMES, addrResultSave, addr, addrResult);
+	}
+	else if (binop->operation == BINOP_DIV_ASIGN) {
+		//addrResult = allocate_output_register(resultType);
+		auto plus_instr = Instruction(BYTECODE_BINOP_DIV, addrResultSave, addr, addrResult);
+	}
+	else if (binop->left->type == AST_TYPE && static_cast<AST_Type*>(binop->left)->kind == AST_TYPE_ARRAY) {
 		auto arr = static_cast<AST_Array*>(binop->left);
 		auto offset = build_array_offset(arr);
 		auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG, addr, offset, addrResult);
@@ -639,7 +696,8 @@ int BytecodeBuilder::build_binary(AST_Binary* binop) {
 
 	char operation = binop->operation;
 
-	if (operation == '=') {
+	if (operation == '=' || operation == BINOP_PLUS_ASIGN || operation == BINOP_MINUS_ASIGN 
+		|| operation == BINOP_TIMES_ASIGN || operation == BINOP_DIV_ASIGN) {
 		return build_assigment(binop);
 	}
 	if (operation == '.') {

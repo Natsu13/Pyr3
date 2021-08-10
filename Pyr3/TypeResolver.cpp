@@ -665,6 +665,10 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 		//return interpret->type_void;
 		return interpret->type_s64; //WTF? on top we check if return type is type definition else we drop here o.o
 	}
+	else if (unary->operation == UNOP_INCREMENT || unary->operation == UNOP_DECREMENT) {
+		auto type = resolveExpression(unary->left);
+		return type;
+	}
 
 	assert(false && "this type of unarry not handled");
 }

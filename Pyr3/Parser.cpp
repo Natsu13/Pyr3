@@ -69,7 +69,8 @@ AST_Expression* Parser::parse_primary(int prec) {
 AST_Expression* Parser::parse_expression() {
 	Token* token = lexer->peek_next_token();
 
-	if (token->type == TOKEN_MUL || token->type == TOKEN_BAND || token->type == TOKEN_IDENT) { // *test (pointer to) &test (address of)
+	if (token->type == TOKEN_MUL || token->type == TOKEN_BAND || token->type == TOKEN_IDENT
+		|| token->type == TOKEN_INCREMENT || token->type == TOKEN_DECREMENT) { // *test (pointer to) &test (address of)
 		return parse_ident();
 	}
 	else if (token->type == TOKEN_STRING) {
@@ -247,7 +248,7 @@ AST_Directive* Parser::parse_directive() {
 
 		token = lexer->peek_next_token();
 		if (token->type != TOKEN_STRING) {
-			interpret->report_error(token, "import procedure need name of library or pyr file as string");
+			interpret->report_error(token, "import procedure need name of library or pyr file as string"); //this will be handled with type resolver soo we can pass constant too
 			return NULL;
 		}
 
@@ -598,12 +599,19 @@ AST_Expression* Parser::parse_dereference(AST_Ident* ident) {
 	binary->left = ident;
 
 	auto token = lexer->peek_next_token();
-	if (token->type == '.' || token->type == '?') {		
+	if (token->type == '.' || token->type == '?') {
+		lexer->eat_token();
+
 		if (token->type == '?') {
 			binary->flags |= BINOP_FLAG_NOTHARD;
+			lexer->eat_token();
 		}
 
-		lexer->eat_token();
+		token = lexer->peek_next_token();
+		if (binary->flags & BINOP_FLAG_NOTHARD && token->type != '.') {
+			interpret->report_error(token, "Dereference operator ? must continue with dot operator");
+		}
+
 		binary->right = parse_dereference();
 
 		return binary;
@@ -621,21 +629,50 @@ AST_Expression* Parser::parse_ident() {
 		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
 		unary->operation = UNOP_DEF;
 		unary->left = parse_expression();
-
 		return unary;
 	}
-	else if (token->type == TOKEN_BAND) { //Address of &test
+	if (token->type == TOKEN_BAND) { //Address of &test
 		lexer->eat_token();
 
 		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
 		unary->operation = UNOP_REF;
 		unary->left = parse_expression();
-
+		return unary;
+	}
+	if (token->type == TOKEN_INCREMENT) { //++i
+		lexer->eat_token();
+		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		unary->operation = UNOP_INCREMENT;
+		unary->left = parse_expression();
+		return unary;
+	}
+	if (token->type == TOKEN_DECREMENT) { //--i
+		lexer->eat_token();
+		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		unary->operation = UNOP_DECREMENT;		
+		unary->left = parse_expression();
 		return unary;
 	}
 
 	AST_Ident* ident = create_ident_from_current_token();
 	token = lexer->peek_next_token();
+
+	if (token->type == TOKEN_INCREMENT) { //i++
+		lexer->eat_token();
+		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		unary->operation = UNOP_INCREMENT;
+		unary->left = ident;
+		unary->isPreppend = false;
+		return unary;
+	}
+	if (token->type == TOKEN_DECREMENT) { //i--
+		lexer->eat_token();
+		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		unary->operation = UNOP_DECREMENT;
+		unary->left = ident;
+		unary->isPreppend = false;
+		return unary;
+	}
 
 	if (token->type == '.') { // a.b.c
 		AST_Expression* expr = parse_dereference(ident);
@@ -701,7 +738,8 @@ AST_Expression* Parser::parse_ident() {
 
 		return declaration;
 	}
-	else if (token->type == '=') { //Assign to variable		
+	else if (token->type == '=' || token->type == TOKEN_INCREMENT_ASIGN || token->type == TOKEN_DECREMENT_ASIGN 
+		|| token->type == TOKEN_MUL_ASING || token->type == TOKEN_DIV_ASING) { //Assign to variable		
 		return parse_assigment(ident);
 	}
 	else if (token->type == '(') { //Call function
@@ -719,12 +757,23 @@ AST_Expression* Parser::parse_ident() {
 }
 
 AST_Binary* Parser::parse_assigment(AST_Expression* left) {
-	//Token* operation = lexer->peek_next_token();
+	Token* operation = lexer->peek_next_token();
 	lexer->eat_token();
+
+	int op = BINOP_ASIGN;
+
+	if (operation->type == TOKEN_INCREMENT_ASIGN)
+		op = BINOP_PLUS_ASIGN;
+	else if (operation->type == TOKEN_DECREMENT_ASIGN)
+		op = BINOP_MINUS_ASIGN;
+	else if (operation->type == TOKEN_MUL_ASING)
+		op = BINOP_TIMES_ASIGN; 
+	else if (operation->type == TOKEN_DIV_ASING)
+		op = BINOP_DIV_ASIGN;
 
 	AST_Binary* assigment = AST_NEW(AST_Binary);
 	assigment->left = left;
-	assigment->operation = BINOP_ASIGN;
+	assigment->operation = op;
 	assigment->right = parse_primary();
 
 	return assigment;

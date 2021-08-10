@@ -60,6 +60,7 @@ struct AST_Expression {
 #if _DEBUG
 	const char* _debug_file;
 	int _debug_line;
+	int serial;
 #endif
 
 };
@@ -219,7 +220,9 @@ struct AST_Literal : public AST_Expression {
 enum UnaryOp {
 	UNOP_REF = '*', //42
 	UNOP_DEF = '&',  //38,
-	UNOP_CALL = 3
+	UNOP_CALL = 3,	// ()
+	UNOP_INCREMENT = 4, //++i++
+	UNOP_DECREMENT = 5,	//--i--
 };
 struct AST_UnaryOp : public AST_Expression {
 	AST_UnaryOp() { type = AST_UNARYOP; }
@@ -233,9 +236,13 @@ struct AST_UnaryOp : public AST_Expression {
 enum BinaryOp {
 	BINOP_ASIGN			= '=', //61
 	BINOP_PLUS			= '+', //43
+	BINOP_PLUS_ASIGN	= 13,  //+=
 	BINOP_MINUS			= '-', //45
+	BINOP_MINUS_ASIGN	= 14,  //-=
 	BINOP_TIMES			= '*', //42
+	BINOP_TIMES_ASIGN   = 15,  //*=
 	BINOP_DIV			= '/', //47
+	BINOP_DIV_ASIGN		= 16,  ///=
 	BINOP_MOD			= '%', //37
 	BINOP_ISEQUAL		= 5,   //==
 	BINOP_ISNOTEQUAL	= 6,   //!=
@@ -343,10 +350,12 @@ public:
 	AST_Type_Definition* type_u16 = NULL;
 	AST_Type_Definition* type_u32 = NULL;
 	AST_Type_Definition* type_u64 = NULL;
+
+	int counter;
 };
 
-#define AST_NEW(type) create_expression(new type(), lexer->peek_next_token(), current_scope, __FILE__, __LINE__);
-#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr, nullptr, __FILE__, __LINE__);
+#define AST_NEW(type) create_expression(new type(), lexer->peek_next_token(), current_scope, __FILE__, __LINE__, interpret);
+#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr, nullptr, __FILE__, __LINE__, interpret);
 
 template<class T>
 T insert_and_return(vector<T>& _vector, T object) {
@@ -355,7 +364,7 @@ T insert_and_return(vector<T>& _vector, T object) {
 }
 
 template<class AST>
-AST* create_expression(AST* expression, Token* current_token, AST_Block* current_scope, const char* file, int line) {
+AST* create_expression(AST* expression, Token* current_token, AST_Block* current_scope, const char* file, int line, Interpret* interpret) {
 	if(current_token != nullptr)
 		expression->token = current_token;
 
@@ -365,6 +374,7 @@ AST* create_expression(AST* expression, Token* current_token, AST_Block* current
 #if _DEBUG
 	expression->_debug_file = file;
 	expression->_debug_line = line;
+	expression->serial		= interpret->counter++;
 #endif
 
 	return expression;

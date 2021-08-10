@@ -664,7 +664,7 @@ int BytecodeRunner::run_expression(int address) {
 int BytecodeRunner::run_binop(int address) {
 	auto bc = get_bytecode(address);
 
-	this->registers[bc->index_r]._u64 = 0;
+	//this->registers[bc->index_r]._u64 = 0; // WTF IS THIS OMG
 
 	if (bc->instruction == BYTECODE_BINOP_PLUS) {
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 + this->registers[bc->index_b]._s64;

@@ -61,16 +61,20 @@ const int TOKEN_MOD				= '%';
 const int TOKEN_EOF = -1;
 const int TOKEN_NOP = -2;
 
-const int TOKEN_INCREMENT = 100;
-const int TOKEN_DECREMENT = 101;
-const int TOKEN_RETURNTYPE = 102;
-const int TOKEN_EQUAL = 104;
-const int TOKEN_NOTEQUAL = 105;
-const int TOKEN_AND = 106;
-const int TOKEN_OR = 107;
-const int TOKEN_RANGE = 108;
-const int TOKEN_MOREEQUAL = 109;
-const int TOKEN_LESSEQUAL = 110;
+const int TOKEN_DIV_ASING = 703;		///=
+const int TOKEN_MUL_ASING = 702;		//*=
+const int TOKEN_INCREMENT = 100;		//++
+const int TOKEN_INCREMENT_ASIGN = 700;	//+=
+const int TOKEN_DECREMENT = 101;		//--
+const int TOKEN_DECREMENT_ASIGN = 701;	//-=
+const int TOKEN_RETURNTYPE = 102;		//->
+const int TOKEN_EQUAL = 104;			//==
+const int TOKEN_NOTEQUAL = 105;			//!=
+const int TOKEN_AND = 106;				//&&
+const int TOKEN_OR = 107;				//||
+const int TOKEN_RANGE = 108;			//..
+const int TOKEN_MOREEQUAL = 109;		//>=
+const int TOKEN_LESSEQUAL = 110;		//<=
 
 const int TOKEN_NUMBER	= 200;
 const int TOKEN_KEYWORD = 300;

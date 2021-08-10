@@ -5,6 +5,7 @@
 
 Interpret::Interpret() {
 	initialize();
+	counter = 0;
 }
 
 #define create_new_type(name, internalType, Size, Align) this->name = new AST_Type_Definition(); \
