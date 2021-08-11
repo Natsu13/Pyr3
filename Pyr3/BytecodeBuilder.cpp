@@ -229,23 +229,16 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		int from_register = build_expression(cast->cast_expression);
 
 		auto inst = Instruction(BYTECODE_CAST, from_register, -1, result_register);
-		//auto type = this->typeResolver->find_typeof(cast->cast_expression);
-		//inst->options = 0;
 
-		/*if (type->kind == AST_TYPE_DEFINITION) {
-			auto type_kind = static_cast<AST_Type_Definition*>(type);
-			inst->options = type_kind->internal_type;
-		} else if (type->kind == AST_TYPE_STRUCT) {
-			auto type_struct = static_cast<AST_Struct*>(type);
-			inst->options = AST_Type_struct; //Just copy object to new result, in typechecker we need to check if it is possible
-		} else if (type->kind == AST_TYPE_POINTER) {
-			inst->options = AST_Type_pointer;
-		} else */
 		if(!(type->kind == AST_TYPE_DEFINITION || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_POINTER)) {
 			assert(false);
 		}
 
 		return result_register;
+	}
+	case AST_WHILE: {
+		AST_While* whl = static_cast<AST_While*>(expression);
+		return build_while(whl);
 	}
 	default:
 		assert(false);
@@ -254,6 +247,19 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 
 	assert(false);
 	return -1;
+}
+
+int BytecodeBuilder::build_while(AST_While* whl) {
+	int pre_condition_address = get_current_bytecode_address(0);
+	int condition = build_expression(whl->condition);
+	auto instr_while = Instruction(BYTECODE_JUMP_IF_NOT, condition, -1, -1);
+
+	build_expression(whl->block);
+
+	Instruction(BYTECODE_JUMP, -1, -1, pre_condition_address);
+	instr_while->index_r = get_current_bytecode_address(0);
+
+	return instr_while->index_r;
 }
 
 int BytecodeBuilder::build_procedure(AST_Procedure* procedure) {

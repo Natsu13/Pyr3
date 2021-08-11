@@ -94,6 +94,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_CAST) {
 		return parse_cast();
 	}
+	else if (token->type == TOKEN_KEYWORD_WHILE) {
+		return parse_while();
+	}
 	else if (token->type == TOKEN_KEYWORD_TRUE || token->type == TOKEN_KEYWORD_FALSE) {
 		this->lexer->eat_token();
 
@@ -110,6 +113,25 @@ AST_Expression* Parser::parse_expression() {
 
 	interpret->report_error(token, "Unexpected token type '%s'", token_to_string(token->type));
 	return NULL;
+}
+
+AST_While* Parser::parse_while() {
+	lexer->eat_token(); //eat while
+
+	AST_While* whl = AST_NEW(AST_While);
+
+	whl->condition = parse_expression();
+	auto exp = parse_block_or_expression();
+
+	if (exp->type == AST_BLOCK) {
+		whl->block = (AST_Block*)exp;
+	}
+	else {
+		whl->block = AST_NEW(AST_Block);
+		whl->block->expressions.push_back(exp);
+	}
+
+	return whl;
 }
 
 AST_Cast* Parser::parse_cast() {

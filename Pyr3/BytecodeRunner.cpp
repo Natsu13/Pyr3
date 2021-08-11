@@ -396,14 +396,15 @@ int BytecodeRunner::run_expression(int address) {
 			return 0;
 		}
 		case BYTECODE_JUMP_IF: {
-			if (this->registers[bc->index_a]._s64) {
+			if (this->registers[bc->index_a]._s8) {
 				current_address = bc->index_r - 1;
 			}
 
 			return 0;
 		}
 		case BYTECODE_JUMP_IF_NOT: {
-			if (!this->registers[bc->index_a]._s64) {
+			auto xxx = this->registers[bc->index_a];
+			if (!this->registers[bc->index_a]._s8) {
 				current_address = bc->index_r - 1;
 			}
 
@@ -667,7 +668,11 @@ int BytecodeRunner::run_binop(int address) {
 	//this->registers[bc->index_r]._u64 = 0; // WTF IS THIS OMG
 
 	if (bc->instruction == BYTECODE_BINOP_PLUS) {
+		auto x1 = this->registers[bc->index_a]._s64;
+		auto x2 = this->registers[bc->index_b]._s64;
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 + this->registers[bc->index_b]._s64;
+		auto x3 = this->registers[bc->index_r]._s64;
+		auto xx = 1;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_MINUS) {
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 - this->registers[bc->index_b]._s64;
@@ -696,7 +701,11 @@ int BytecodeRunner::run_binop(int address) {
 		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 >= this->registers[bc->index_b]._s64;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_LESS) {
+		auto x1 = this->registers[bc->index_a]._s64;
+		auto x2 = this->registers[bc->index_b]._s64;
 		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 < this->registers[bc->index_b]._s64;
+		auto x3 = this->registers[bc->index_r]._u8;
+		auto xx = 1;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_LESSEQUAL) {
 		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 <= this->registers[bc->index_b]._s64;

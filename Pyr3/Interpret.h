@@ -22,7 +22,8 @@ enum AST_Types {
 	AST_TYPE			= 0x15,
 	AST_POINTER			= 0x16,
 	AST_STRUCT          = 0x17,
-	AST_CAST			= 0x18
+	AST_CAST			= 0x18,
+	AST_WHILE			= 0x19,	//25
 };
 
 const int D_COMPILER	= 0x1;
@@ -257,7 +258,7 @@ enum BinaryOp {
 	BINOP_DOT			= '.'  //46
 };
 enum BinaryOpFlags {
-	BINOP_FLAG_NOTHARD = 0x01 // x := a?b
+	BINOP_FLAG_NOTHARD = 0x01 // x := a.?b
 };
 struct AST_Binary : public AST_Expression {
 	AST_Binary() { type = AST_BINARY; }
@@ -265,6 +266,13 @@ struct AST_Binary : public AST_Expression {
 	AST_Expression* left = NULL;
 	AST_Expression* right = NULL;
 	int operation = 0;
+};
+
+struct AST_While : public AST_Expression {
+	AST_While() { type = AST_WHILE; }
+
+	AST_Expression* condition = NULL;
+	AST_Block* block = NULL;
 };
 
 const int AST_DIRECTIVE_FLAG_INITIALIZING = 0x1;

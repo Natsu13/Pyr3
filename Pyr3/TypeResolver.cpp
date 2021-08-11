@@ -370,6 +370,13 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			resolveExpression(cast->cast_to);
 			return resolveExpression(cast->cast_expression);
 		}
+		case AST_WHILE: {
+			AST_While* whl = static_cast<AST_While*>(expression);
+			resolveExpression(whl->condition);
+			resolve(whl->block);
+			whl->block->scope = expression->scope;
+			break;
+		}
 		default:
 			assert(false);
 			break;

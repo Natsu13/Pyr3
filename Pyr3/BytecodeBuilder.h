@@ -42,6 +42,7 @@ private:
 	int build_declaration(AST_Declaration* declaration);
 	int build_procedure(AST_Procedure* procedure);
 	int build_reference(AST_Binary* binary);
+	int build_while(AST_While* whl);
 
 	int find_address_of(AST_Expression* expression);
 	int find_address_of_type(AST_Expression* expression);

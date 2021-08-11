@@ -32,6 +32,7 @@ const int TOKEN_KEYWORD_POINTER = 10026;
 const int TOKEN_KEYWORD_CAST = 10027;
 const int TOKEN_KEYWORD_STATIC = 10028;
 const int TOKEN_KEYWORD_NOCHECK = 10029;
+const int TOKEN_KEYWORD_WHILE = 10031;
 
 const int TOKEN_DIRECTIVE		= '#';
 const int TOKEN_PLUS			= '+';

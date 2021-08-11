@@ -22,6 +22,7 @@ private:
 	AST_Binary* parse_assigment(AST_Expression* left);
 	AST_Literal* parse_string();
 	AST_Literal* parse_number();
+	AST_While* parse_while();
 	AST_Condition* parse_condition();
 	AST_Directive* parse_directive();
 	AST_Expression* parse_dereference(AST_Ident* ident = NULL);

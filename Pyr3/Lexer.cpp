@@ -210,6 +210,7 @@ int Lexer::decide_token_keyword(const char* word) {
 	if (COMPARE(word, "if"))			return TOKEN_KEYWORD_IF;
 	if (COMPARE(word, "else"))			return TOKEN_KEYWORD_ELSE;
 	if (COMPARE(word, "for"))			return TOKEN_KEYWORD_FOR;
+	if (COMPARE(word, "while"))			return TOKEN_KEYWORD_WHILE;
 	if (COMPARE(word, "new"))			return TOKEN_KEYWORD_NEW;	
 	if (COMPARE(word, "return"))		return TOKEN_KEYWORD_RETURN;
 	if (COMPARE(word, "enum"))			return TOKEN_KEYWORD_ENUM;
