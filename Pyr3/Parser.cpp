@@ -466,9 +466,18 @@ AST_Expression* Parser::parse_type_array(AST_Expression* type) {
 	auto token = lexer->peek_next_token();	
 	while (token->type == TOKEN_LBRACKET) {
 		lexer->eat_token();
+		token = lexer->peek_next_token();
 
 		AST_Array* arr = AST_NEW(AST_Array);
 		arr->token = lexer->peek_next_token();
+
+		if (token->type == TOKEN_RBRACKET) {
+			lexer->eat_token();
+			arr->flags = ARRAY_AUTO_SIZE;
+			arr->point_to = type;
+			type = arr;
+			continue;
+		}
 		
 		token = lexer->peek_next_token();
 		if (token->type == TOKEN_RANGE) {
@@ -740,6 +749,7 @@ AST_Expression* Parser::parse_ident() {
 			}
 		}
 
+		token = lexer->peek_next_token();
 		if (token->type == ':') { //Constant
 			declaration->flags |= AST_DECLARATION_FLAG_CONSTANT;
 		}
@@ -751,10 +761,17 @@ AST_Expression* Parser::parse_ident() {
 		}
 		lexer->eat_token();		
 
-		AST_Expression* value = parse_primary();
-		declaration->value = value;
+		token = lexer->peek_next_token();
+		if (token->type == '{') {
+			declaration->value = parse_list();
+			assert(lexer->peek_next_token()->type == ';');
+			lexer->eat_token();
+		}
+		else {
+			declaration->value = parse_primary();
+		}
 
-		if (value->type == AST_PROCEDURE) {
+		if (declaration->value->type == AST_PROCEDURE) {
 			declaration->assigmet_type = interpret->type_pointer;
 		}
 
@@ -776,6 +793,24 @@ AST_Expression* Parser::parse_ident() {
 	}	
 
 	return ident;
+}
+
+AST_Block* Parser::parse_list() {
+	lexer->eat_token(); // eat {
+
+	AST_Block* block = AST_NEW(AST_Block);
+
+	while (lexer->peek_next_token()->type != '}') {
+		block->expressions.push_back(parse_primary());
+
+		if (lexer->peek_next_token()->type == ',') {
+			lexer->eat_token();
+		}
+	}
+
+	lexer->eat_token(); // eat }
+
+	return block;
 }
 
 AST_Binary* Parser::parse_assigment(AST_Expression* left) {
@@ -834,30 +869,10 @@ AST_Literal* Parser::parse_number() {
 		value = token->number_value_l;
 	}
 	else if (token->number_flags & TOKEN_NUMBER_FLAG_FLOAT) {
-		//fvalue = floatToInteger(token->number_value_f);
 		return type_resolver->make_number_literal(token->number_value_f);
 	}
 	
 	return type_resolver->make_number_literal(value);
-	/*AST_Number* num = AST_NEW(AST_Number);
-	num->flags = token->number_flags;
-
-	if (token->number_flags & TOKEN_NUMBER_FLAG_INT) {
-		if (token->number_flags & TOKEN_NUMBER_FLAG_HEX) {
-			num->value = token->number_value_l;
-		}
-		else {
-			num->value = token->number_value_i;
-		}
-	}
-	else if (token->number_flags & TOKEN_NUMBER_FLAG_LONG) {
-		num->value = token->number_value_l;
-	}
-	else if (token->number_flags & TOKEN_NUMBER_FLAG_FLOAT) {
-		num->value = floatToInteger(token->number_value_f);
-	}
-
-	return num;*/
 }
 
 const char* Parser::token_to_string(int type) {

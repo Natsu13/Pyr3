@@ -129,6 +129,15 @@ bool TypeResolver::is_static(AST_Expression* expression) {
 			return true;
 		}
 	}
+	if (expression->type == AST_BLOCK) {
+		AST_Block* block = static_cast<AST_Block*>(expression);
+		for (int i = 0; i < block->expressions.size(); i++) {
+			if (!is_static(block->expressions[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
 
 	return false;
 }
@@ -385,29 +394,44 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 	return NULL;
 }
 
-AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration) {
+AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Expression* value) {
 	if (type->kind == AST_TYPE_DEFINITION) {
 		AST_Type_Definition* def = static_cast<AST_Type_Definition*>(type);
-
 		return def;
 	}
 	else if (type->kind == AST_TYPE_POINTER) {
 		AST_Pointer* pointer = static_cast<AST_Pointer*>(type);
-		auto type = resolveExpression(pointer->point_to);
-		pointer->point_type = type;
-
+		pointer->point_type = resolveExpression(pointer->point_to);
 		return pointer;
 	}
 	else if (type->kind == AST_TYPE_STRUCT) {
 		AST_Struct* _struct = static_cast<AST_Struct*>(type);
 		resolve(_struct->members);
 		calculate_struct_size(_struct);
-
 		return type;
 	}
 	else if(type->kind == AST_TYPE_ARRAY) {
 		AST_Array* _array = static_cast<AST_Array*>(type);		
-		resolveExpression(_array->size);
+
+		if (_array->flags & ARRAY_AUTO_SIZE) {
+			if (value != NULL) {
+				if (value->type != AST_BLOCK) {
+					interpret->report_error(_array->token, "When you don't specify size you must assing array to list of values type of array");
+					return NULL;
+				}
+
+				AST_Block* block = (AST_Block*)value;
+				_array->size = make_number_literal((int)block->expressions.size());
+				resolveExpression(_array->size);
+			}
+		}
+		else if (_array->flags & ARRAY_DYNAMIC) {
+
+		}
+		else {
+			resolveExpression(_array->size);
+		}
+		
 		resolveExpression(_array->point_to);
 
 		if (as_declaration) {
@@ -689,7 +713,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 	}
 
 	if (declaration->assigmet_type != NULL && declaration->assigmet_type->type == AST_TYPE) {		
-		type = resolveType(static_cast<AST_Type*>(declaration->assigmet_type), true);
+		type = resolveType(static_cast<AST_Type*>(declaration->assigmet_type), true, declaration->value);
 		declaration->inferred_type = type;
 	}
 	else if (declaration->assigmet_type != NULL) {

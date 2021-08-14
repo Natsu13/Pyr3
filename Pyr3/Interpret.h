@@ -149,6 +149,7 @@ struct AST_Cast : public AST_Expression {
 
 enum AST_ARRAY_FLAGS {
 	ARRAY_DYNAMIC = 0x1,
+	ARRAY_AUTO_SIZE = 0x2
 };
 struct AST_Array : public AST_Type {
 	AST_Array() { kind = AST_TYPE_ARRAY; }

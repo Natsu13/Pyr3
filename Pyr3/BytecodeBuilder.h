@@ -44,6 +44,8 @@ private:
 	int build_reference(AST_Binary* binary);
 	int build_while(AST_While* whl);
 
+	void build_array(int register_index, AST_Array* _array);
+
 	int find_address_of(AST_Expression* expression);
 	int find_address_of_type(AST_Expression* expression);
 	int find_offset_of(AST_Expression* expression, AST_Block* scope);

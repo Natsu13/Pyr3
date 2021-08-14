@@ -265,9 +265,9 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			else if(tdef->internal_type == AST_Type_char) variable = 1;\
 			else if(tdef->internal_type == AST_Type_float) variable = 8;/*idk*/\
 			else variable = 1;\
-		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT) {\
+		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
 			variable = interpret->type_pointer->size;\
-		} else {\
+		} else { \
 			assert(false);\
 		}\
 	}

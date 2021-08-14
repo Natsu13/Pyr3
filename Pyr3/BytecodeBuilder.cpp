@@ -290,6 +290,13 @@ int BytecodeBuilder::build_procedure(AST_Procedure* procedure) {
 	return result_register;
 }
 
+void BytecodeBuilder::build_array(int register_index, AST_Array* _array) {
+	assert(typeResolver->is_static(_array->size));
+	int size = typeResolver->calculate_array_size(_array);
+	assert(size > 0);
+	Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, register_index);
+}
+
 int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 	if (declaration->value != NULL && declaration->value->type == AST_TYPE) {
 		auto type = static_cast<AST_Type*>(declaration->value);
@@ -302,10 +309,7 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 
 	if (declaration->register_index == -1) {
 		int output_register = allocate_output_register(static_cast<AST_Type_Definition*>(declaration->assigmet_type));
-		declaration->register_index = output_register;
-
-		//auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, -1);
-		//instr->big_constant._s64 = ident->type_declaration->register_index;			
+		declaration->register_index = output_register;	
 	}	
 
 	if (!(declaration->flags & DECLARATION_IN_HEAD) && declaration->value == NULL) {
@@ -317,17 +321,11 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 		}
 
 		if (type->kind == AST_TYPE_ARRAY) {
-			auto _array = static_cast<AST_Array*>(type);
-			assert(typeResolver->is_static(_array->size));
-
-			int size = typeResolver->calculate_array_size(_array);
-			assert(size > 0);
-
-			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, declaration->register_index);
+			build_array(declaration->register_index, (AST_Array*)type);
 		}
 	}
 
-	if (declaration->value != NULL) {		
+	if (declaration->value != NULL) {
 		switch (declaration->value->type) {
 		case AST_LITERAL: {
 			auto literal = static_cast<AST_Literal*>(declaration->value);
@@ -348,6 +346,28 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 
 			break;
 		}
+		case AST_BLOCK: {
+			if (type->kind == AST_TYPE_ARRAY) {
+				auto arr = (AST_Array*)type;
+				build_array(declaration->register_index, arr);
+				
+				auto block = (AST_Block*)declaration->value;
+				auto typeSize = typeResolver->find_typeof(arr->point_to);
+				int size = 0;
+				if (typeSize->kind == AST_TYPE_DEFINITION) {
+					auto typeDef = (AST_Type_Definition*)typeSize;
+					size = typeDef->size;
+				}
+
+				assert(size != 0);
+
+				for (int i = 0; i < block->expressions.size(); i++) {
+					auto in = build_expression(block->expressions[i]);
+					Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET, in, size * i, declaration->register_index);
+				}
+			}
+			break;
+		} 
 		default: {
 			/*
 			auto instr_initialize = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
