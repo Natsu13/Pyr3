@@ -86,6 +86,14 @@ char Lexer::peek_next_character() {
 	return 0;
 }
 
+char Lexer::peek(int i) {
+	if (this->pos + i >= this->code.size) {
+		return '\0';
+	}
+
+	return this->code[this->pos + i];
+}
+
 void Lexer::eat_character() {		
 	peeked = false;
 	this->pos++;	
@@ -178,7 +186,7 @@ String Lexer::peek_next_word(int& token_type) {
 		str = peek_next_string();
 		token_type = TOKEN_STRING;
 	}
-	else if (character >= '0' && character <= '9') {
+	else if ((character == '-' && peek(1) != '-' && peek(1) != '=') || (character >= '0' && character <= '9')) {
 		str = peek_next_numer();
 		token_type = TOKEN_NUMBER;
 	}
@@ -335,27 +343,6 @@ TokenDefine Lexer::get_next_token() {
 		}
 		token = TOKEN_PLUS;
 		break;
-	case '-':
-		if (peek_next_character() == '>') {
-			token_value_string = "->";
-			eat_character();
-			token = TOKEN_RETURNTYPE;
-			break;
-		}
-		if (peek_next_character() == '-') {
-			token_value_string = "--";
-			eat_character();
-			token = TOKEN_DECREMENT;
-			break;
-		}
-		if (peek_next_character() == '=') {
-			token_value_string = "-=";
-			eat_character();
-			token = TOKEN_DECREMENT_ASIGN;
-			break;
-		}
-		token = TOKEN_MINUS;
-		break;
 	case '*':
 		if (peek_next_character() == '=') {
 			token_value_string = "*=";
@@ -487,6 +474,29 @@ TokenDefine Lexer::get_next_token() {
 		token = TOKEN_EOF;
 		break;
 	default:
+		if (character == '-' && !(peek_next_character() > '0' && peek_next_character() < '9')) {
+			if (peek_next_character() == '>') {
+				token_value_string = "->";
+				eat_character();
+				token = TOKEN_RETURNTYPE;
+				break;
+			}
+			if (peek_next_character() == '-') {
+				token_value_string = "--";
+				eat_character();
+				token = TOKEN_DECREMENT;
+				break;
+			}
+			if (peek_next_character() == '=') {
+				token_value_string = "-=";
+				eat_character();
+				token = TOKEN_DECREMENT_ASIGN;
+				break;
+			}
+			token = TOKEN_MINUS;
+			break;
+		}
+
 		rollback_eat_char();
 		token_value_string = peek_next_word(type);
 

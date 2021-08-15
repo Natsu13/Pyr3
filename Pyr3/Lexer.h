@@ -27,6 +27,7 @@ private:
 	TokenDefine get_next_token();
 
 	char peek_next_character();
+	char peek(int i = 1);
 	void eat_character();
 	String peek_next_word(int& token_type);
 	//void eat_word();
