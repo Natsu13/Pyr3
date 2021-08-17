@@ -243,6 +243,32 @@ int TypeResolver::calculate_array_size(AST_Type* type) {
 	return resolveSize;
 }
 
+int TypeResolver::get_size_of(AST_Expression* expr) {
+	if (expr->type == AST_TYPE) {
+		auto type = (AST_Type*)expr;
+		
+		if (type->kind == AST_TYPE_DEFINITION) {
+			auto tdef = (AST_Type_Definition*)expr;
+			return tdef->size;
+		}
+		else if (type->kind == AST_TYPE_ARRAY) {
+			return calculate_array_size(type);
+		}
+		else if (type->kind == AST_TYPE_STRUCT) {
+			auto _struct = (AST_Struct*)type;
+			calculate_struct_size(_struct);
+			return _struct->size;
+		}
+	}
+	else if (expr->type == AST_DECLARATION) {
+		auto declaration = (AST_Declaration*)expr;
+		auto type_def = static_cast<AST_Type_Definition*>(declaration->inferred_type);
+		return type_def->size;
+	}
+
+	return 0;
+}
+
 void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 	int size = 0;
 	for (int i = 0; i < _struct->members->expressions.size(); i++) {

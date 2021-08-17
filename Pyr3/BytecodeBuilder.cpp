@@ -315,9 +315,7 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 	if (!(declaration->flags & DECLARATION_IN_HEAD) && declaration->value == NULL) {
 		if (type->kind == AST_TYPE_STRUCT) {
 			auto _struct = static_cast<AST_Struct*>(type);
-			int size = _struct->size;
-
-			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, declaration->register_index);
+			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, _struct->size, -1, declaration->register_index);
 		}
 
 		if (type->kind == AST_TYPE_ARRAY) {
@@ -364,6 +362,20 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 				for (int i = 0; i < block->expressions.size(); i++) {
 					auto in = build_expression(block->expressions[i]);
 					Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET, in, size * i, declaration->register_index);
+				}
+			}
+			else if (type->kind == AST_TYPE_STRUCT) {
+				auto _struct = static_cast<AST_Struct*>(type);
+				Instruction(BYTECODE_RESERVE_MEMORY_TO_R, _struct->size, -1, declaration->register_index);
+
+				auto block = (AST_Block*)declaration->value;
+
+				int size = 0;
+				for (int i = 0; i < _struct->members->expressions.size(); i++) {
+					auto expr = _struct->members->expressions[i];										
+					auto in = build_expression(block->expressions[i]);
+					Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET, in, size, declaration->register_index);
+					size += typeResolver->get_size_of(expr);
 				}
 			}
 			break;

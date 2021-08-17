@@ -39,6 +39,7 @@ public:
 	AST_Literal* make_number_literal(long long value);
 	AST_Literal* make_number_literal(float value);
 
+	int get_size_of(AST_Expression* expr);
 	void calculate_struct_size(AST_Struct* _struct, int offset = 0);
 	bool is_static(AST_Expression* expression);
 	int do_int_operation(int left, int right, int op);
