@@ -51,7 +51,12 @@ void BytecodeDebuger::debug() {
 				break;
 			}
 			case BYTECODE_RESERVE_MEMORY_TO_R: {
-				printf("%12s v%d >> %d\n", "malloc", instruction->index_r, instruction->index_a);
+				if (instruction->options == 0) {
+					printf("%12s v%d >> %d\n", "malloc", instruction->index_r, instruction->index_a);
+				}
+				else {
+					printf("%12s v%d >> v%d\n", "malloc", instruction->index_r, instruction->index_a);
+				}
 				break;
 			}
 			case BYTECODE_ASSING_TO_BIG_CONSTANT: {

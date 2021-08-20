@@ -423,15 +423,18 @@ int BytecodeBuilder::find_address_of_type(AST_Expression* expression) {
 		return declaration->register_index;
 	}
 
-	assert(false);
-	return 0;
+	//assert(false);
+	return -1;
 }
 
 int BytecodeBuilder::find_address_of(AST_Expression* expression) {
 	if (expression->type == AST_IDENT) {
 		auto ident = static_cast<AST_Ident*>(expression);
 		if (ident->type_declaration != NULL) {
-			return find_address_of_type(ident->type_declaration);
+			auto re = find_address_of_type(ident->type_declaration);
+			if (re >= 0) {
+				return re;
+			}
 		}
 
 		auto declaration = typeResolver->find_declaration(ident, ident->scope);
@@ -531,7 +534,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	call->offset = output_registers_index;// get_current_bytecode_address();
 
 	if (call->procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) {
-		free(call);
+		delete call;
 
 		if (COMPARE(literar->name->value, "print")) {
 			int arg1 = build_expression(unary->arguments->expressions[0]);
@@ -543,6 +546,16 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 			int arg1 = build_expression(unary->arguments->expressions[0]);
 			Instruction(BYTECODE_INSTRICT_ASSERT, -1, -1, arg1);
 			return 0;
+		}
+
+		if (COMPARE(literar->name->value, "malloc")) {
+			int arg1 = build_expression(unary->arguments->expressions[0]);
+			int return_register = allocate_output_register(interpret->type_u8);
+
+			auto opt = Instruction(BYTECODE_RESERVE_MEMORY_TO_R, arg1, -1, return_register);
+			opt->options = 1;
+
+			return return_register;
 		}
 
 		return 0;

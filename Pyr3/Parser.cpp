@@ -513,13 +513,26 @@ AST_Expression* Parser::parse_typedefinition_or_ident() {
 
 AST_Type* Parser::parse_typedefinition() {
 	Token* token = lexer->peek_next_token();
-	int type = token->type;
 
 	this->lexer->eat_token();
 
 	AST_Type* _type = NULL;
+	AST_Pointer* _pointer = NULL;
 
-	switch (type) {
+	//token = lexer->peek_next_token();
+
+	while (token->type == TOKEN_MUL) {		
+		AST_Pointer* pointer = AST_NEW(AST_Pointer);
+		if (_pointer != NULL && _pointer->kind == AST_POINTER) {
+			pointer->point_to = _pointer;
+		}		
+		_pointer = pointer;
+		
+		token = lexer->peek_next_token();
+		this->lexer->eat_token();
+	}
+
+	switch (token->type) {
 		case TOKEN_KEYWORD_CHAR: {
 			_type = interpret->type_char;
 			break;
@@ -574,17 +587,9 @@ AST_Type* Parser::parse_typedefinition() {
 		}
 	}
 
-	if (_type != NULL) {
-		token = lexer->peek_next_token();
-
-		while (token->type == TOKEN_MUL) {
-			AST_Pointer* pointer = AST_NEW(AST_Pointer);
-			pointer->point_to = _type;
-			_type = pointer;
-
-			this->lexer->eat_token();
-			token = lexer->peek_next_token();
-		}
+	if (_pointer != NULL) {
+		_pointer->point_to = _type;
+		return _pointer;
 	}
 
 	return _type;
@@ -940,7 +945,7 @@ bool Parser::is_typedef_keyword() {
 	if (   type == TOKEN_KEYWORD_FLOAT	|| type == TOKEN_KEYWORD_LONG	|| type == TOKEN_KEYWORD_CHAR
 		|| type == TOKEN_KEYWORD_S8		|| type == TOKEN_KEYWORD_S16	|| type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
 		|| type == TOKEN_KEYWORD_U8		|| type == TOKEN_KEYWORD_U16	|| type == TOKEN_KEYWORD_U32 || type == TOKEN_KEYWORD_U64
-		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL			|| type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER)
+		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL			|| type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER || type == '*')
 		return true;
 
 	return false;
