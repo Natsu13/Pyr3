@@ -34,3 +34,21 @@ print(arr[0]);
 print(arr[1]);
 print(arr[2]);
 ```
+
+```
+main :: () {
+	arr: Array;
+	arr.count = 2;
+	arr.data = malloc(8 * 2);
+	arr.data[0] = 50;
+	arr.data[1] = 100;
+	print(arr.count);
+	print(arr.data[0]);
+	print(arr.data[1]);
+}
+
+Array :: struct {
+	count: s64;
+	data: *s64;
+}
+```
