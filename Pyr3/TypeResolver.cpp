@@ -524,6 +524,16 @@ AST_Type* TypeResolver::resolveStructDereference(AST_Struct* _struct, AST_Expres
 		resolveExpression(ident);
 		return type->inferred_type;
 	}
+	
+	if (expression->type == AST_TYPE) { //struct.arr[0]
+		auto type = (AST_Type*)expression;
+		assert(type->kind == AST_TYPE_ARRAY);
+		
+		auto arr = (AST_Array*)type;
+		arr->scope = _struct->members;
+
+		return resolveArray(arr);
+	}
 
 	auto binary = static_cast<AST_Binary*>(expression);
 	auto ident = static_cast<AST_Ident*>(binary->left);
@@ -532,18 +542,19 @@ AST_Type* TypeResolver::resolveStructDereference(AST_Struct* _struct, AST_Expres
 
 	if (type->assigmet_type->type == AST_TYPE) {
 		auto struct_type = static_cast<AST_Type*>(type->assigmet_type);
-		assert(struct_type->kind == AST_TYPE_STRUCT);
+		//assert(struct_type->kind == AST_TYPE_STRUCT) ????
 
-		return resolveStructDereference(static_cast<AST_Struct*>(struct_type), binary->right);
+		return resolveStructDereference(static_cast<AST_Struct*>(struct_type), binary->right);		
 	}
 }
 
 AST_Type* TypeResolver::resolveArray(AST_Array* arr) {
-	if (arr->point_to->type == AST_TYPE_ARRAY) {
+	if (arr->point_to->type == AST_TYPE_ARRAY) { //wtf???
 		return resolveArray(static_cast<AST_Array*>(arr->point_to));
 	}
 
 	resolveExpression(arr->size);
+	arr->point_to->scope = arr->scope;
 	return resolveExpression(arr->point_to);
 }
 
@@ -557,7 +568,7 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 		type = resolveExpression(binop->left);
 	}
 
-	if (binop->operation == BINOP_DOT) { // a.b
+	if (binop->operation == BINOP_DOT) { // l.r
 		auto ident = static_cast<AST_Ident*>(binop->left);
 		auto type = find_typedefinition(ident, binop->scope); //We know left can be only ident
 		if (type != NULL && type->type == AST_TYPE) {
@@ -567,10 +578,15 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 
 			if (type->kind == AST_TYPE_STRUCT) {
 				return resolveStructDereference(_struct, binop->right);
-			}
-			else {
+			} else {
 				assert(false && "Just now we can dereference only struct");
 			}
+		}
+	}
+	else if (binop->operation == BINOP_ASIGN) { // l = r 
+		auto type = find_typeof(binop->left);	// auto convert unsigned to signed
+		if (type->kind == AST_TYPE_DEFINITION) {
+			
 		}
 	}
 
@@ -599,14 +615,14 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 
 	auto size = find_typedefinition_from_type(pointer->point_type)->aligment;
 
-	AST_Literal* literar = AST_NEW_EMPTY(AST_Literal);
+	/*AST_Literal* literar = AST_NEW_EMPTY(AST_Literal);
 	literar->value_type = LITERAL_NUMBER;
-	literar->integer_value = size;
+	literar->integer_value = size;*/
 
 	AST_Binary* count_binop = AST_NEW_EMPTY(AST_Binary);
 	count_binop->left = binop->right;
 	count_binop->operation = BINOP_TIMES;
-	count_binop->right = literar;
+	count_binop->right = make_number_literal(size);
 
 	binop->right = count_binop;
 
@@ -800,7 +816,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}
 	}
 
-	if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT && type->kind != AST_TYPE_STRUCT) {
+	if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT && type != NULL && type->kind != AST_TYPE_STRUCT) {
 		if (declaration->value != NULL && declaration->value->type != AST_PROCEDURE) {
 			if (!is_static(declaration->value)) {
 				interpret->report_error(declaration->value->token, "You must pass only constatnt values to constant declaration");
@@ -872,7 +888,17 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 
 AST_Type* TypeResolver::find_typeof(AST_Expression* expression) {
 	if (expression->type == AST_TYPE) {
-		return static_cast<AST_Type*>(expression);
+		auto type = static_cast<AST_Type*>(expression);
+		if (type->kind == AST_TYPE_POINTER) {
+			auto point = static_cast<AST_Pointer*>(expression);
+			return find_typeof(point->point_to);
+		}
+		else if (type->kind == AST_TYPE_ARRAY) {
+			auto arr = static_cast<AST_Array*>(expression);
+			return find_typeof(arr->point_to);
+		}
+
+		return type;
 	}
 	else if (expression->type == AST_CAST) {
 		auto cast = static_cast<AST_Cast*>(expression);
@@ -890,10 +916,10 @@ AST_Type* TypeResolver::find_typeof(AST_Expression* expression) {
 		auto unar = static_cast<AST_UnaryOp*>(expression);
 		return find_typeof(unar->left);
 	}
-	else if (expression->type == AST_TYPE_ARRAY) {
+	/*else if (expression->type == AST_TYPE_ARRAY) {
 		auto arr = static_cast<AST_Array*>(expression);
 		return find_typeof(arr->point_to);
-	}
+	}*/
 	
 	assert(false && "Unkown type for typeof");
 }
@@ -930,7 +956,7 @@ String TypeResolver::typeToString(AST_Type* type) {
 	}
 	else if (type->kind == AST_TYPE_POINTER) {
 		auto point = static_cast<AST_Pointer*>(type);
-		return expressionTypeToString(point->point_to) + "*";
+		return (String)("*")+expressionTypeToString(point->point_to);
 	}
 	else if (type->kind == AST_TYPE_ARRAY) {
 		AST_Array* arr = static_cast<AST_Array*>(type);

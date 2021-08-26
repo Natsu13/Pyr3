@@ -71,31 +71,35 @@ void BytecodeDebuger::debug() {
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R: {
-				printf("%12s v%d, v%d\n", "mov", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, v%d\n", "mov1", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_REGISTER_TO_R: {
-				printf("%12s v%d, [v%d]\n", "mov", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, [v%d]\n", "mov2", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_BY_REFERENCE_TO_R: {
-				printf("%12s v%d, *v%d\n", "mov", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, *v%d\n", "mov3", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET: {
-				printf("%12s v%d, *v%d + %d\n", "mov", instruction->index_a, instruction->index_r, instruction->index_b);
+				printf("%12s v%d, *v%d + %d\n", "mov4", instruction->index_a, instruction->index_r, instruction->index_b);
 				break;
 			}
 			case BYTECODE_MOVE_A_PLUS_OFFSET_TO_R: {
-				printf("%12s v%d, *v%d + %d\n", "mov", instruction->index_r, instruction->index_a, instruction->index_b);
+				printf("%12s v%d, *v%d + %d\n", "mov5", instruction->index_r, instruction->index_a, instruction->index_b);
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG: {
-				printf("%12s v%d, *v%d + v%d\n", "mov", instruction->index_r, instruction->index_a, instruction->index_b);
+				/*
+				void* pos = (int8_t*)this->registers[bc->index_r]._pointer + this->registers[bc->index_b]._s64;
+				memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));	
+				*/
+				printf("%12s *v%d + v%d = v%d\n", "mov6", instruction->index_r, instruction->index_b, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R: {
-				printf("%12s v%d, *v%d + v%d\n", "mov", instruction->index_r, instruction->index_a, instruction->index_b);
+				printf("%12s v%d, *v%d + v%d\n", "mov7", instruction->index_r, instruction->index_a, instruction->index_b);
 				break;
 			}
 			case BYTECODE_JUMP: {

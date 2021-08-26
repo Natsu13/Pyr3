@@ -167,15 +167,23 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 
 		//There is two literal resolve fix me!
 		if (literal->value_type == LITERAL_NUMBER) {
-			int output_register = allocate_output_register(interpret->type_s64);
+			AST_Type_Definition* def = interpret->type_s64;
+			if (literal->number_flags & NUMBER_FLAG_FLOAT) 
+				def = interpret->type_float;
+			//else if (literal->number_flags & NUMBER_FLAG_SIGNED)
+			//	def = interpret->type_s64;
+			else
+				def = interpret->type_s64; //auto signed for literar numbers
+
+			int output_register = allocate_output_register(def);
 			auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, output_register);
 
 			if (literal->number_flags & NUMBER_FLAG_FLOAT) 
 				instr->big_constant._float = literal->float_value;
-			else if(literal->number_flags & NUMBER_FLAG_SIGNED)
-				instr->big_constant._s64 = literal->integer_value;
+			//else if(literal->number_flags & NUMBER_FLAG_SIGNED)
+			//	instr->big_constant._s64 = literal->integer_value;
 			else
-				instr->big_constant._u64 = literal->integer_value;
+				instr->big_constant._s64 = literal->integer_value; //auto signed for literar numbers
 
 			return output_register;
 		}
@@ -553,6 +561,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 			int return_register = allocate_output_register(interpret->type_u8);
 
 			auto opt = Instruction(BYTECODE_RESERVE_MEMORY_TO_R, arg1, -1, return_register);
+			opt->comment = "calling malloc()";
 			opt->options = 1;
 
 			return return_register;
@@ -648,6 +657,14 @@ int BytecodeBuilder::find_offset_of(AST_Expression* expression, AST_Block* scope
 		auto binop = static_cast<AST_Binary*>(expression);
 		return find_offset_of(binop->right, binop->left->scope);
 	}
+	else if (expression->type == AST_TYPE) {
+		auto type = (AST_Type*)expression;
+		if (type->kind == AST_TYPE_ARRAY) {
+			auto arr = (AST_Array*)type;
+			typeResolver->calculate_size_of_static_expression(arr->size);
+			return 0;//??? not finished
+		}
+	}
 
 	assert(false);
 }
@@ -661,6 +678,14 @@ AST_Declaration* BytecodeBuilder::find_member_of(AST_Expression* expression, AST
 	else if (expression->type == AST_BINARY) {
 		auto binop = static_cast<AST_Binary*>(expression);
 		return find_member_of(binop->right, binop->left->scope);
+	}
+	else if (expression->type == AST_TYPE) {
+		auto type = (AST_Type*)expression;
+		if (type->kind == AST_TYPE_ARRAY) {
+			auto arr = (AST_Array*)type;
+			//typeResolver->calculate_size_of_static_expression(arr->size);
+			return find_member_of(arr->point_to, arr->scope);
+		}
 	}
 
 	assert(false);
@@ -689,6 +714,77 @@ int BytecodeBuilder::build_array_offset(AST_Array* arr) {
 	return return_register;
 }
 
+int BytecodeBuilder::build_struct_offset(AST_Expression* expr) {
+	auto scope = expr->scope;
+	auto expression = expr;
+
+	if (expression != NULL) {
+		if (expression->type == AST_IDENT) {
+			auto ident = static_cast<AST_Ident*>(expression);
+			ident->scope = scope;
+			auto decl = typeResolver->find_declaration(ident, scope);
+
+			auto return_register = allocate_output_register(interpret->type_s64);
+			//auto left = build_expression(typeResolver->make_number_literal(decl->offset));
+			auto inst = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, return_register);
+			inst->big_constant._s64 = decl->offset;
+
+			return return_register;
+		}
+		else if (expression->type == AST_BINARY) {
+			// arr[0].memb
+			// memb.arr[0]
+			// arr[0].arr[0]
+
+			auto binop = static_cast<AST_Binary*>(expression);
+			expression->scope = scope;
+
+			auto reg1 = build_struct_offset(binop->left);
+			auto reg2 = build_struct_offset(binop->right);
+
+			auto return_register = allocate_output_register(interpret->type_s64);
+			auto inst = Instruction(BYTECODE_BINOP_PLUS, reg1, reg2, return_register); //idk this
+
+			return return_register;
+		}
+		else if (expression->type == AST_TYPE) {
+			auto type = (AST_Type*)expression;
+			if (type->kind == AST_TYPE_ARRAY) {
+				auto arr = (AST_Array*)type;
+				//typeResolver->calculate_size_of_static_expression(arr->size);
+
+				auto offset = build_expression(arr->size); // [a]
+				auto basesize = typeResolver->find_typedefinition_from_type(arr)->size; //size of type of the array
+				auto m_register = allocate_output_register(interpret->type_s64);
+				auto inst = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, m_register);
+				inst->big_constant._s64 = basesize; // this is the size of type array
+
+				auto return_register = allocate_output_register(interpret->type_s64);
+				auto inst2 = Instruction(BYTECODE_BINOP_TIMES, offset, m_register, return_register); // this is size * offset (4*0) = [0] (4*1) = [1]
+
+				/*if (arr->point_to->type == AST_BINARY) {
+					auto sum = build_struct_offset(arr->point_to);
+					auto return_register2 = allocate_output_register(interpret->type_s64);
+					auto inst3 = Instruction(BYTECODE_BINOP_PLUS, return_register, sum, return_register2);
+
+					return return_register2;
+				}
+				else {
+					return return_register;
+				}*/
+
+				auto sum = build_struct_offset(arr->point_to);
+				auto return_register2 = allocate_output_register(interpret->type_s64);
+				auto inst3 = Instruction(BYTECODE_BINOP_PLUS, return_register, sum, return_register2);
+
+				return return_register2;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int BytecodeBuilder::build_assigment(AST_Binary* binop) {
 	int addr = build_expression(binop->right);
 	int addrResult = find_address_of(binop->left);
@@ -713,16 +809,18 @@ int BytecodeBuilder::build_assigment(AST_Binary* binop) {
 		//addrResult = allocate_output_register(resultType);
 		auto plus_instr = Instruction(BYTECODE_BINOP_DIV, addrResultSave, addr, addrResult);
 	}
-	else if (binop->left->type == AST_TYPE && static_cast<AST_Type*>(binop->left)->kind == AST_TYPE_ARRAY) {
+	else if (binop->left->type == AST_TYPE && static_cast<AST_Type*>(binop->left)->kind == AST_TYPE_ARRAY) { //this is just for the array[x]
 		auto arr = static_cast<AST_Array*>(binop->left);
 		auto offset = build_array_offset(arr);
 		auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG, addr, offset, addrResult);
 	}
-	else if (binop->left->type == AST_BINARY) {
+	else if (binop->left->type == AST_BINARY) { //there is problem in struct.data[x]
 		auto _de_binop = static_cast<AST_Binary*>(binop->left);
 		int addrStruct = find_address_of(_de_binop->left);
-		int offset = find_offset_of(_de_binop->right, _de_binop->left->scope);
-		auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET, addr, offset, addrStruct);
+		//int offset = find_offset_of(_de_binop->right, _de_binop->left->scope);
+		//auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET, addr, offset, addrStruct);
+		auto offset = build_struct_offset(_de_binop);
+		auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG, addr, offset, addrStruct);
 	}
 	else {		
 		auto inst = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, addrResult);
@@ -732,14 +830,36 @@ int BytecodeBuilder::build_assigment(AST_Binary* binop) {
 }
 
 int BytecodeBuilder::build_reference(AST_Binary* binary) {	
-	auto ident = static_cast<AST_Ident*>(binary->left);
+	/*
+	*	ignore left array
+	* 
+	*	.struct.arra[2]
+	*	struct + arra{addr of arra (10)} = 10 + 2 * (arra.type->size) 8 = 10 + 16 = *struct + 26
+	*	.struct.prop
+	*	struct + prop{addr of prop (4)} = 2 = *struct + 4
+	*	.struct.arra[2].test
+	*	struct + arra{addr of arra (10)} + test{add of test(8)} = 10 + 2 * (arra.type->size) 8 + 8 = 10 + 16 = *struct + 26 + 8
+	*/
+	auto ident = static_cast<AST_Ident*>(binary->left); //must be struct ident
 	int addrStruct = find_address_of(binary->left);
-	auto member = find_member_of(binary->right, binary->left->scope);
-	int reg = allocate_output_register(member->inferred_type);
 
-	auto inst = Instruction(BYTECODE_MOVE_A_PLUS_OFFSET_TO_R, addrStruct, member->offset, reg);
+	auto member = find_member_of(binary->right, binary->left->scope);
+	auto infern_type = typeResolver->find_typeof(member->inferred_type);
+	int reg = allocate_output_register(infern_type);
+
+	auto offset = build_struct_offset(binary);
+
+	auto inst = Instruction(BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R, addrStruct, offset, reg); //BYTECODE_MOVE_A_PLUS_OFFSET_TO_R
 
 	return reg;
+
+	/*
+	auto member = find_member_of(binary->right, binary->left->scope);
+	int reg = allocate_output_register(member->inferred_type);
+	int addrStruct = find_address_of(binary->left);
+	auto offset = build_struct_offset(binary);
+	auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG, addr, offset, addrStruct);
+	*/
 }
 
 int BytecodeBuilder::build_binary(AST_Binary* binop) {

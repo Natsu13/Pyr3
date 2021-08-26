@@ -54,6 +54,7 @@ private:
 	int get_current_bytecode_address(int offset = 0);	
 
 	int build_array_offset(AST_Array* arr);
+	int build_struct_offset(AST_Expression* expr);
 
 	ByteCode* instruction(Bytecode_Instruction instruction, int a, int b, int result, int line_number);
 public:

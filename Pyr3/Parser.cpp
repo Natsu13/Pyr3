@@ -462,42 +462,6 @@ AST_Expression* Parser::parse_binop(int prec, AST_Expression* left) {
 	}
 }
 
-AST_Expression* Parser::parse_type_array(AST_Expression* type) {
-	auto token = lexer->peek_next_token();	
-	while (token->type == TOKEN_LBRACKET) {
-		lexer->eat_token();
-		token = lexer->peek_next_token();
-
-		AST_Array* arr = AST_NEW(AST_Array);
-		arr->token = lexer->peek_next_token();
-
-		if (token->type == TOKEN_RBRACKET) {
-			lexer->eat_token();
-			arr->flags = ARRAY_AUTO_SIZE;
-			arr->point_to = type;
-			type = arr;
-			continue;
-		}
-		
-		token = lexer->peek_next_token();
-		if (token->type == TOKEN_RANGE) {
-			arr->flags |= ARRAY_DYNAMIC;
-		}
-		else {
-			arr->size = parse_primary();
-		}		
-		arr->point_to = type;
-		type = arr;
-
-		token = lexer->peek_next_token();
-		assert(token->type == TOKEN_RBRACKET);
-		lexer->eat_token();
-		token = lexer->peek_next_token();
-	}
-
-	return type;
-}
-
 AST_Type* Parser::parse_type() {
 	auto type = parse_typedefinition();
 
@@ -625,17 +589,53 @@ int Parser::get_current_token_prec() {
 	return 0;
 }
 
+AST_Expression* Parser::parse_type_array(AST_Expression* type) {
+	auto token = lexer->peek_next_token();
+	while (token->type == TOKEN_LBRACKET) {
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+
+		AST_Array* arr = AST_NEW(AST_Array);
+		arr->token = lexer->peek_next_token();
+
+		if (token->type == TOKEN_RBRACKET) {
+			lexer->eat_token();
+			arr->flags = ARRAY_AUTO_SIZE;
+			arr->point_to = type;
+			type = arr;
+			continue;
+		}
+
+		token = lexer->peek_next_token();
+		if (token->type == TOKEN_RANGE) {
+			arr->flags |= ARRAY_DYNAMIC;
+		}
+		else {
+			arr->size = parse_primary();
+		}
+		arr->point_to = type;
+		type = arr;
+
+		token = lexer->peek_next_token();
+		assert(token->type == TOKEN_RBRACKET);
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+	}
+
+	return type;
+}
+
 AST_Expression* Parser::parse_dereference(AST_Ident* ident) {
 	if (ident == NULL) {
 		ident = create_ident_from_current_token();
 	}
 
-	AST_Binary* binary = AST_NEW(AST_Binary);
-	binary->operation = BINOP_DOT;
-	binary->left = ident;
-
 	auto token = lexer->peek_next_token();
 	if (token->type == '.' || token->type == '?') {
+		AST_Binary* binary = AST_NEW(AST_Binary);
+		binary->operation = BINOP_DOT;
+		binary->left = ident;
+
 		lexer->eat_token();
 
 		if (token->type == '?') {
@@ -651,6 +651,10 @@ AST_Expression* Parser::parse_dereference(AST_Ident* ident) {
 		binary->right = parse_dereference();
 
 		return binary;
+	}
+
+	if (token->type == '[') { // a.b[10]
+		return parse_type_array(ident);
 	}
 	
 	return ident;	

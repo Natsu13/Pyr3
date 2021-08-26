@@ -88,7 +88,7 @@ struct ByteCode {
 	};
 	
 	int index_r = -1;
-	int options = -1;
+	int options = 0;
 	int flags;
 
 	int index_instruction = -1;
