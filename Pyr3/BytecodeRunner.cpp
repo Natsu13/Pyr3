@@ -492,7 +492,24 @@ int BytecodeRunner::run_expression(int address) {
 
 		case BYTECODE_MOVE_A_TO_R: {
 			//printf("\n  v%d <= %lld(%d)", bc->index_r, this->registers[bc->index_a]._s64, bc->index_a);
-			this->registers[bc->index_r] = this->registers[bc->index_a];
+			auto type = this->types[bc->index_a];
+			auto is_pointer = false;
+			if (type->kind == AST_TYPE_DEFINITION) {
+				auto td = (AST_Type_Definition*)type;
+				if (td->internal_type == AST_Type_pointer) {
+					is_pointer = true;
+				}
+			}
+			else if (type->kind == AST_TYPE_POINTER) { //idk this???
+				is_pointer = true; 
+			}
+
+			if (is_pointer) {
+				this->registers[bc->index_r]._pointer = &this->registers[bc->index_a]._pointer;
+			}
+			else {
+				this->registers[bc->index_r] = this->registers[bc->index_a];
+			}
 			return bc->index_r;
 		}
 		case BYTECODE_MOVE_A_BY_REFERENCE_TO_R: { //???
