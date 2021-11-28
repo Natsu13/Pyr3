@@ -2,6 +2,7 @@
 
 #include "Headers.h"
 #include "Utils.h"
+#include "Token.h"
 
 bool Utils::file_exists(const std::string& name) {
     ifstream f(name.c_str());
@@ -129,4 +130,63 @@ float integerToFloat(int64_t ieee754_bits) {
 	float flt;
 	*((int*)&flt) = ieee754_bits;
 	return flt;
+}
+
+const char* token_to_string(int type) {
+
+	switch (type) {
+	case TOKEN_KEYWORD_IDENT:
+		return "ident";
+	case TOKEN_KEYWORD_POINTER:
+		return "pointer";
+	case TOKEN_KEYWORD_TRUE:
+		return "true";
+	case TOKEN_KEYWORD_FALSE:
+		return "false";
+	case TOKEN_KEYWORD_IF:
+		return "if";
+	case TOKEN_KEYWORD_ELSE:
+		return "else";
+	case TOKEN_KEYWORD_FOR:
+		return "for";
+	case TOKEN_KEYWORD_STRING:
+		return "string";
+	case TOKEN_KEYWORD_NEW:
+		return "new";
+	case TOKEN_KEYWORD_FLOAT:
+		return "float";
+	case TOKEN_KEYWORD_LONG:
+		return "long";
+	case TOKEN_KEYWORD_RETURN:
+		return "return";
+	case TOKEN_KEYWORD_ENUM:
+		return "enum";
+	case TOKEN_KEYWORD_STRUCT:
+		return "struct";
+	case TOKEN_KEYWORD_DEFER:
+		return "defer";
+	case TOKEN_KEYWORD_CONSTRUCTOR:
+		return "constructor";
+	case TOKEN_KEYWORD_DESCRUCTOR:
+		return "destructor";
+	case TOKEN_KEYWORD_S8:
+		return "s8";
+	case TOKEN_KEYWORD_S16:
+		return "s16";
+	case TOKEN_KEYWORD_S32:
+		return "s32";
+	case TOKEN_KEYWORD_S64:
+		return "s64";
+	case TOKEN_KEYWORD_U8:
+		return "u8";
+	case TOKEN_KEYWORD_U16:
+		return "u16";
+	case TOKEN_KEYWORD_U32:
+		return "u32";
+	case TOKEN_KEYWORD_U64:
+		return "u64";
+	}
+
+	auto char_type = std::to_string(type);
+	return char_type.c_str();
 }

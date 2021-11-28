@@ -24,13 +24,8 @@ enum AST_Types {
 	AST_STRUCT          = 0x17,
 	AST_CAST			= 0x18,
 	AST_WHILE			= 0x19,	//25
+	AST_OPERATOR		= 0x20
 };
-
-const int D_COMPILER	= 0x1;
-const int D_FOREIGN		= 0x2;
-const int D_IMPORT		= 0x3;
-const int D_INTERNAL	= 0x4;
-const int D_NATIVE		= 0x5;
 
 using namespace std;
 
@@ -54,9 +49,9 @@ struct AST_Expression {
 	//For debug
 	int line_number = 0;
 	int character_number = 0;
-	String *file_name = NULL;
+	String file_name = NULL;
 	int bytecode_address = 0;
-	int bytecode_index = 0;
+	int bytecode_index = 0; //???
 
 #if _DEBUG
 	const char* _debug_file;
@@ -73,8 +68,8 @@ struct New_String {
 
 const int AST_BLOCK_FLAG_MAIN_BLOCK = 0x1;
 
-const int AST_BLOCK_BELONGS_TO_NOTHING = 0;
-const int AST_BLOCK_BELONGS_TO_PROCEDURE = 0x1;
+const int AST_BLOCK_BELONGS_TO_NOTHING = 0x0;
+const int AST_BLOCK_BELONGS_TO_PROCEDURE = 0x2;
 
 struct AST_Block : public AST_Expression {
 	AST_Block() { type = AST_BLOCK; }
@@ -119,6 +114,7 @@ struct AST_Type : public AST_Expression {
 	AST_Type() { type = AST_TYPE; }
 
 	int kind = AST_TYPE_DEFINITION;
+	int serial = 0;
 };
 
 struct AST_Type_Definition : public AST_Type {
@@ -147,9 +143,17 @@ struct AST_Cast : public AST_Expression {
 	AST_Expression* cast_expression = NULL;
 };
 
+struct AST_Operator : public AST_Expression {
+	AST_Operator() { type = AST_OPERATOR; }
+
+	Token* op = NULL;
+	AST_Expression* procedure = NULL;
+};
+
 enum AST_ARRAY_FLAGS {
 	ARRAY_DYNAMIC = 0x1,
-	ARRAY_AUTO_SIZE = 0x2
+	ARRAY_AUTO_SIZE = 0x2,
+	ARRAY_IDENT = 0x4
 };
 struct AST_Array : public AST_Type {
 	AST_Array() { kind = AST_TYPE_ARRAY; }
@@ -279,6 +283,9 @@ struct AST_While : public AST_Expression {
 const int AST_DIRECTIVE_FLAG_INITIALIZING = 0x1;
 const int AST_DIRECTIVE_FLAG_INITIALIZED = 0x2;
 const int AST_DIRECTIVE_FLAG_CANT_INITIALIZE = 0x4;
+
+const int AST_DIRECTIVE_TYPE_IMPORT = 0x3;
+
 struct AST_Directive : public AST_Expression {
 	AST_Directive() { type = AST_DIRECTIVE; }
 
@@ -361,6 +368,7 @@ public:
 	AST_Type_Definition* type_u64 = NULL;
 
 	int counter;
+	int typeCounter;
 };
 
 #define AST_NEW(type) create_expression(new type(), lexer->peek_next_token(), current_scope, __FILE__, __LINE__, interpret);
@@ -376,7 +384,6 @@ template<class AST>
 AST* create_expression(AST* expression, Token* current_token, AST_Block* current_scope, const char* file, int line, Interpret* interpret) {
 	if(current_token != nullptr)
 		expression->token = current_token;
-
 	if (current_scope != nullptr)
 		expression->scope = current_scope;
 
@@ -386,5 +393,10 @@ AST* create_expression(AST* expression, Token* current_token, AST_Block* current
 	expression->serial		= interpret->counter++;
 #endif
 
+	if (expression->token != nullptr) {
+		expression->line_number = expression->token->row;
+		expression->character_number = expression->token->column;
+		expression->file_name = expression->token->file_name;
+	}
 	return expression;
 }

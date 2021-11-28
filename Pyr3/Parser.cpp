@@ -16,6 +16,8 @@ AST_Block* Parser::parse() {
 	current_scope = AST_NEW(AST_Block);
 	current_scope->flags |= AST_BLOCK_FLAG_MAIN_BLOCK;	
 
+	main_scope = current_scope;
+
 	return parse_block();
 }
 
@@ -35,7 +37,12 @@ AST_Block* Parser::parse_block(bool new_scope) {
 		AST_Expression* expression = parse_primary();
 		if (expression == NULL) return save_scope;
 
-		save_scope->expressions.push_back(expression);
+		if (expression->type == AST_OPERATOR) { //all operators go to main scope!
+			main_scope->expressions.push_back(expression);
+		}
+		else {
+			save_scope->expressions.push_back(expression);
+		}
 	}
 	if (new_scope) {
 		current_scope = scope;
@@ -97,6 +104,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_WHILE) {
 		return parse_while();
 	}
+	else if (token->type == TOKEN_KEYWORD_OPERATOR) {
+		return parse_operator();
+	}
 	else if (token->type == TOKEN_KEYWORD_TRUE || token->type == TOKEN_KEYWORD_FALSE) {
 		this->lexer->eat_token();
 
@@ -113,6 +123,36 @@ AST_Expression* Parser::parse_expression() {
 
 	interpret->report_error(token, "Unexpected token type '%s'", token_to_string(token->type));
 	return NULL;
+}
+
+AST_Operator* Parser::parse_operator() {
+	lexer->eat_token(); //eat operator
+
+	AST_Operator* op = AST_NEW(AST_Operator);
+	if (lexer->peek_next_token()->type == TOKEN_LBRACKET) { //handle [] operator
+		op->op = lexer->peek_next_token();
+		op->op->type = TOKEN_EMPTY_INDEX;
+
+		lexer->eat_token();
+		assert(lexer->peek_next_token()->type == TOKEN_RBRACKET);		
+	}
+	else {
+		op->op = lexer->peek_next_token();
+	}
+
+	lexer->eat_token();
+
+	assert(lexer->peek_next_token()->type == ':');
+	lexer->eat_token();
+	assert(lexer->peek_next_token()->type == ':');
+	lexer->eat_token();
+
+	assert(lexer->peek_next_token()->type == '(');
+	lexer->eat_token();
+
+	op->procedure = parse_param_or_function();
+
+	return op;
 }
 
 AST_While* Parser::parse_while() {
@@ -202,6 +242,7 @@ AST_Struct* Parser::parse_struct() {
 	}
 
 	AST_Struct* _struct = AST_NEW(AST_Struct);
+	_struct->serial = interpret->typeCounter++;
 
 	parse_member_struct(_struct);
 
@@ -266,7 +307,7 @@ AST_Directive* Parser::parse_directive() {
 	auto name = directive->name->string_value.data;
 
 	if (COMPARE(name, "import")) {
-		directive->directive_type = D_IMPORT;
+		directive->directive_type = AST_DIRECTIVE_TYPE_IMPORT;
 
 		token = lexer->peek_next_token();
 		if (token->type != TOKEN_STRING) {
@@ -625,6 +666,29 @@ AST_Expression* Parser::parse_type_array(AST_Expression* type) {
 	return type;
 }
 
+AST_Expression* Parser::parse_ident_array(AST_Expression* ident) {
+	auto token = lexer->peek_next_token();
+	while (token->type == TOKEN_LBRACKET) {
+		lexer->eat_token();
+
+		AST_Array* arr = AST_NEW(AST_Array);
+		arr->flags |= ARRAY_IDENT;
+		arr->token = lexer->peek_next_token();
+		token = lexer->peek_next_token();
+
+		arr->size = parse_primary();
+		arr->point_to = ident;
+		ident = arr;
+
+		token = lexer->peek_next_token();
+		assert(token->type == TOKEN_RBRACKET);
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+	}
+
+	return ident;
+}
+
 AST_Expression* Parser::parse_dereference(AST_Ident* ident) {
 	if (ident == NULL) {
 		ident = create_ident_from_current_token();
@@ -654,7 +718,7 @@ AST_Expression* Parser::parse_dereference(AST_Ident* ident) {
 	}
 
 	if (token->type == '[') { // a.b[10]
-		return parse_type_array(ident);
+		return parse_ident_array(ident);
 	}
 	
 	return ident;	
@@ -726,7 +790,7 @@ AST_Expression* Parser::parse_ident() {
 	}
 
 	if (token->type == '[') { //Array
-		auto arr = parse_type_array(ident);
+		auto arr = parse_ident_array(ident);
 
 		token = lexer->peek_next_token();
 		if (token->type == '=') {
@@ -882,65 +946,6 @@ AST_Literal* Parser::parse_number() {
 	}
 	
 	return type_resolver->make_number_literal(value);
-}
-
-const char* Parser::token_to_string(int type) {
-
-	switch (type) {
-	case TOKEN_KEYWORD_IDENT:
-		return "ident";
-	case TOKEN_KEYWORD_POINTER:
-		return "pointer";
-	case TOKEN_KEYWORD_TRUE:
-		return "true";
-	case TOKEN_KEYWORD_FALSE:
-		return "false";
-	case TOKEN_KEYWORD_IF:
-		return "if";
-	case TOKEN_KEYWORD_ELSE:
-		return "else";
-	case TOKEN_KEYWORD_FOR:
-		return "for";
-	case TOKEN_KEYWORD_STRING:
-		return "string";
-	case TOKEN_KEYWORD_NEW:
-		return "new";
-	case TOKEN_KEYWORD_FLOAT:
-		return "float";
-	case TOKEN_KEYWORD_LONG:
-		return "long";
-	case TOKEN_KEYWORD_RETURN:
-		return "return";
-	case TOKEN_KEYWORD_ENUM:
-		return "enum";
-	case TOKEN_KEYWORD_STRUCT:
-		return "struct";
-	case TOKEN_KEYWORD_DEFER:
-		return "defer";
-	case TOKEN_KEYWORD_CONSTRUCTOR:
-		return "constructor";
-	case TOKEN_KEYWORD_DESCRUCTOR:
-		return "destructor";
-	case TOKEN_KEYWORD_S8:
-		return "s8";
-	case TOKEN_KEYWORD_S16:
-		return "s16";
-	case TOKEN_KEYWORD_S32:
-		return "s32";
-	case TOKEN_KEYWORD_S64:
-		return "s64";
-	case TOKEN_KEYWORD_U8:
-		return "u8";
-	case TOKEN_KEYWORD_U16:
-		return "u16";
-	case TOKEN_KEYWORD_U32:
-		return "u32";
-	case TOKEN_KEYWORD_U64:
-		return "u64";
-	}
-
-	auto char_type = std::to_string(type);
-	return char_type.c_str();
 }
 
 bool Parser::is_typedef_keyword() {

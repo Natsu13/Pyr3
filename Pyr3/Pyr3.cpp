@@ -105,10 +105,12 @@ int main(int argc, char* argv[])
     auto el = xo + x2;
     
 #ifdef _DEBUG
-    printf("\n!!! DEBUG MODE");
-    int x;
-    cin >> x;
+    printf("\n!!! DEBUG MODE");    
 #endif // _debug
 
     printf("\nTotal time: %4.3f ms", el);
+
+    //just for now
+    int x;
+    cin >> x;
 }

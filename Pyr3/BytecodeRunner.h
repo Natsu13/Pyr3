@@ -20,13 +20,16 @@ private:
 	vector<Register> stack; 
 	vector<Register> addressStack;
 	vector<ForeignLibrary> foreignLibrary;
-	Array<Register> registers;
+	vector<Register> registers;
 
 	int current_address;
 
 	ByteCode* get_bytecode(int address);
 	bool is_binop(Bytecode_Instruction bc_inst);
 	HMODULE get_hmodule(const char* name);
+
+	AST_Type* get_type(AST_Type* type);
+	void* smemcpy(void* dest, void* src, size_t size, bool reverse = false);
 public:
 	BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> types, int register_size, int memory_size);
 	void run(int address);

@@ -18,6 +18,8 @@ public:
     static bool strContWChar(const wchar_t* text, char find);
 };
 
+const char* token_to_string(int type);
+
 typedef union
 {
 	float f;

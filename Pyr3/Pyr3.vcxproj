@@ -171,6 +171,7 @@
     <ClInclude Include="Lexer.h" />
     <ClInclude Include="Parser.h" />
     <ClInclude Include="Pyr3.h" />
+    <ClInclude Include="Table.h" />
     <ClInclude Include="Token.h" />
     <ClInclude Include="TypeResolver.h" />
     <ClInclude Include="Utils.h" />

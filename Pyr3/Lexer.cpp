@@ -65,11 +65,28 @@ void Lexer::eat_white() {
 	}
 }
 
-void Lexer::eat_comment() {
+void Lexer::eat_comment(bool multiline) {
 	int ch = peek_next_character();
-	while (ch != '\n' && ch != '\0') {
-		eat_character();
-		ch = peek_next_character();
+
+	if (multiline) {
+		while (ch != '\0') {
+			if (ch == '*') {
+				eat_character();
+				ch = peek_next_character();
+				if (ch == '/') {
+					eat_character();
+					break;
+				}
+			}
+			eat_character();
+			ch = peek_next_character();
+		}
+	}
+	else {
+		while (ch != '\n' && ch != '\0') {
+			eat_character();
+			ch = peek_next_character();
+		}
 	}
 }
 
@@ -148,27 +165,28 @@ String Lexer::peek_next_string() {
 	String str = "";
 
 	char ch = peek_next_character();
-	while (ch != '"' && ch != '0') {
-		eat_character();
-
-		str += ch;
-
-		ch = peek_next_character();
+	while (ch != '"' && ch != '0') {		
 		if (ch == '\\') {
 			eat_character();
 			ch = peek_next_character();
 
 			if (ch == '"') {
-				str += '"';
-
-				eat_character();
-				ch = peek_next_character();
+				str += '\\"';				
+			}
+			else if (ch == 'n') {
+				str += '\n';
 			}
 			else {
 				str += '\\' + ch;
 				//report_warning(L"Unkown escape char '%c'", ch);
 			}
 		}
+		else {
+			str += ch;
+		}
+
+		eat_character();
+		ch = peek_next_character();
 	}
 	eat_character();
 
@@ -212,38 +230,52 @@ Token* Lexer::new_token() {
 	return token;
 }
 
-int Lexer::decide_token_keyword(const char* word) {
-	if (COMPARE(word, "true"))			return TOKEN_KEYWORD_TRUE;
-	if (COMPARE(word, "false"))			return TOKEN_KEYWORD_FALSE;
-	if (COMPARE(word, "if"))			return TOKEN_KEYWORD_IF;
-	if (COMPARE(word, "else"))			return TOKEN_KEYWORD_ELSE;
-	if (COMPARE(word, "for"))			return TOKEN_KEYWORD_FOR;
-	if (COMPARE(word, "while"))			return TOKEN_KEYWORD_WHILE;
-	if (COMPARE(word, "new"))			return TOKEN_KEYWORD_NEW;	
-	if (COMPARE(word, "return"))		return TOKEN_KEYWORD_RETURN;
-	if (COMPARE(word, "enum"))			return TOKEN_KEYWORD_ENUM;
-	if (COMPARE(word, "struct"))		return TOKEN_KEYWORD_STRUCT;
-	if (COMPARE(word, "defer"))			return TOKEN_KEYWORD_DEFER;
-	if (COMPARE(word, "constructor"))	return TOKEN_KEYWORD_CONSTRUCTOR;
-	if (COMPARE(word, "destructor"))	return TOKEN_KEYWORD_DESCRUCTOR;
-	if (COMPARE(word, "cast"))			return TOKEN_KEYWORD_CAST;
-	if (COMPARE(word, "static"))		return TOKEN_KEYWORD_STATIC;
-	if (COMPARE(word, "no_check"))		return TOKEN_KEYWORD_NOCHECK;
-
-	if (COMPARE(word, "float"))			return TOKEN_KEYWORD_FLOAT;
-	if (COMPARE(word, "long"))			return TOKEN_KEYWORD_LONG;
-	if (COMPARE(word, "string"))		return TOKEN_KEYWORD_STRING;
-	if (COMPARE(word, "char"))			return TOKEN_KEYWORD_CHAR;
-
-	if (COMPARE(word, "s8"))			return TOKEN_KEYWORD_S8;
-	if (COMPARE(word, "s16"))			return TOKEN_KEYWORD_S16;
-	if (COMPARE(word, "s32"))			return TOKEN_KEYWORD_S32;
-	if (COMPARE(word, "s64"))			return TOKEN_KEYWORD_S64;
-	if (COMPARE(word, "u8"))			return TOKEN_KEYWORD_U8;
-	if (COMPARE(word, "u16"))			return TOKEN_KEYWORD_U16;
-	if (COMPARE(word, "u32"))			return TOKEN_KEYWORD_U32;
-	if (COMPARE(word, "u64"))			return TOKEN_KEYWORD_U64;
-	if (COMPARE(word, "ptr"))			return TOKEN_KEYWORD_POINTER;
+int Lexer::decide_token_keyword(String word) {
+	if (word.size == 2) {
+		if (COMPARE(word, "if"))			return TOKEN_KEYWORD_IF;
+		if (COMPARE(word, "s8"))			return TOKEN_KEYWORD_S8;
+		if (COMPARE(word, "u8"))			return TOKEN_KEYWORD_U8;
+	}
+	else if (word.size == 3) {
+		if (COMPARE(word, "for"))			return TOKEN_KEYWORD_FOR;
+		if (COMPARE(word, "new"))			return TOKEN_KEYWORD_NEW;
+		if (COMPARE(word, "s16"))			return TOKEN_KEYWORD_S16;
+		if (COMPARE(word, "s32"))			return TOKEN_KEYWORD_S32;
+		if (COMPARE(word, "s64"))			return TOKEN_KEYWORD_S64;
+		if (COMPARE(word, "u16"))			return TOKEN_KEYWORD_U16;
+		if (COMPARE(word, "u32"))			return TOKEN_KEYWORD_U32;
+		if (COMPARE(word, "u64"))			return TOKEN_KEYWORD_U64;
+		if (COMPARE(word, "ptr"))			return TOKEN_KEYWORD_POINTER;
+	}
+	else if (word.size == 4) {
+		if (COMPARE(word, "true"))			return TOKEN_KEYWORD_TRUE;
+		if (COMPARE(word, "else"))			return TOKEN_KEYWORD_ELSE;
+		if (COMPARE(word, "enum"))			return TOKEN_KEYWORD_ENUM;
+		if (COMPARE(word, "cast"))			return TOKEN_KEYWORD_CAST;
+		if (COMPARE(word, "long"))			return TOKEN_KEYWORD_LONG;
+		if (COMPARE(word, "char"))			return TOKEN_KEYWORD_CHAR;
+	}
+	else if (word.size == 5) {
+		if (COMPARE(word, "false"))			return TOKEN_KEYWORD_FALSE;
+		if (COMPARE(word, "while"))			return TOKEN_KEYWORD_WHILE;
+		if (COMPARE(word, "defer"))			return TOKEN_KEYWORD_DEFER;
+		if (COMPARE(word, "float"))			return TOKEN_KEYWORD_FLOAT;
+	}
+	else if (word.size == 6) {
+		if (COMPARE(word, "return"))		return TOKEN_KEYWORD_RETURN;
+		if (COMPARE(word, "struct"))		return TOKEN_KEYWORD_STRUCT;
+		if (COMPARE(word, "static"))		return TOKEN_KEYWORD_STATIC;
+		if (COMPARE(word, "string"))		return TOKEN_KEYWORD_STRING;
+	}
+	else if (word.size == 8) {
+		if (COMPARE(word, "no_check"))		return TOKEN_KEYWORD_NOCHECK;
+		if (COMPARE(word, "operator"))		return TOKEN_KEYWORD_OPERATOR;
+	}
+	else {
+		if (COMPARE(word, "constructor"))	return TOKEN_KEYWORD_CONSTRUCTOR;
+		if (COMPARE(word, "destructor"))	return TOKEN_KEYWORD_DESCRUCTOR;
+	}
+	
 	return 0;
 }
 
@@ -357,6 +389,13 @@ TokenDefine Lexer::get_next_token() {
 			token_value_string = "//";
 			eat_character();
 			eat_comment();
+			type = TOKEN_NOP;
+			break;
+		}
+		if (peek_next_character() == '*') {
+			token_value_string = "/*";
+			eat_character();
+			eat_comment(true);
 			type = TOKEN_NOP;
 			break;
 		}
@@ -500,7 +539,7 @@ TokenDefine Lexer::get_next_token() {
 		rollback_eat_char();
 		token_value_string = peek_next_word(type);
 
-		token = decide_token_keyword(token_value_string.data);
+		token = decide_token_keyword(token_value_string);
 		if(token != 0)
 			type = TOKEN_KEYWORD;
 		//rollback_eat_char();

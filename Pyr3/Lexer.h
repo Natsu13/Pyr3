@@ -22,7 +22,7 @@ private:
 
 	inline bool isidentity(char c);
 	
-	int decide_token_keyword(const char* word);
+	int decide_token_keyword(String word);
 	Token* new_token();
 	TokenDefine get_next_token();
 
@@ -35,7 +35,7 @@ private:
 	String peek_next_numer();
 	void eat_white();
 	void rollback_eat_char();
-	void eat_comment();
+	void eat_comment(bool multiline = false);
 
 	void report_error(String message, ...);
 	void report_warning(String  message, ...);

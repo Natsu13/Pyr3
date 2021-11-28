@@ -13,6 +13,7 @@ private:
 	Interpret* interpret;
 	Lexer* lexer;	
 	AST_Block* current_scope = NULL;	
+	AST_Block* main_scope = NULL;
 
 	AST_Block* parse_block(bool new_scope = false);
 	AST_Expression* parse_primary();
@@ -31,17 +32,18 @@ private:
 	void parse_member_struct(AST_Struct* _struct);
 	AST_Return* parse_return();
 	AST_Cast* parse_cast();
+	AST_Operator* parse_operator();
 	void parse_directives(vector<AST_Directive*> &directives);
 	AST_Expression* parse_binop(int prec, AST_Expression* left);
 	AST_Expression* parse_param_or_function();
 	AST_Expression* parse_block_or_expression();
 	AST_Type* parse_type();
 	AST_Expression* parse_type_array(AST_Expression* type);
+	AST_Expression* parse_ident_array(AST_Expression* ident);
 	AST_Type* parse_typedefinition();
 	AST_Expression* parse_typedefinition_or_ident();
 	bool parse_arguments(AST_Block* block);
 	bool is_typedef_keyword();
-	const char* token_to_string(int type);
 
 	AST_Ident* create_ident_from_current_token();
 

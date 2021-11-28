@@ -39,22 +39,25 @@ private:
 	int build_pointer(AST_Pointer* pointer);
 	int build_return(AST_Return* ret);
 	int build_procedure_call(AST_UnaryOp* unary);
+	int build_intrinsic_procedure_call(Token* name, vector<AST_Expression*> arguments);
 	int build_declaration(AST_Declaration* declaration);
 	int build_procedure(AST_Procedure* procedure);
 	int build_reference(AST_Binary* binary);
 	int build_while(AST_While* whl);
 
 	void build_array(int register_index, AST_Array* _array);
+	int build_procedure_call(AST_Procedure* procedure, vector<AST_Expression*> arguments);
 
 	int find_address_of(AST_Expression* expression);
 	int find_address_of_type(AST_Expression* expression);
 	int find_offset_of(AST_Expression* expression, AST_Block* scope);
 	AST_Declaration* find_member_of(AST_Expression* expression, AST_Block* scope);
+	AST_Expression* find_last_member(AST_Expression* expression, AST_Block* scope);
 	//AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
 	int get_current_bytecode_address(int offset = 0);	
 
 	int build_array_offset(AST_Array* arr);
-	int build_struct_offset(AST_Expression* expr);
+	int build_struct_offset(AST_Expression* expr, int* input_register, int* result_register, bool* is_pointer = NULL);
 
 	ByteCode* instruction(Bytecode_Instruction instruction, int a, int b, int result, int line_number);
 public:

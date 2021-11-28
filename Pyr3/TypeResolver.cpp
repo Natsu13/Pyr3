@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Headers.h"
+#include "Utils.h"
 #include "TypeResolver.h"
 
 TypeResolver::TypeResolver(Interpret* interpret) {
@@ -25,23 +26,10 @@ AST_Literal* TypeResolver::make_number_literal(long long value) {
 	return literal;
 }
 
-void TypeResolver::resolve_main(AST_Block* block) {
-	phase = 1;
-	resolve(block);
-	resolveOther();
-}
-
-void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news) {
-	news->token = new Token();
-	news->token->file_name = old->token->file_name;
-	news->token->column = old->token->column;
-	news->token->row = old->token->row;
-}
-
 AST_Literal* TypeResolver::make_number_literal(int value) {
 	AST_Literal* literal = AST_NEW_EMPTY(AST_Literal);
 	literal->value_type = LITERAL_NUMBER;
-	literal->integer_value = value;	
+	literal->integer_value = value;
 
 	return literal;
 }
@@ -53,6 +41,19 @@ AST_Literal* TypeResolver::make_number_literal(float value) {
 	literal->number_flags |= NUMBER_FLAG_FLOAT;
 
 	return literal;
+}
+
+void TypeResolver::resolve_main(AST_Block* block) {
+	phase = 1;
+	resolve(block);
+	resolveOther();
+}
+
+void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news) {
+	news->token = new Token();
+	news->token->file_name = old->token->file_name;
+	news->token->column = old->token->column;
+	news->token->row = old->token->row;
 }
 
 AST_Type* TypeResolver::get_inferred_type(AST_Expression* expression) {
@@ -87,10 +88,17 @@ void TypeResolver::resolve(AST_Block* block) {
 	vector<AST_Expression*> resolve_after;
 	for (auto index = 0; index < block->expressions.size(); index++) {
 		auto it = block->expressions[index];
-		if (it->type == AST_DECLARATION) {
-			auto decl = static_cast<AST_Declaration*>(it);
-			if (decl->value != NULL && decl->value->type != AST_PROCEDURE) {
-				resolveExpression(it);
+		if (it->type == AST_DECLARATION || it->type == AST_OPERATOR) {
+			if (it->type == AST_DECLARATION) {
+				auto decl = static_cast<AST_Declaration*>(it);
+				if (decl->value != NULL && decl->value->type != AST_PROCEDURE) {
+					resolveExpression(it);
+					continue;
+				}
+			}
+			else if(it->type == AST_OPERATOR) {
+				auto op = static_cast<AST_Operator*>(it);
+				resolveExpression(op);
 				continue;
 			}
 		}		
@@ -99,7 +107,7 @@ void TypeResolver::resolve(AST_Block* block) {
 
 	for (auto index = 0; index < resolve_after.size(); index++) {
 		auto it = resolve_after[index];
-		resolveExpression(it);
+		auto type = resolveExpression(it);
 	}
 }
 
@@ -109,15 +117,11 @@ bool TypeResolver::is_static(AST_Expression* expression) {
 		auto decl = find_declaration(ident, ident->scope);
 		AST_Expression* expr = decl->value;
 
-		if (!decl->flags & AST_IDENT_FLAG_CONSTANT) {
+		if (!(decl->flags & AST_IDENT_FLAG_CONSTANT)) {
 			return false;
 		}
 
-		if (is_static(expr)) {
-			return true;
-		}
-
-		return false;
+		return is_static(expr);
 	}
 	if (expression->type == AST_LITERAL) {
 		return true;
@@ -125,9 +129,7 @@ bool TypeResolver::is_static(AST_Expression* expression) {
 	if (expression->type == AST_BINARY) {
 		AST_Binary* binop = static_cast<AST_Binary*>(expression);
 
-		if (is_static(binop->left) && is_static(binop->right)) {
-			return true;
-		}
+		return is_static(binop->left) && is_static(binop->right);
 	}
 	if (expression->type == AST_BLOCK) {
 		AST_Block* block = static_cast<AST_Block*>(expression);
@@ -159,21 +161,21 @@ String TypeResolver::get_string_from_literal(AST_Expression* expression) {
 
 int TypeResolver::do_int_operation(int left, int right, int op) {
 	switch (op) {
-	case BINOP_PLUS: return left + right;
-	case BINOP_MINUS: return left - right;
-	case BINOP_TIMES: return left * right;
-	case BINOP_DIV: return left / right;
-	case BINOP_MOD: return left % right;
-	case BINOP_ISEQUAL: return left == right;
-	case BINOP_ISNOTEQUAL: return left != right;
-	case BINOP_GREATER: return left > right;
-	case BINOP_GREATEREQUAL: return left >= right;
-	case BINOP_LESS: return left < right;
-	case BINOP_LESSEQUAL: return left <= right;
-	case BINOP_LOGIC_AND: return left && right;
-	case BINOP_LOGIC_OR: return left || right;
-	case BINOP_BITWISE_AND: return left & right;
-	case BINOP_BITWISE_OR: return left | right;
+		case BINOP_PLUS: return left + right;
+		case BINOP_MINUS: return left - right;
+		case BINOP_TIMES: return left * right;
+		case BINOP_DIV: return left / right;
+		case BINOP_MOD: return left % right;
+		case BINOP_ISEQUAL: return left == right;
+		case BINOP_ISNOTEQUAL: return left != right;
+		case BINOP_GREATER: return left > right;
+		case BINOP_GREATEREQUAL: return left >= right;
+		case BINOP_LESS: return left < right;
+		case BINOP_LESSEQUAL: return left <= right;
+		case BINOP_LOGIC_AND: return left && right;
+		case BINOP_LOGIC_OR: return left || right;
+		case BINOP_BITWISE_AND: return left & right;
+		case BINOP_BITWISE_OR: return left | right;
 	}
 
 	return -1;
@@ -205,7 +207,7 @@ int TypeResolver::calculate_size_of_static_expression(AST_Expression* expression
 		return do_int_operation(size_left, size_right, binop->operation);
 	}
 
-	throw "Unsuported expression type";
+	assert(false && "Unsuported expression type");
 }
 
 int TypeResolver::calculate_array_size(AST_Type* type) {
@@ -386,8 +388,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 		}
 		case AST_RETURN: {
 			AST_Return* ast_return = static_cast<AST_Return*>(expression);
-			resolveExpression(ast_return->value);
-			break;
+			return resolveExpression(ast_return->value);
 		}
 		case AST_DIRECTIVE: {
 			AST_Directive* directive = static_cast<AST_Directive*>(expression);
@@ -412,12 +413,61 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			whl->block->scope = expression->scope;
 			break;
 		}
+		case AST_OPERATOR: {
+			AST_Operator* op = static_cast<AST_Operator*>(expression);
+			return resolveOperator(op);			
+		}
 		default:
 			assert(false);
 			break;
 	}
 
 	return NULL;
+}
+
+AST_Operator* TypeResolver::findOperator(int Operator, AST_Type* type1, AST_Type* type2) {
+	OperatorKey param = { Operator, type1, type2 };
+
+	auto opfind = operatorTable.find(param, [](OperatorKey param, OperatorKey key, AST_Operator* op) {
+		if (param == key) {
+			return true;
+		}
+		return false;
+	});
+
+	return opfind;
+}
+
+AST_Type* TypeResolver::resolveOperator(AST_Operator* op) {
+	auto expr = resolveExpression(op->procedure);	
+	auto procedure = (AST_Procedure*)op->procedure;
+	auto arg1 = procedure->header->expressions[0];
+	auto arg1_type = find_typeof(arg1);
+	OperatorKey key;
+
+	if (op->op->type == TOKEN_EMPTY_INDEX) { // extra handle special operators like one argument etc... 
+		//op_name = (String)"[]_" + typeToString(arg1_type);
+		key.Operator = TOKEN_EMPTY_INDEX;
+		key.Type1 = arg1_type;
+	}
+	else {
+		auto arg2 = procedure->header->expressions[1];
+		auto arg2_type = find_typeof(arg2);
+
+		//op_name = (String)token_to_string(op->op->type) + "_" + typeToString(arg1_type) + "_" + typeToString(arg2_type);
+		key.Operator = op->op->type;
+		key.Type1 = arg1_type;
+		key.Type2 = arg2_type;
+	}
+
+	if (operatorTable.exist(key)) {
+		interpret->report_error(op->token, "This operator was already created");
+	}
+	else {
+		operatorTable.insert(key, op);
+	}
+
+	return expr;
 }
 
 AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Expression* value) {
@@ -458,6 +508,8 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Exp
 			resolveExpression(_array->size);
 		}
 		
+		auto op = findOperator(TOKEN_EMPTY_INDEX, find_typeof(_array->point_to), NULL);
+
 		resolveExpression(_array->point_to);
 
 		if (as_declaration) {
@@ -471,6 +523,14 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Exp
 				interpret->report_error(_array->token, "Declaration of array size must be more then 0");
 				return NULL;
 			}
+		}
+
+		if (op != NULL) {
+			assert(op->procedure->type == AST_PROCEDURE);
+			auto proc = (AST_Procedure*)op->procedure;
+			resolveExpression(proc);
+			assert(proc->returnType->type == AST_TYPE);
+			return (AST_Type*)proc->returnType;
 		}
 
 		return type;
@@ -548,7 +608,7 @@ AST_Type* TypeResolver::resolveStructDereference(AST_Struct* _struct, AST_Expres
 	}
 }
 
-AST_Type* TypeResolver::resolveArray(AST_Array* arr) {
+AST_Type* TypeResolver::resolveArray(AST_Array* arr) { //arr.data[x] data: *s64;
 	if (arr->point_to->type == AST_TYPE_ARRAY) { //wtf???
 		return resolveArray(static_cast<AST_Array*>(arr->point_to));
 	}
@@ -659,7 +719,7 @@ AST_Type_Definition* TypeResolver::find_typedefinition_from_type(AST_Type* type)
 
 void TypeResolver::resolveDirective(AST_Directive* directive) {
 	switch (directive->directive_type) {
-	case D_IMPORT: {
+	case AST_DIRECTIVE_TYPE_IMPORT: {
 			if (directive->value0->type == AST_IDENT) {
 				AST_Ident* ident = static_cast<AST_Ident*>(directive->value0);
 				if (directive->scope != NULL) ident->scope = directive->scope;
@@ -748,10 +808,13 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 
 AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 	AST_Type* valueType = NULL;
-	AST_Type* type = NULL;
+	AST_Type* type = NULL;	
 
 	if (declaration->value != NULL) {
 		valueType = resolveExpression(declaration->value);
+		if (valueType != NULL && valueType->kind == AST_TYPE_STRUCT) {
+			valueType->expression = declaration->ident;
+		}
 	}
 
 	if (declaration->assigmet_type != NULL && declaration->assigmet_type->type == AST_TYPE) {		
@@ -806,8 +869,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}		
 
 		if (declaration->value->type == AST_TYPE) {
-			auto type = static_cast<AST_Type*>(declaration->value);
-			
+			type = static_cast<AST_Type*>(declaration->value);
 		}
 		
 		if (declaration->assigmet_type->type == AST_TYPE) {
@@ -886,16 +948,24 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 	return NULL;
 }
 
-AST_Type* TypeResolver::find_typeof(AST_Expression* expression) {
+AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
 	if (expression->type == AST_TYPE) {
 		auto type = static_cast<AST_Type*>(expression);
 		if (type->kind == AST_TYPE_POINTER) {
 			auto point = static_cast<AST_Pointer*>(expression);
+			if (!deep) return point;
+
 			return find_typeof(point->point_to);
 		}
 		else if (type->kind == AST_TYPE_ARRAY) {
 			auto arr = static_cast<AST_Array*>(expression);
-			return find_typeof(arr->point_to);
+			//if (!deep) return arr;
+
+			auto type = find_typeof(arr->point_to);
+			if (type->kind == AST_TYPE_POINTER) {
+				return find_typeof(type);
+			}
+			return type;
 		}
 
 		return type;
@@ -915,6 +985,10 @@ AST_Type* TypeResolver::find_typeof(AST_Expression* expression) {
 	else if (expression->type == AST_UNARYOP) {
 		auto unar = static_cast<AST_UnaryOp*>(expression);
 		return find_typeof(unar->left);
+	}
+	else if (expression->type == AST_DECLARATION) {
+		auto declaration = static_cast<AST_Declaration*>(expression);
+		return find_typeof(declaration->assigmet_type);
 	}
 	/*else if (expression->type == AST_TYPE_ARRAY) {
 		auto arr = static_cast<AST_Array*>(expression);
@@ -951,8 +1025,13 @@ String TypeResolver::typeToString(AST_Type* type) {
 		if (tdef->internal_type == AST_Type_string) return "string";
 		if (tdef->internal_type == AST_Type_c_call) return "c_call";
 	}
-	else if (type->kind == AST_TYPE_STRUCT) {		
-		return "struct";
+	else if (type->kind == AST_TYPE_STRUCT) {
+		auto strct = static_cast<AST_Struct*>(type);
+		if (strct->expression != NULL && strct->expression->type == AST_IDENT) {
+			auto ident = (AST_Ident*)strct->expression;
+			return (String)"struct<" + ident->name->value.data + ">";
+		}
+		return "struct<>";
 	}
 	else if (type->kind == AST_TYPE_POINTER) {
 		auto point = static_cast<AST_Pointer*>(type);

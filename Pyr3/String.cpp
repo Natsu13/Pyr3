@@ -25,12 +25,13 @@ void String::realoc() {
     data[0] = '\0';
 }
 
-bool String::compare(char* left, char* right) {
+bool String::compare(char* left, char* right) {    
     int i = 0;
     while (left[i] != '\0' && right[i] != '\0' && left[i] == right[i]) {
         i++;
     }
     return !(left[i] != right[i]);
+    //return COMPARE(left, right);
 }
 
 String::String() {
@@ -54,7 +55,7 @@ String& String::operator+(String& second) {
     size = size + second.size - 1;
     char* old = data;
     realoc();
-    memcpy(data, old, oldsize - 1);
+    memcpy(data, old, oldsize - 1); //maybe bug?
     memcpy(data + oldsize - 1, second.data, second.size);
     return *this;
 }

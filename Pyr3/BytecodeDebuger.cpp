@@ -10,8 +10,15 @@ void BytecodeDebuger::debug() {
 			printf("//%s\n", instruction->comment.data);
 		}
 		printf("%7d: ", instruction->index_instruction);
+#if _DEBUG
+		//printf("%10d: ", instruction->serial);
+#endif
 
 		switch (instruction->instruction) {
+			case BYTECODE_NOOP: {
+				printf("%12s\n", "noop");
+				break;
+			}
 			case BYTECODE_CAST: {
 				auto type_from = (AST_Type*)types[instruction->index_a];
 				auto type_to = (AST_Type*)types[instruction->index_r];
@@ -95,7 +102,13 @@ void BytecodeDebuger::debug() {
 				void* pos = (int8_t*)this->registers[bc->index_r]._pointer + this->registers[bc->index_b]._s64;
 				memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));	
 				*/
-				printf("%12s *v%d + v%d = v%d\n", "mov6", instruction->index_r, instruction->index_b, instruction->index_a);
+				if (instruction->options == 1) {
+					printf("%12s v%d = *v%d + v%d\n", "mov6", instruction->index_a, instruction->index_r, instruction->index_b);
+				}
+				else {
+					printf("%12s *v%d + v%d = v%d\n", "mov6", instruction->index_r, instruction->index_b, instruction->index_a);
+				}
+				
 				break;
 			}
 			case BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R: {
