@@ -227,6 +227,11 @@ void Parser::parse_member_struct(AST_Struct* _struct) {
 		
 		lexer->eat_token();
 		token = lexer->peek_next_token();
+
+		if (token->type == ';') {
+			lexer->eat_token();
+			token = lexer->peek_next_token();
+		}
 	}
 
 	assert(token->type == '}');
@@ -517,9 +522,7 @@ AST_Expression* Parser::parse_typedefinition_or_ident() {
 }
 
 AST_Type* Parser::parse_typedefinition() {
-	Token* token = lexer->peek_next_token();
-
-	this->lexer->eat_token();
+	Token* token = lexer->peek_next_token();	
 
 	AST_Type* _type = NULL;
 	AST_Pointer* _pointer = NULL;
@@ -533,8 +536,8 @@ AST_Type* Parser::parse_typedefinition() {
 		}		
 		_pointer = pointer;
 		
-		token = lexer->peek_next_token();
 		this->lexer->eat_token();
+		token = lexer->peek_next_token();		
 	}
 
 	switch (token->type) {
@@ -595,6 +598,10 @@ AST_Type* Parser::parse_typedefinition() {
 	if (_pointer != NULL) {
 		_pointer->point_to = _type;
 		return _pointer;
+	}
+
+	if (_type != NULL) {
+		this->lexer->eat_token();
 	}
 
 	return _type;
