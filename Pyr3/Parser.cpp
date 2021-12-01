@@ -596,6 +596,7 @@ AST_Type* Parser::parse_typedefinition() {
 	}
 
 	if (_pointer != NULL) {
+		this->lexer->eat_token();
 		_pointer->point_to = _type;
 		return _pointer;
 	}

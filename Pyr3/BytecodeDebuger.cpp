@@ -193,7 +193,7 @@ void BytecodeDebuger::debug() {
 				break;
 			}
 			case BYTECODE_INSTRICT_ASSERT: {
-				printf("%12s v%d == 1\n", "assert", instruction->index_r);
+				printf("%12s v%d != 0\n", "assert", instruction->index_r);
 				break;
 			}
 			default: {

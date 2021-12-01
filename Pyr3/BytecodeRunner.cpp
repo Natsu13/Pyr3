@@ -292,6 +292,7 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			else if(tdef->internal_type == AST_Type_char) variable = 1;\
 			else if(tdef->internal_type == AST_Type_float) variable = 8;/*idk*/\
 			else if(tdef->internal_type == AST_Type_pointer) variable = 4;\
+			else if(tdef->internal_type == AST_Type_c_call) variable = 4;\
 			else variable = 1;\
 		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
 			variable = interpret->type_pointer->size;\
@@ -322,8 +323,9 @@ int BytecodeRunner::run_expression(int address) {
 			return 0;
 		}
 		case BYTECODE_INSTRICT_ASSERT: {
-			auto x = this->registers[bc->index_r]._pointer;			
-			assert(this->registers[bc->index_r]._s64 == 1);
+			//auto x = this->registers[bc->index_r]._pointer;
+			assert(this->registers[bc->index_r]._s64 != 0);
+			//WNDCLASSEXA* example = (WNDCLASSEXA*)this->registers[bc->index_r]._pointer;
 			return 0;
 		}
 		case BYTECODE_INSTRICT_PRINT: {
@@ -362,6 +364,9 @@ int BytecodeRunner::run_expression(int address) {
 				else if (tdef->internal_type == AST_Type_string) {
 					auto str = ((String*)this->registers[bc->index_r]._pointer);
 					printf("%s", ((String*)this->registers[bc->index_r]._pointer)->data);
+				}
+				else if (tdef->internal_type == AST_Type_pointer) {
+					printf("%p", &this->registers[bc->index_r]._pointer);
 				}
 			}
 			else {
@@ -458,6 +463,30 @@ int BytecodeRunner::run_expression(int address) {
 						}
 					}
 				}
+				if (type_def_from->internal_type == AST_Type_s64) {
+					if (type_to->kind == AST_TYPE_DEFINITION) {
+						auto type_def_to = static_cast<AST_Type_Definition*>(type_to);
+
+						if (type_def_to->internal_type == AST_Type_s32) {
+							this->registers[bc->index_r]._s32 = (int32_t)this->registers[bc->index_a]._s64;
+						}
+						else if (type_def_to->internal_type == AST_Type_u32) {
+							this->registers[bc->index_r]._u32 = (uint32_t)this->registers[bc->index_a]._s64;
+						}
+						else if (type_def_to->internal_type == AST_Type_s16) {
+							this->registers[bc->index_r]._s16 = (int16_t)this->registers[bc->index_a]._s64;
+						}
+						else if (type_def_to->internal_type == AST_Type_u16) {
+							this->registers[bc->index_r]._u16 = (uint16_t)this->registers[bc->index_a]._s64;
+						}
+						else if (type_def_to->internal_type == AST_Type_s8) {
+							this->registers[bc->index_r]._s8 = (int8_t)this->registers[bc->index_a]._s64;
+						}
+						else if (type_def_to->internal_type == AST_Type_u8) {
+							this->registers[bc->index_r]._u8 = (uint8_t)this->registers[bc->index_a]._s64;
+						}
+					}
+				}
 			}
 
 			break;
@@ -500,9 +529,10 @@ int BytecodeRunner::run_expression(int address) {
 					is_pointer = true;
 				}
 			}
-			else if (type->kind == AST_TYPE_POINTER) { //idk this???
+			/*else if (type->kind == AST_TYPE_POINTER) { //idk this???
 				is_pointer = true; 
-			}
+			}*/
+			is_pointer = false;
 
 			if (is_pointer) {
 				this->registers[bc->index_r]._pointer = &this->registers[bc->index_a]._pointer;
@@ -523,20 +553,12 @@ int BytecodeRunner::run_expression(int address) {
 			auto offset = this->registers[bc->index_r]._s64;
 			auto pointer = this->registers[bc->index_a]._pointer;
 			*/
-
-			struct T {
-				int64_t count;
-				int64_t* data;
-			};
-
 			auto type_r = (AST_Type*)types[bc->index_a];
 			auto tope = get_type((AST_Type*)types[bc->index_a]);
 			auto yyy = this->registers[bc->index_a]._pointer;
 			auto xxx = this->registers[bc->index_b]._s64;
 			void* posy = (int8_t*)this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);
 			void* posa = (int8_t*)this->registers[bc->index_a]._pointer;
-			T* example = (T*)posa;
-			auto afa = type_r->kind == AST_TYPE_POINTER;
 			//auto sada = *(int64_t*)posy;
 
 			/*
@@ -609,14 +631,10 @@ int BytecodeRunner::run_expression(int address) {
 			}
 
 			auto x = static_cast<AST_Type_Definition*>(this->types[moving_register]);
-			GET_SIZE_OF_TYPE(size_of, moving_register);
+			GET_SIZE_OF_TYPE(size_of, moving_register); //moving_register ??? když vlevo je u32 a vpravo u64 tak by to bylo bad!
 			void* pos = (int8_t*)this->registers[bc->index_r]._pointer;
 
-			struct T {
-				int64_t count;
-				int64_t* data;
-			};
-			T* example = (T*)this->registers[bc->index_r]._pointer;
+			WNDCLASSEXA* example = (WNDCLASSEXA*)this->registers[bc->index_r]._pointer;
 
 			void* val = NULL;
 			auto type = static_cast<AST_Type*>(this->types[moving_register]);
@@ -660,7 +678,6 @@ int BytecodeRunner::run_expression(int address) {
 			}
 			else {
 				smemcpy(output, &val, size_of, reverse);
-				this->registers[saving_register]._pointer = &val;
 			}
 
 			if(reverse)
