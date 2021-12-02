@@ -210,7 +210,7 @@ int TypeResolver::calculate_size_of_static_expression(AST_Expression* expression
 	assert(false && "Unsuported expression type");
 }
 
-int TypeResolver::calculate_array_size(AST_Type* type) {
+int TypeResolver::calculate_array_size(AST_Type* type, bool first) {
 	uint64_t resolveSize = 1;
 
 	if (type->kind == AST_TYPE_ARRAY) {
@@ -224,22 +224,24 @@ int TypeResolver::calculate_array_size(AST_Type* type) {
 		if (arr->point_to->type == AST_TYPE) {
 			AST_Type* type = static_cast<AST_Type*>(arr->point_to);
 
-			return resolveSize * calculate_array_size(type);
+			return resolveSize * calculate_array_size(type, false);
 		}
 
 		return resolveSize;
 	}
-	else if (type->kind == AST_TYPE_DEFINITION) {
-		AST_Type_Definition* type_def = static_cast<AST_Type_Definition*>(type);
-		return type_def->size;
-	}
-	else if (type->kind == AST_TYPE_STRUCT) {
-		AST_Struct* _struct = static_cast<AST_Struct*>(type);
-		calculate_struct_size(_struct);
-		return _struct->size;
-	}
-	else { 
-		return 1;
+	else if (!first) {
+		if (type->kind == AST_TYPE_DEFINITION) {
+			AST_Type_Definition* type_def = static_cast<AST_Type_Definition*>(type);
+			return type_def->size;
+		}
+		else if (type->kind == AST_TYPE_STRUCT) {
+			AST_Struct* _struct = static_cast<AST_Struct*>(type);
+			calculate_struct_size(_struct, false);
+			return _struct->size;
+		}
+		else {
+			return 1;
+		}
 	}
 
 	return resolveSize;
@@ -283,6 +285,15 @@ void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 				declaration->offset = offset + size;
 
 				size+= type_def->size;
+				continue;
+			}
+			else if (declaration->inferred_type->kind == AST_TYPE_ENUM) {
+				auto _enum = static_cast<AST_Enum*>(declaration->inferred_type);
+				declaration->offset = offset + size;
+				if (_enum->enum_type == NULL)
+					size += interpret->type_s32->size;
+				else
+					size += get_size_of(_enum->enum_type);
 				continue;
 			}
 			else if (declaration->inferred_type->kind == AST_TYPE_POINTER) {
@@ -470,6 +481,31 @@ AST_Type* TypeResolver::resolveOperator(AST_Operator* op) {
 	return expr;
 }
 
+void TypeResolver::calcaulate_index_of_enum(AST_Enum* _enum){
+	for (int index = 0; index < _enum->members->expressions.size(); index++) {
+		auto element = _enum->members->expressions[index];
+
+		assert(element->type == AST_DECLARATION);
+
+		AST_Declaration* dec = (AST_Declaration*)element;
+		if (dec->value == NULL) {
+			dec->value = make_number_literal(_enum->index++);
+		}
+		else {
+			if (is_static(dec->value)) {
+				auto value = calculate_size_of_static_expression(dec->value);
+				_enum->index = value + 1;
+				if (!is_number(dec->value)) {
+					dec->value = make_number_literal(value);
+				}
+			}
+			else {
+				interpret->report_error(dec->token, "Value in enum must be constant number");
+			}
+		}
+	}
+}
+
 AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Expression* value) {
 	if (type->kind == AST_TYPE_DEFINITION) {
 		AST_Type_Definition* def = static_cast<AST_Type_Definition*>(type);
@@ -484,7 +520,16 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Exp
 		AST_Struct* _struct = static_cast<AST_Struct*>(type);
 		resolve(_struct->members);
 		calculate_struct_size(_struct);
-		return type;
+		return _struct;
+	}
+	else if (type->kind == AST_TYPE_ENUM) {
+		AST_Enum* _enum = static_cast<AST_Enum*>(type);
+		resolve(_enum->members);
+		if (_enum->enum_type == NULL)
+			_enum->enum_type = interpret->type_s32;
+		resolveExpression(_enum->enum_type);		
+		calcaulate_index_of_enum(_enum);
+		return _enum;
 	}
 	else if(type->kind == AST_TYPE_ARRAY) {
 		AST_Array* _array = static_cast<AST_Array*>(type);		
@@ -633,12 +678,21 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 		auto type = find_typedefinition(ident, binop->scope); //We know left can be only ident
 		if (type != NULL && type->type == AST_TYPE) {
 			ident->type_declaration = find_declaration(ident, binop->scope);
-			auto _struct = static_cast<AST_Struct*>(type);
-			binop->right->scope = _struct->members;
 
 			if (type->kind == AST_TYPE_STRUCT) {
+				auto _struct = static_cast<AST_Struct*>(type);
+				binop->right->scope = _struct->members;
+
 				return resolveStructDereference(_struct, binop->right);
-			} else {
+			}
+			else if (type->kind == AST_TYPE_ENUM) {
+				auto _enum = static_cast<AST_Enum*>(type);
+				binop->right->scope = _enum->members;
+				/*if (_enum->enum_type == NULL)
+					return interpret->type_s32;*/
+				return find_typeof(_enum->enum_type);
+			}
+			else {
 				assert(false && "Just now we can dereference only struct");
 			}
 		}
@@ -878,7 +932,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}
 	}
 
-	if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT && type != NULL && type->kind != AST_TYPE_STRUCT) {
+	if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT && type != NULL && type->kind != AST_TYPE_STRUCT && type->kind != AST_TYPE_ENUM) {
 		if (declaration->value != NULL && declaration->value->type != AST_PROCEDURE) {
 			if (!is_static(declaration->value)) {
 				interpret->report_error(declaration->value->token, "You must pass only constatnt values to constant declaration");

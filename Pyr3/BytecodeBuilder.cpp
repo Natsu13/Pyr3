@@ -997,10 +997,10 @@ int BytecodeBuilder::build_assigment(AST_Binary* binop) {
 	return addr;
 }
 
-int BytecodeBuilder::build_reference(AST_Binary* binary) {	
+int BytecodeBuilder::build_struct_dereference(AST_Binary* binary) {
 	/*
 	*	ignore left array
-	* 
+	*
 	*	.struct.arra[2]
 	*	struct + arra{addr of arra (10)} = 10 + 2 * (arra.type->size) 8 = 10 + 16 = *struct + 26
 	*	.struct.prop
@@ -1034,6 +1034,41 @@ int BytecodeBuilder::build_reference(AST_Binary* binary) {
 	auto offset = build_struct_offset(binary);
 	auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG, addr, offset, addrStruct);
 	*/
+}
+
+int BytecodeBuilder::build_enum_dereference(AST_Binary* binary) {
+	auto type = typeResolver->find_typeof(binary->left);
+	assert(type->kind == AST_TYPE_ENUM);
+
+	auto _enum = (AST_Enum*)type;
+	auto ident = (AST_Ident*)binary->right;
+
+	for (auto index = 0; index < _enum->members->expressions.size(); index++) {
+		auto element = _enum->members->expressions[index];
+
+		auto declaration = (AST_Declaration*)element;
+		if (declaration->ident->name->value == ident->name->value) {
+			int reg = allocate_output_register(typeResolver->find_typeof(_enum->enum_type));
+			auto inst = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, reg);
+			inst->big_constant._s64 = typeResolver->calculate_size_of_static_expression(declaration->value);
+			return reg;
+		}
+	}
+
+	interpret->report_error(ident->token, "Není hodnotou enumu"); //toto by mìlo být v type resolveru!!!
+	return -1;
+}
+
+int BytecodeBuilder::build_reference(AST_Binary* binary) {	
+	if (binary->left->type == AST_IDENT) {	//propably struct on left...
+		auto type = typeResolver->find_typeof(binary->left);
+		if (type->kind == AST_TYPE_STRUCT)
+			return build_struct_dereference(binary);
+		else if (type->kind == AST_TYPE_ENUM)
+			return build_enum_dereference(binary);
+	}
+
+	assert(false && "Can reference only ENUM and STRUCT");
 }
 
 int BytecodeBuilder::build_binary(AST_Binary* binop) {

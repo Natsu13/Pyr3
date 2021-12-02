@@ -98,6 +98,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_STRUCT) {
 		return parse_struct();
 	}
+	else if (token->type == TOKEN_KEYWORD_ENUM) {
+		return parse_enum();
+	}
 	else if (token->type == TOKEN_KEYWORD_CAST) {
 		return parse_cast();
 	}
@@ -208,6 +211,84 @@ AST_Cast* Parser::parse_cast() {
 	cst->cast_expression = parse_primary();
 
 	return cst;
+}
+
+void Parser::parse_member_enum(AST_Enum* _enum) {
+	lexer->eat_token(); //eat {
+	Token* token = lexer->peek_next_token();
+
+	_enum->members = AST_NEW(AST_Block);
+	_enum->index = 0;
+
+	while (token->type != '}' && token->type != TOKEN_EOF) {
+		if (token->type == '#') {
+
+		}
+		else {
+			auto primary = parse_expression();
+			AST_Declaration* declaration = NULL;
+			bool report_error = false;
+			if (primary->type == AST_IDENT) {
+				declaration = AST_NEW(AST_Declaration);
+				declaration->ident = (AST_Ident*)primary;
+				declaration->flags |= AST_DECLARATION_FLAG_CONSTANT;				
+			}
+			else if (primary->type == AST_DECLARATION) {
+				declaration = (AST_Declaration*)primary;
+
+				if (!(declaration->flags & AST_DECLARATION_FLAG_CONSTANT)) {
+					report_error = true;
+				}
+			}
+			else {
+				report_error = true;
+			}
+
+			if (report_error) {
+				interpret->report_error(primary->token, "Enum can by only ident or static declaration");
+			}
+			else {
+				_enum->members->expressions.push_back(declaration);
+			}
+		}
+
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+
+		if (token->type == ';') {
+			lexer->eat_token();
+			token = lexer->peek_next_token();
+		}
+	}
+
+	assert(token->type == '}');
+}
+
+AST_Enum* Parser::parse_enum() {
+	lexer->eat_token();
+	Token* token = lexer->peek_next_token();
+
+	AST_Expression* type = NULL;
+	if (token->type != '{') {
+		type = parse_typedefinition_or_ident();
+	}
+
+	if (token->type != '{') {
+		interpret->report_error(token, "Enum members must be inside block");
+		return NULL;
+	}
+
+	AST_Enum* _enum = AST_NEW(AST_Enum);
+	_enum->serial = interpret->typeCounter++;
+	_enum->enum_type = type;
+
+	parse_member_enum(_enum);
+
+	token = lexer->peek_next_token();
+	assert(token->type == '}');
+	lexer->eat_token();
+
+	return _enum;
 }
 
 void Parser::parse_member_struct(AST_Struct* _struct) {
@@ -959,10 +1040,10 @@ AST_Literal* Parser::parse_number() {
 bool Parser::is_typedef_keyword() {
 	Token* token = lexer->peek_next_token();
 	int type = token->type;
-	if (   type == TOKEN_KEYWORD_FLOAT	|| type == TOKEN_KEYWORD_LONG	|| type == TOKEN_KEYWORD_CHAR
-		|| type == TOKEN_KEYWORD_S8		|| type == TOKEN_KEYWORD_S16	|| type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
-		|| type == TOKEN_KEYWORD_U8		|| type == TOKEN_KEYWORD_U16	|| type == TOKEN_KEYWORD_U32 || type == TOKEN_KEYWORD_U64
-		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL			|| type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER || type == '*')
+	if (type == TOKEN_KEYWORD_FLOAT || type == TOKEN_KEYWORD_LONG || type == TOKEN_KEYWORD_CHAR
+		|| type == TOKEN_KEYWORD_S8 || type == TOKEN_KEYWORD_S16 || type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
+		|| type == TOKEN_KEYWORD_U8 || type == TOKEN_KEYWORD_U16 || type == TOKEN_KEYWORD_U32 || type == TOKEN_KEYWORD_U64
+		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL || type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER || type == '*')
 		return true;
 
 	return false;

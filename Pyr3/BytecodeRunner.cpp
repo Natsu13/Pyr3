@@ -248,6 +248,8 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			/*else this->registers[index]._pointer = pos;*/\
 		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
 			this->registers[index]._pointer = output;\
+		} else if(type->kind == AST_TYPE_ENUM) {\
+			this->registers[index]._s64 = *(int64_t*)output;\
 		} else { \
 			assert(false);\
 		}\
@@ -368,6 +370,9 @@ int BytecodeRunner::run_expression(int address) {
 				else if (tdef->internal_type == AST_Type_pointer) {
 					printf("%p", &this->registers[bc->index_r]._pointer);
 				}
+			}
+			else if(type->kind == AST_TYPE_ENUM) {
+				printf("%d", this->registers[bc->index_r]._s32);
 			}
 			else {
 				auto point = this->registers[bc->index_r]._pointer;

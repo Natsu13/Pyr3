@@ -107,7 +107,8 @@ enum AST_Type_Types {
 	AST_TYPE_POINTER		= 0x1,
 	AST_TYPE_ADDRESSOF		= 0x2,
 	AST_TYPE_STRUCT			= 0x3,
-	AST_TYPE_ARRAY			= 0x4
+	AST_TYPE_ARRAY			= 0x4,
+	AST_TYPE_ENUM			= 0x5
 };
 
 struct AST_Type : public AST_Expression {
@@ -130,6 +131,18 @@ struct AST_Struct : public AST_Type {
 
 	AST_Block* members = NULL;
 	int size = 0;
+};
+
+enum AST_ENUM_FLAGS {
+	ENUM_FLAGS
+};
+
+struct AST_Enum : public AST_Type {
+	AST_Enum() { kind = AST_TYPE_ENUM; }
+
+	AST_Block* members = NULL;
+	int index = 0;
+	AST_Expression* enum_type = NULL;
 };
 
 enum AST_CAST_FLAGS {

@@ -80,10 +80,11 @@ public:
 
 	int get_size_of(AST_Expression* expr);
 	void calculate_struct_size(AST_Struct* _struct, int offset = 0);
+	void calcaulate_index_of_enum(AST_Enum* _enum);
 	bool is_static(AST_Expression* expression);
 	int do_int_operation(int left, int right, int op);
 	int calculate_size_of_static_expression(AST_Expression* expression);
-	int calculate_array_size(AST_Type* type);
+	int calculate_array_size(AST_Type* type, bool first = true);
 	String get_string_from_literal(AST_Expression* expression);
 
 	bool is_pointer(AST_Expression* expression);

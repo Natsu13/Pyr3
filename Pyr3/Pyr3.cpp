@@ -59,12 +59,12 @@ int main(int argc, char* argv[])
             Parser* parser = NULL;
             TypeResolver* type_resolver = NULL;
 
-            if (!interpreter->isError()) {
+            if (!interpreter->isError()) {              
                 type_resolver = new TypeResolver(interpreter);
 
                 parser = new Parser(interpreter, lexer, type_resolver);
                 main_block = parser->parse();
-
+                
                 type_resolver->resolve_main(main_block);
             }
 

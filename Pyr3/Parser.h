@@ -9,9 +9,9 @@
 class Parser
 {
 private:
-	TypeResolver* type_resolver;
 	Interpret* interpret;
 	Lexer* lexer;	
+	TypeResolver* type_resolver;
 	AST_Block* current_scope = NULL;	
 	AST_Block* main_scope = NULL;
 
@@ -28,8 +28,13 @@ private:
 	AST_Condition* parse_condition();
 	AST_Directive* parse_directive();
 	AST_Expression* parse_dereference(AST_Ident* ident = NULL);
-	AST_Struct* parse_struct();
+	
+	AST_Struct* parse_struct();	
 	void parse_member_struct(AST_Struct* _struct);
+	
+	AST_Enum* parse_enum();
+	void parse_member_enum(AST_Enum* _enum);
+
 	AST_Return* parse_return();
 	AST_Cast* parse_cast();
 	AST_Operator* parse_operator();
