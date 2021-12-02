@@ -249,7 +249,7 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
 			this->registers[index]._pointer = output;\
 		} else if(type->kind == AST_TYPE_ENUM) {\
-			this->registers[index]._s64 = *(int64_t*)output;\
+			this->registers[index]._s64 = *(int32_t*)output;\
 		} else { \
 			assert(false);\
 		}\
