@@ -219,7 +219,7 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 #define ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(index, pointer, offset) \
 	{\
 		/*auto type = get_type((AST_Type*)types[index]);*/ \
-		auto type = (AST_Type*)types[index]; \
+		auto type = get_type_base((AST_Type*)types[index]); \
 		void* pos = (int8_t*)this->registers[pointer]._pointer;\
 		auto type_out = (AST_Type*)types[pointer]; \
 		auto output = pos;\
@@ -248,17 +248,21 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			/*else this->registers[index]._pointer = pos;*/\
 		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
 			this->registers[index]._pointer = output;\
-		} else if(type->kind == AST_TYPE_ENUM) {\
-			this->registers[index]._s64 = *(int32_t*)output;\
-		} else { \
+		}  else { \
 			assert(false);\
 		}\
 	}
 
+/*
+		else if(type->kind == AST_TYPE_ENUM) {\
+			this->registers[index]._s64 = *(int32_t*)output;\
+		}
+*/
+
 #define GET_VALUE_FROM_REGISTER(variable, index, result_type) \
 	void* variable = NULL;\
 	{\
-		auto type = (AST_Type*)types[result_type];\
+		auto type = get_type_base((AST_Type*)types[result_type]);\
 		if(type->kind == AST_TYPE_DEFINITION) {\
 			auto tdef = (AST_Type_Definition*)type;\
 			if(tdef->internal_type == AST_Type_s8) variable = (void*)this->registers[index]._s8;\
@@ -280,7 +284,7 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 #define GET_SIZE_OF_TYPE(variable, index) \
 	int variable = 0;\
 	{\
-		auto type = (AST_Type*)types[index];\
+		auto type = get_type_base((AST_Type*)types[index]);\
 		if(type->kind == AST_TYPE_DEFINITION) {\
 			auto tdef = (AST_Type_Definition*)type;\
 			if(tdef->internal_type == AST_Type_s8) variable = 1;\
@@ -303,14 +307,20 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 		}\
 	}
 
-void* test(void* a1, void* a2, void* a3, void* a4) {
-	return (void*)0;
-}
-
 AST_Type* BytecodeRunner::get_type(AST_Type* type) {
 	if (type->kind == AST_TYPE_POINTER) {
 		auto point = (AST_Pointer*)type;
 		return get_type(point->point_type);
+	}
+
+	return type;
+}
+
+AST_Type* BytecodeRunner::get_type_base(AST_Type* type) {
+	if (type->kind == AST_TYPE_ENUM) {
+		auto _enum = (AST_Enum*)type;
+		assert(_enum->enum_type->type == AST_TYPE);
+		return get_type_base((AST_Type*)_enum->enum_type);
 	}
 
 	return type;
@@ -558,8 +568,8 @@ int BytecodeRunner::run_expression(int address) {
 			auto offset = this->registers[bc->index_r]._s64;
 			auto pointer = this->registers[bc->index_a]._pointer;
 			*/
-			auto type_r = (AST_Type*)types[bc->index_a];
-			auto tope = get_type((AST_Type*)types[bc->index_a]);
+			auto type_r = (AST_Type*)types[bc->index_r];
+			auto tope = get_type((AST_Type*)types[bc->index_r]);
 			auto yyy = this->registers[bc->index_a]._pointer;
 			auto xxx = this->registers[bc->index_b]._s64;
 			void* posy = (int8_t*)this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);

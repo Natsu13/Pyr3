@@ -29,6 +29,7 @@ private:
 	HMODULE get_hmodule(const char* name);
 
 	AST_Type* get_type(AST_Type* type);
+	AST_Type* get_type_base(AST_Type* type);
 	void* smemcpy(void* dest, void* src, size_t size, bool reverse = false);
 public:
 	BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> types, int register_size, int memory_size);

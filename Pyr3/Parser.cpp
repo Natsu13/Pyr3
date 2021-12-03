@@ -271,6 +271,7 @@ AST_Enum* Parser::parse_enum() {
 	AST_Expression* type = NULL;
 	if (token->type != '{') {
 		type = parse_typedefinition_or_ident();
+		token = lexer->peek_next_token();
 	}
 
 	if (token->type != '{') {
