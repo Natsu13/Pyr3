@@ -24,7 +24,8 @@ enum AST_Types {
 	AST_STRUCT          = 0x17,
 	AST_CAST			= 0x18,
 	AST_WHILE			= 0x19,	//25
-	AST_OPERATOR		= 0x20
+	AST_OPERATOR		= 0x20,
+	AST_FOR				= 0x21
 };
 
 using namespace std;
@@ -291,6 +292,17 @@ struct AST_While : public AST_Expression {
 	AST_While() { type = AST_WHILE; }
 
 	AST_Expression* condition = NULL;
+	AST_Block* block = NULL;
+};
+
+struct AST_For : public AST_Expression {
+	AST_For() { type = AST_FOR; }
+
+	AST_Ident* value = NULL;
+	AST_Ident* key = NULL;
+
+	AST_Expression* each = NULL;
+
 	AST_Block* block = NULL;
 };
 

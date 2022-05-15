@@ -110,6 +110,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_OPERATOR) {
 		return parse_operator();
 	}
+	else if (token->type == TOKEN_KEYWORD_FOR) {
+		return parse_for();
+	}
 	else if (token->type == TOKEN_KEYWORD_TRUE || token->type == TOKEN_KEYWORD_FALSE) {
 		this->lexer->eat_token();
 
@@ -158,23 +161,61 @@ AST_Operator* Parser::parse_operator() {
 	return op;
 }
 
-AST_While* Parser::parse_while() {
-	lexer->eat_token(); //eat while
+AST_For* Parser::parse_for() {
+	lexer->eat_token(); //eat for
 
-	AST_While* whl = AST_NEW(AST_While);
+	AST_For* ast_for = AST_NEW(AST_For);
 
-	whl->condition = parse_expression();
+	auto expression = parse_expression();
+	auto token = lexer->peek_next_token();
+	if (token->type == TOKEN_COMMA) { // ,
+		lexer->eat_token();
+		assert(expression->type == AST_IDENT);
+
+		ast_for->value = (AST_Ident*)expression;
+
+		expression = parse_expression();
+		assert(expression->type == AST_IDENT);
+		ast_for->key = (AST_Ident*)expression;
+	}
+
+	token = lexer->peek_next_token();
+	if (token->type == TOKEN_COLON) { // :
+		lexer->eat_token();
+	}
+
+	ast_for->each = parse_expression();
+
 	auto exp = parse_block_or_expression();
 
 	if (exp->type == AST_BLOCK) {
-		whl->block = (AST_Block*)exp;
+		ast_for->block = (AST_Block*)exp;
 	}
 	else {
-		whl->block = AST_NEW(AST_Block);
-		whl->block->expressions.push_back(exp);
+		ast_for->block = AST_NEW(AST_Block);
+		ast_for->block->expressions.push_back(exp);
 	}
 
-	return whl;
+	return ast_for;
+}
+
+AST_While* Parser::parse_while() {
+	lexer->eat_token(); //eat while
+
+	AST_While* ast_while = AST_NEW(AST_While);
+
+	ast_while->condition = parse_expression();
+	auto exp = parse_block_or_expression();
+
+	if (exp->type == AST_BLOCK) {
+		ast_while->block = (AST_Block*)exp;
+	}
+	else {
+		ast_while->block = AST_NEW(AST_Block);
+		ast_while->block->expressions.push_back(exp);
+	}
+
+	return ast_while;
 }
 
 AST_Cast* Parser::parse_cast() {
