@@ -110,7 +110,7 @@ int main(int argc, char* argv[])
 
     printf("\nTotal time: %4.3f ms", el);
 
-    /* Windows handler * /
+    /* Windows handler */
     MSG  msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
         DispatchMessage(&msg);
@@ -118,7 +118,7 @@ int main(int argc, char* argv[])
     /* Windows handler */
 
     //just for now
-    /**/
+    /** /
     int x;
     cin >> x;
     /**/

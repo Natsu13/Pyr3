@@ -46,7 +46,9 @@ AST_Literal* TypeResolver::make_number_literal(float value) {
 void TypeResolver::resolve_main(AST_Block* block) {
 	phase = 1;
 	resolve(block);
-	resolveOther();
+	while (to_be_resolved.size() > 0) {
+		resolveOther();
+	}
 }
 
 void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news) {
@@ -74,10 +76,16 @@ void TypeResolver::addToResolve(AST_Expression* expression) {
 }
 
 void TypeResolver::resolveOther() {
-	phase = 2;
+	phase += 1;
 
+	vector<AST_Expression*> resolve;
 	for (int i = 0; i < to_be_resolved.size(); i++) {
-		AST_Expression* it = to_be_resolved[i];
+		resolve.push_back(to_be_resolved[i]);
+	}
+	to_be_resolved.clear();
+
+	for (int i = 0; i < resolve.size(); i++) {
+		AST_Expression* it = resolve[i];
 		resolveExpression(it);
 	}
 }
@@ -273,6 +281,14 @@ int TypeResolver::get_size_of(AST_Expression* expr) {
 	return 0;
 }
 
+bool TypeResolver::ensure_struct_elements_is_resolved(AST_Struct* _struct) {
+	for (int i = 0; i < _struct->members->expressions.size(); i++) {
+		auto it = _struct->members->expressions[i];
+		if (!it->is_resolved) return false;
+	}
+	return true;
+}
+
 void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 	int size = 0;
 	for (int i = 0; i < _struct->members->expressions.size(); i++) {
@@ -319,11 +335,13 @@ void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 	_struct->size = size;
 }
 
+#define set_type_and_break(_type) type = _type; break;
 AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
+	AST_Type* type = NULL;
 	switch (expression->type) {
 		case AST_IDENT: {
 			AST_Ident* ident = static_cast<AST_Ident*>(expression);
-			return resolveIdent(ident);
+			set_type_and_break(resolveIdent(ident));
 		}
 		case AST_CONDITION: {
 			AST_Condition* condition = static_cast<AST_Condition*>(expression);
@@ -333,30 +351,30 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			if (condition->body_fail != NULL)
 				resolveExpression(condition->body_fail);
 
-			return NULL;
+			set_type_and_break(NULL);
 		}
 		case AST_BLOCK: {
 			AST_Block* _block = static_cast<AST_Block*>(expression);
 			resolve(_block);
 
-			return NULL;
+			set_type_and_break(NULL);
 		}
 		case AST_DECLARATION: {
 			AST_Declaration* declaration = static_cast<AST_Declaration*>(expression);
 			
-			return resolveDeclaration(declaration);
+			set_type_and_break(resolveDeclaration(declaration));
 		}
 		case AST_TYPE: {
-			AST_Type* type = static_cast<AST_Type*>(expression);
-			return resolveType(type);
+			AST_Type* ast_type = static_cast<AST_Type*>(expression);
+			set_type_and_break(resolveType(ast_type));
 		}
 		case AST_LITERAL: {
 			AST_Literal* literal = static_cast<AST_Literal*>(expression);
-			return resolveLiteral(literal);
+			set_type_and_break(resolveLiteral(literal));
 		}
 		case AST_BINARY: {
 			AST_Binary* binop = static_cast<AST_Binary*>(expression);
-			return resolveBinary(binop);
+			set_type_and_break(resolveBinary(binop));
 		}
 		case AST_PROCEDURE: {
 			AST_Procedure* procedure = static_cast<AST_Procedure*>(expression);
@@ -389,51 +407,56 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			if(procedure->returnType != NULL)
 				resolveExpression(procedure->returnType);
 
-			break;
+			expression->is_resolved = true;
+			set_type_and_break(NULL);
 		}
 		case AST_PARAMLIST:
-			break;
+			set_type_and_break(NULL);
 		case AST_UNARYOP: {
 			AST_UnaryOp* unary = static_cast<AST_UnaryOp*>(expression);
-			return resolveUnary(unary);
+			set_type_and_break(resolveUnary(unary));
 		}
 		case AST_RETURN: {
 			AST_Return* ast_return = static_cast<AST_Return*>(expression);
-			return resolveExpression(ast_return->value);
+			set_type_and_break(resolveExpression(ast_return->value));
 		}
 		case AST_DIRECTIVE: {
 			AST_Directive* directive = static_cast<AST_Directive*>(expression);
 			resolveDirective(directive);
-			return NULL;
+			set_type_and_break(NULL);
 		}
 		case AST_CAST: {
 			AST_Cast* cast = static_cast<AST_Cast*>(expression);
 
 			if (cast->cast_to->type != AST_TYPE) {
 				interpret->report_error(cast->cast_to->token, "Cast to must by type");
-				return NULL;
+				set_type_and_break(NULL);
 			}
 
 			resolveExpression(cast->cast_to);
-			return resolveExpression(cast->cast_expression);
+			set_type_and_break(resolveExpression(cast->cast_expression));
 		}
 		case AST_WHILE: {
 			AST_While* whl = static_cast<AST_While*>(expression);
 			resolveExpression(whl->condition);
 			resolve(whl->block);
 			whl->block->scope = expression->scope;
-			break;
+			set_type_and_break(NULL);
 		}
 		case AST_OPERATOR: {
 			AST_Operator* op = static_cast<AST_Operator*>(expression);
-			return resolveOperator(op);			
+			set_type_and_break(resolveOperator(op));
 		}
 		default:
 			assert(false);
 			break;
 	}
 
-	return NULL;
+	if (type != NULL) {
+		expression->is_resolved = true;
+	}
+
+	return type;
 }
 
 AST_Operator* TypeResolver::findOperator(int Operator, AST_Type* type1, AST_Type* type2) {
@@ -453,6 +476,12 @@ AST_Type* TypeResolver::resolveOperator(AST_Operator* op) {
 	auto expr = resolveExpression(op->procedure);	
 	auto procedure = (AST_Procedure*)op->procedure;
 	auto arg1 = procedure->header->expressions[0];
+
+	if (!arg1->is_resolved) {
+		addToResolve(arg1);
+		return expr;
+	}
+
 	auto arg1_type = find_typeof(arg1);
 	OperatorKey key;
 
@@ -519,7 +548,12 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Exp
 	else if (type->kind == AST_TYPE_STRUCT) {
 		AST_Struct* _struct = static_cast<AST_Struct*>(type);
 		resolve(_struct->members);
-		calculate_struct_size(_struct);
+		if (!ensure_struct_elements_is_resolved(_struct)) {
+			addToResolve(_struct);
+		}
+		else {
+			calculate_struct_size(_struct);		
+		}
 		return _struct;
 	}
 	else if (type->kind == AST_TYPE_ENUM) {
@@ -746,7 +780,8 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 AST_Type_Definition* TypeResolver::find_typedefinition_from_type(AST_Type* type) {
 	if (type->kind == AST_TYPE_POINTER) {
 		auto pointer = static_cast<AST_Pointer*>(type);
-		return find_typedefinition_from_type(pointer->point_type);
+		assert(pointer->point_to->type == AST_TYPE);
+		return find_typedefinition_from_type((AST_Type*)pointer->point_to);
 	}
 	if (type->kind == AST_TYPE_ARRAY) {
 		auto arr = static_cast<AST_Array*>(type);
@@ -795,12 +830,12 @@ AST_Type* TypeResolver::resolveIdent(AST_Ident* ident) {
 	auto type = find_typedefinition(ident, ident->scope);	
 
 	if (type == NULL) {
-		if (phase == 1)
-			addToResolve(ident); //We don't have this type jet maybe it's defined after this expression
-		else if (phase == 2)
+		if (phase > 50)
 			interpret->report_error(ident->name, "Unkown ident '%s'", ident->name->value);
+		else 
+			addToResolve(ident); //We don't have this type jet maybe it's defined after this expression
 	}
-
+	
 	return type;
 }
 
@@ -926,7 +961,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 			type = static_cast<AST_Type*>(declaration->value);
 		}
 		
-		if (declaration->assigmet_type->type == AST_TYPE) {
+		if ((declaration->is_resolved || type != NULL) && declaration->assigmet_type->type == AST_TYPE) {
 			type = static_cast<AST_Type*>(declaration->assigmet_type);
 			declaration->inferred_type = type;
 		}
@@ -948,7 +983,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}
 	}
 
-	return NULL;
+	return type;
 }
 
 AST_Declaration* TypeResolver::find_expression_declaration(AST_Expression* expression) {
@@ -1127,10 +1162,13 @@ AST_Type* TypeResolver::find_typedefinition(AST_Ident* ident, AST_Block* scope) 
 				else if (declaration->assigmet_type != NULL && declaration->assigmet_type->type == AST_IDENT) {
 					return resolveIdent(static_cast<AST_Ident*>(declaration->assigmet_type));
 				}
-				else if (declaration->value != NULL && declaration->value->type == AST_TYPE_DEFINITION) {
-					return static_cast<AST_Type_Definition*>(declaration->value);
+				else if (declaration->value != NULL && declaration->value->type == AST_TYPE) {
+					auto type = static_cast<AST_Type*>(declaration->value);
+					if (type->kind == AST_TYPE_DEFINITION)
+						return static_cast<AST_Type_Definition*>(declaration->value);
+					return (AST_Type*)declaration->value; //todo: maybe not??? ArrayType :: enum u64
 				}
-				else {					
+				else {		
 					//assert(false && "only handling ast type definition");					
 					return NULL;
 				}

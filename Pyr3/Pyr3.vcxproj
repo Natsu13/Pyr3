@@ -146,6 +146,7 @@
     <ClCompile Include="BytecodeDebuger.cpp" />
     <ClCompile Include="BytecodeRunner.cpp" />
     <ClCompile Include="CodeManager.cpp" />
+    <ClCompile Include="Pipes.cpp" />
     <ClCompile Include="String.cpp" />
     <ClCompile Include="DirectiveResolver.cpp" />
     <ClCompile Include="Headers.cpp" />
@@ -156,6 +157,7 @@
     <ClCompile Include="Token.cpp" />
     <ClCompile Include="TypeResolver.cpp" />
     <ClCompile Include="Utils.cpp" />
+    <ClCompile Include="Yield.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Array.h" />
@@ -164,6 +166,7 @@
     <ClInclude Include="BytecodeDebuger.h" />
     <ClInclude Include="BytecodeRunner.h" />
     <ClInclude Include="CodeManager.h" />
+    <ClInclude Include="Pipes.h" />
     <ClInclude Include="String.h" />
     <ClInclude Include="DirectiveResolver.h" />
     <ClInclude Include="Headers.h" />
@@ -175,6 +178,7 @@
     <ClInclude Include="Token.h" />
     <ClInclude Include="TypeResolver.h" />
     <ClInclude Include="Utils.h" />
+    <ClInclude Include="Yield.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

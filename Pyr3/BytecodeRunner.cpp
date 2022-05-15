@@ -649,8 +649,6 @@ int BytecodeRunner::run_expression(int address) {
 			GET_SIZE_OF_TYPE(size_of, moving_register); //moving_register ??? když vlevo je u32 a vpravo u64 tak by to bylo bad!
 			void* pos = (int8_t*)this->registers[bc->index_r]._pointer;
 
-			WNDCLASSEXA* example = (WNDCLASSEXA*)this->registers[bc->index_r]._pointer;
-
 			void* val = NULL;
 			auto type = static_cast<AST_Type*>(this->types[moving_register]);
 			if (type->kind == AST_TYPE_DEFINITION) {
@@ -937,6 +935,10 @@ int BytecodeRunner::run_binop(int address) {
 	auto bc = get_bytecode(address);
 
 	//this->registers[bc->index_r]._u64 = 0; // WTF IS THIS OMG
+
+	//TODO: implement this?
+	GET_VALUE_FROM_REGISTER(rega, bc->index_a, bc->index_a);
+	GET_VALUE_FROM_REGISTER(regb, bc->index_b, bc->index_b);
 
 	if (bc->instruction == BYTECODE_BINOP_PLUS) {
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 + this->registers[bc->index_b]._s64;

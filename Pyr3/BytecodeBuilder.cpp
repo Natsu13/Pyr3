@@ -198,7 +198,7 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		break;
 	}
 	case AST_BINARY: {
-		AST_Binary* binary = static_cast<AST_Binary*>(expression);
+		AST_Binary* binary = static_cast<AST_Binary*>(expression);		
 		return build_binary(binary);
 	}
 	case AST_PROCEDURE: {

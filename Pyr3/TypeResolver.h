@@ -54,6 +54,8 @@ public:
 	void resolve_main(AST_Block* block);
 	void resolve(AST_Block* block);
 
+	void resolveThis(AST_Expression* expression);
+
 	AST_Type* resolveExpression(AST_Expression* expression);
 	AST_Type* resolveIdent(AST_Ident* ident);
 	AST_Type* resolveDeclaration(AST_Declaration* declaration);
@@ -67,6 +69,8 @@ public:
 	void resolveDirective(AST_Directive* directive);
 
 	AST_Operator* findOperator(int Operator, AST_Type* type1, AST_Type* type2 = NULL);
+
+	bool ensure_struct_elements_is_resolved(AST_Struct* _struct);
 
 	AST_Type* find_typeof(AST_Expression* expression, bool deep = true);
 	AST_Type* find_typedefinition(AST_Ident* ident, AST_Block* scope);

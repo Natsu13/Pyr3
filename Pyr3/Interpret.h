@@ -40,6 +40,7 @@ struct AST_Expression {
 
 	int type = AST_EXPRESSION;
 	unsigned int flags = 0;
+	bool is_resolved = false;
 
 	AST_Block* scope = NULL;
 	Token* token = NULL;
