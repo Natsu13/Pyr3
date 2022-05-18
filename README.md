@@ -21,6 +21,16 @@ factorial :: (x: u64) -> u64 {
 ```
 
 ```
+start :: 0;
+for index, key: start..start + 10 {
+	print(key);
+	print(": ");
+	print(index);
+	print("\n");
+}
+```
+
+```
 GetForegroundWindow :: () -> ptr #foreign "USER32.DLL";
 ```
 
