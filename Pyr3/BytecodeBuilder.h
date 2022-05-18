@@ -3,6 +3,7 @@
 #include "Bytecode.h"
 #include "TypeResolver.h"
 #include "Array.h"
+#include "Utils.h"
 
 struct output_register {
 	int start = -1;
@@ -46,6 +47,7 @@ private:
 	int build_reference(AST_Binary* binary);
 	int build_while(AST_While* whl);
 	int build_enum_dereference(AST_Binary* binary);
+	int build_for(AST_For* ast_for);
 
 	void build_array(int register_index, AST_Array* _array);
 	int build_procedure_call(AST_Procedure* procedure, vector<AST_Expression*> arguments);

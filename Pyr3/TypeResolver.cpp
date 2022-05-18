@@ -437,15 +437,38 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			set_type_and_break(resolveExpression(cast->cast_expression));
 		}
 		case AST_WHILE: {
-			AST_While* whl = static_cast<AST_While*>(expression);
-			resolveExpression(whl->condition);
-			resolve(whl->block);
-			whl->block->scope = expression->scope;
+			AST_While* ast_while = static_cast<AST_While*>(expression);
+			resolveExpression(ast_while->condition);
+			resolve(ast_while->block);
+			ast_while->block->scope = expression->scope;
 			set_type_and_break(NULL);
 		}
 		case AST_OPERATOR: {
 			AST_Operator* op = static_cast<AST_Operator*>(expression);
 			set_type_and_break(resolveOperator(op));
+		}
+		case AST_FOR: {
+			AST_For* ast_for = static_cast<AST_For*>(expression);
+
+			if (ast_for->key != NULL) ast_for->header->expressions.push_back(ast_for->key);
+			if (ast_for->value != NULL) ast_for->header->expressions.push_back(ast_for->value);
+
+			ast_for->block->scope = expression->scope;
+
+			resolveExpression(ast_for->each);
+			resolve(ast_for->header);
+			resolve(ast_for->block);
+
+			ast_for->is_resolved = true;
+			set_type_and_break(NULL);
+		}
+		case AST_RANGE: {
+			AST_Range* range = static_cast<AST_Range*>(expression);
+			resolveExpression(range->from);
+			resolveExpression(range->to);
+
+			range->is_resolved = true;
+			set_type_and_break(NULL);
 		}
 		default:
 			assert(false);
@@ -1031,6 +1054,13 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 		}
 	}
 
+	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_FOR) {
+		auto decl = find_declaration(ident, scope->belongs_to_for->header);
+		if (decl != NULL) {
+			return decl;
+		}
+	}
+
 	if (scope->scope != NULL)
 		return find_declaration(ident, scope->scope);
 
@@ -1139,6 +1169,12 @@ AST_Type* TypeResolver::find_typedefinition(AST_Ident* ident, AST_Block* scope) 
 
 	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_PROCEDURE) {
 		auto in_header = find_typedefinition(ident, scope->belongs_to_procedure->header);
+		if (in_header != NULL)
+			return in_header;
+	}
+
+	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_FOR) {
+		auto in_header = find_typedefinition(ident, scope->belongs_to_for->header);
 		if (in_header != NULL)
 			return in_header;
 	}

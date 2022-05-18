@@ -28,6 +28,12 @@ Token* Lexer::peek_next_token() {
 	return this->tokens[this->token_pos];
 }
 
+Token* Lexer::peek_token(int index) {
+	if (this->token_pos + index < static_cast<int>(this->tokens.size()))
+		return this->tokens[this->token_pos + index];
+	return NULL;
+}
+
 void Lexer::eat_token() {
 	if(this->token_pos + 1 < static_cast<int>(this->tokens.size()))
 		this->token_pos++;
@@ -149,6 +155,9 @@ String Lexer::peek_next_numer() {
 		/*else if (ch == 'l') { 
 			has_l = true; 
 		}*/
+		else if (ch == '.' && peek(1) == '.') {
+			return str;
+		}
 		else if (ch == '.') { 
 			if (has_dot || has_x) {
 				report_error("Unkown number modifier '.'");

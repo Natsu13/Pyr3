@@ -185,6 +185,8 @@ const char* token_to_string(int type) {
 		return "u32";
 	case TOKEN_KEYWORD_U64:
 		return "u64";
+	case TOKEN_RANGE:
+		return "range";
 	}
 
 	auto char_type = std::to_string(type);

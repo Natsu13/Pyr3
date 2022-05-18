@@ -25,7 +25,8 @@ enum AST_Types {
 	AST_CAST			= 0x18,
 	AST_WHILE			= 0x19,	//25
 	AST_OPERATOR		= 0x20,
-	AST_FOR				= 0x21
+	AST_FOR				= 0x21,
+	AST_RANGE			= 0x22, //34
 };
 
 using namespace std;
@@ -35,6 +36,7 @@ struct AST_Block;
 struct AST_Type_Definition;
 struct AST_Ident;
 struct AST_Procedure;
+struct AST_For;
 
 struct AST_Expression {
 	AST_Expression() {}
@@ -72,6 +74,7 @@ const int AST_BLOCK_FLAG_MAIN_BLOCK = 0x1;
 
 const int AST_BLOCK_BELONGS_TO_NOTHING = 0x0;
 const int AST_BLOCK_BELONGS_TO_PROCEDURE = 0x2;
+const int AST_BLOCK_BELONGS_TO_FOR = 0x4;
 
 struct AST_Block : public AST_Expression {
 	AST_Block() { type = AST_BLOCK; }
@@ -80,6 +83,7 @@ struct AST_Block : public AST_Expression {
 
 	int belongs_to = 0;
 	AST_Procedure* belongs_to_procedure = NULL;
+	AST_For* belongs_to_for = NULL;
 };
 
 enum AST_Internal_Types {
@@ -168,7 +172,8 @@ struct AST_Operator : public AST_Expression {
 enum AST_ARRAY_FLAGS {
 	ARRAY_DYNAMIC = 0x1,
 	ARRAY_AUTO_SIZE = 0x2,
-	ARRAY_IDENT = 0x4
+	ARRAY_IDENT = 0x4,
+	ARRAY_FIXED = 0x8
 };
 struct AST_Array : public AST_Type {
 	AST_Array() { kind = AST_TYPE_ARRAY; }
@@ -219,6 +224,13 @@ struct AST_Declaration : public AST_Expression {
 
 	int register_index = -1;
 	int offset = 0;
+};
+
+struct AST_Range : public AST_Expression {
+	AST_Range() { type = AST_RANGE; }
+
+	AST_Expression* from = NULL;
+	AST_Expression* to = NULL;
 };
 
 const int LITERAL_NUMBER = 0x1;
@@ -298,11 +310,12 @@ struct AST_While : public AST_Expression {
 struct AST_For : public AST_Expression {
 	AST_For() { type = AST_FOR; }
 
-	AST_Ident* value = NULL;
-	AST_Ident* key = NULL;
+	AST_Declaration* value = NULL;
+	AST_Declaration* key = NULL;
 
 	AST_Expression* each = NULL;
 
+	AST_Block* header = NULL;
 	AST_Block* block = NULL;
 };
 
@@ -378,7 +391,6 @@ public:
 	AST_Type_Definition* type_string = NULL;
 	AST_Type_Definition* type_c_call = NULL;
 
-	AST_Type_Definition* type_int = NULL;
 	AST_Type_Definition* type_float = NULL;
 	AST_Type_Definition* type_long = NULL;
 	AST_Type_Definition* type_char = NULL;

@@ -166,17 +166,49 @@ AST_For* Parser::parse_for() {
 
 	AST_For* ast_for = AST_NEW(AST_For);
 
-	auto expression = parse_expression();
-	auto token = lexer->peek_next_token();
-	if (token->type == TOKEN_COMMA) { // ,
-		lexer->eat_token();
-		assert(expression->type == AST_IDENT);
+	/*  for value, key: 0..5 {
+	 *  for value: 0..5 {
+	 *  for 0..5 {
+	 */
 
-		ast_for->value = (AST_Ident*)expression;
+	int i = 0;
+	bool comma = false;
+	bool colon = false;
+	Token* token = lexer->peek_token(i);
+	while (token != NULL && token->type != '{' && token->type != TOKEN_EOF) {
+		if (token->type == TOKEN_COMMA) comma = true;
+		if (token->type == TOKEN_COLON)	colon = true;
 
-		expression = parse_expression();
-		assert(expression->type == AST_IDENT);
-		ast_for->key = (AST_Ident*)expression;
+		i++;
+		token = lexer->peek_token(i);
+	}
+
+	AST_Ident* value = NULL;
+	AST_Ident* key = NULL;
+	if (comma || colon) {
+		value = create_ident_from_current_token();
+
+		token = lexer->peek_next_token();
+		if (comma && token->type == ',') {
+			lexer->eat_token(); //eat ,
+			key = create_ident_from_current_token();
+		}
+		else {
+			interpret->report_error(token, "We expected comma here");
+		}
+	}
+
+	if (value != NULL) {
+		auto decl_from = AST_NEW(AST_Declaration);
+		decl_from->ident = (AST_Ident*)value;
+		decl_from->assigmet_type = interpret->type_s64; //todo: just for now!
+		ast_for->value = decl_from;
+	}
+	if (key != NULL) {
+		auto decl_to = AST_NEW(AST_Declaration);
+		decl_to->ident = (AST_Ident*)key;
+		decl_to->assigmet_type = interpret->type_s64; //todo: just for now!
+		ast_for->key = decl_to;
 	}
 
 	token = lexer->peek_next_token();
@@ -185,6 +217,17 @@ AST_For* Parser::parse_for() {
 	}
 
 	ast_for->each = parse_expression();
+
+	token = lexer->peek_next_token();
+	if (token->type == TOKEN_RANGE) { // ..
+		auto range = AST_NEW(AST_Range);
+
+		range->from = ast_for->each;
+		lexer->eat_token();
+		range->to = parse_expression();
+
+		ast_for->each = range;
+	}
 
 	auto exp = parse_block_or_expression();
 
@@ -195,6 +238,13 @@ AST_For* Parser::parse_for() {
 		ast_for->block = AST_NEW(AST_Block);
 		ast_for->block->expressions.push_back(exp);
 	}
+
+	if (ast_for->block != NULL) {
+		ast_for->block->belongs_to = AST_BLOCK_BELONGS_TO_FOR;
+		ast_for->block->belongs_to_for = ast_for;
+	}
+
+	ast_for->header = AST_NEW(AST_Block);
 
 	return ast_for;
 }

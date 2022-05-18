@@ -24,7 +24,7 @@ private:
 	AST_Literal* parse_string();
 	AST_Literal* parse_number();
 	AST_While* parse_while();
-	AST_For* Parser::parse_for();
+	AST_For* parse_for();
 	AST_Block* parse_list();
 	AST_Condition* parse_condition();
 	AST_Directive* parse_directive();
