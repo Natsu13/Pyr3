@@ -216,7 +216,7 @@ AST_For* Parser::parse_for() {
 		lexer->eat_token();
 	}
 
-	ast_for->each = parse_expression();
+	ast_for->each = parse_primary();
 
 	token = lexer->peek_next_token();
 	if (token->type == TOKEN_RANGE) { // ..
@@ -224,7 +224,7 @@ AST_For* Parser::parse_for() {
 
 		range->from = ast_for->each;
 		lexer->eat_token();
-		range->to = parse_expression();
+		range->to = parse_primary();
 
 		ast_for->each = range;
 	}
