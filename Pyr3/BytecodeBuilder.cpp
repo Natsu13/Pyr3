@@ -252,6 +252,10 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		AST_Operator* op = static_cast<AST_Operator*>(expression);
 		return build_expression(op->procedure);
 	}
+	case AST_FOR: {
+		AST_For* ast_for = static_cast<AST_For*>(expression);
+		return build_for(ast_for);
+	}
 	default:
 		assert(false);
 		break;
@@ -259,6 +263,76 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 
 	assert(false);
 	return -1;
+}
+
+int BytecodeBuilder::build_for(AST_For* ast_for) {
+	int pre_condition_address = get_current_bytecode_address();
+
+	int value_reg = -1;
+	int key_reg = -1;
+	if (ast_for->value != NULL) value_reg = build_expression(ast_for->value);
+	if (ast_for->key != NULL) key_reg = build_expression(ast_for->key);
+	
+	ByteCode* inst_jump_to_block = NULL;
+	ByteCode* inst_jump_to_end = NULL;
+
+	if (ast_for->each->type == AST_RANGE) { //this is the default compiler iterator throught range
+		auto range = (AST_Range*)ast_for->each;
+		auto from = range->from;
+		auto to = range->to;
+
+		auto from_reg = build_expression(from);
+		auto to_reg = build_expression(to);
+
+		auto inst_from_to_value = Instruction(BYTECODE_MOVE_A_TO_R, from_reg, -1, value_reg);
+		if (key_reg != -1) {
+			auto inst_0_to_key = Instruction(BYTECODE_INTEGER_ADD_TO_CONSTANT, -1, -1, key_reg);
+			inst_0_to_key->big_constant._s64 = 0;
+		}
+
+		inst_jump_to_block = Instruction(BYTECODE_JUMP, -1, -1, 0);
+		pre_condition_address = get_current_bytecode_address();
+
+		auto instr_incr_value = Instruction(BYTECODE_INTEGER_ADD_TO_CONSTANT, -1, -1, value_reg);
+		instr_incr_value->big_constant._s64 = 1;
+		if (key_reg != -1) {
+			auto instr_incr_key = Instruction(BYTECODE_INTEGER_ADD_TO_CONSTANT, -1, -1, key_reg);
+			instr_incr_key->big_constant._s64 = 1;
+		}
+
+		auto result_compare = allocate_output_register(interpret->type_s64);
+		auto compare = Instruction(BYTECODE_BINOP_GREATER, value_reg, to_reg, result_compare);
+		auto result_compare_s8 = allocate_output_register(interpret->type_s8);
+		auto intst_cast_to_s8 = Instruction(BYTECODE_CAST, result_compare, -1, result_compare_s8);
+		inst_jump_to_end = Instruction(BYTECODE_JUMP_IF, result_compare_s8, -1, -1);
+	}
+	else if(ast_for->each->type == AST_TYPE) {
+		auto type = (AST_Type*)ast_for->each;
+		if (type->kind == AST_TYPE_ARRAY) { //this is the default compiler iterator throught array
+			auto arr = (AST_Array*)type;
+			if ((arr->flags & ARRAY_DYNAMIC) == ARRAY_DYNAMIC) {
+
+			}
+			else if ((arr->flags & ARRAY_FIXED) == ARRAY_FIXED) {
+
+			}
+		}
+	}
+	else {
+		interpret->report_error(ast_for->token, "Can't iterate throught %", token_to_string(ast_for->each->token->type));
+		return 0;
+	}
+
+	if (inst_jump_to_block != NULL) {
+		inst_jump_to_block->index_r = get_current_bytecode_address();
+	}	
+
+	build_expression(ast_for->block);
+	auto jump_instr = Instruction(BYTECODE_JUMP, -1, -1, pre_condition_address);
+	if (inst_jump_to_end != NULL) {
+		inst_jump_to_end->index_r = get_current_bytecode_address();
+	}
+	return 0;
 }
 
 int BytecodeBuilder::build_while(AST_While* whl) {

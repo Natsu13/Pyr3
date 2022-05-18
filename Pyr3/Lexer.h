@@ -46,5 +46,6 @@ public:
 
 	vector<Token*> getTokens();
 	Token* peek_next_token();
+	Token* peek_token(int index = 1);
 	void eat_token();
 };
