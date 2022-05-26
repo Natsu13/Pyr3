@@ -27,6 +27,7 @@ enum AST_Types {
 	AST_OPERATOR		= 0x20,
 	AST_FOR				= 0x21,
 	AST_RANGE			= 0x22, //34
+	AST_GENERIC			= 0x23
 };
 
 using namespace std;
@@ -114,7 +115,8 @@ enum AST_Type_Types {
 	AST_TYPE_ADDRESSOF		= 0x2,
 	AST_TYPE_STRUCT			= 0x3,
 	AST_TYPE_ARRAY			= 0x4,
-	AST_TYPE_ENUM			= 0x5
+	AST_TYPE_ENUM			= 0x5,
+	AST_TYPE_GENERIC		= 0x6
 };
 
 struct AST_Type : public AST_Expression {
@@ -198,6 +200,7 @@ struct AST_Addressof : public AST_Type {
 
 const int AST_IDENT_FLAG_CONSTANT = 0x1;
 const int AST_IDENT_FLAG_C_CALL = 0x2;
+const int AST_IDENT_FLAG_GENERIC = 0x4;
 struct AST_Ident : public AST_Expression {
 	AST_Ident() { type = AST_IDENT; }
 
@@ -206,13 +209,21 @@ struct AST_Ident : public AST_Expression {
 	AST_Declaration* type_declaration = NULL;
 };
 
+struct AST_Generic : public AST_Type {
+	AST_Generic() { kind = AST_TYPE_GENERIC; }
+
+	AST_Declaration* type_declaration = NULL;
+	AST_Block* found_in_scope = NULL;
+};
+
 const int AST_DECLARATION_FLAG_CONSTANT = 0x1;
 
-const int TYPE_DEFINITION_STRING = 0x1;
-const int TYPE_DEFINITION_NUMBER = 0x2;
-const int TYPE_DEFINITION_STRUCT = 0x3;
-const int TYPE_DEFINITION_IDENT  = 0x4;
-const int DECLARATION_IN_HEAD	 = 0x1;
+const int TYPE_DEFINITION_STRING	= 0x1;
+const int TYPE_DEFINITION_NUMBER	= 0x2;
+const int TYPE_DEFINITION_STRUCT	= 0x3;
+const int TYPE_DEFINITION_IDENT		= 0x4;
+const int TYPE_DEFINITION_GENERIC	= 0x8;
+const int DECLARATION_IN_HEAD		= 0x1;
 
 struct AST_Declaration : public AST_Expression {
 	AST_Declaration() { type = AST_DECLARATION; }
@@ -345,12 +356,14 @@ const int AST_PROCEDURE_FLAG_INTERNAL  = 0x2;
 const int AST_PROCEDURE_FLAG_INTRINSIC = 0x4;
 const int AST_PROCEDURE_FLAG_FOREIGN   = 0x8;
 const int AST_PROCEDURE_FLAG_C_CALL	   = 0x10;
+const int AST_PROCEDURE_FLAG_GENERIC   = 0x12;
 struct AST_Procedure : public AST_Expression {
 	AST_Procedure() { type = AST_PROCEDURE; }
 
 	AST_Expression* returnType = NULL;
 	AST_Block* header = NULL;
 	AST_Block* body = NULL;
+	Token* name = NULL;
 
 	AST_Expression* foreign_library_expression = NULL;
 };
@@ -382,6 +395,9 @@ public:
 	void report_error(Token* token, String message, ...);
 	void report_warning(Token* token, const char* message, ...);
 	void report_warning(Token* token, String message, ...);
+
+	void report_info(Token* token, const char* message, ...);
+	void report(const char* message, ...);
 
 	bool isError();		
 

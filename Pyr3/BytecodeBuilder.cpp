@@ -350,13 +350,23 @@ int BytecodeBuilder::build_while(AST_While* whl) {
 
 int BytecodeBuilder::build_procedure(AST_Procedure* procedure) {
 	if (procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) return -1;
+	if (procedure->flags & AST_PROCEDURE_FLAG_GENERIC) return -1; //don't build generic procedures
 
 #if _DEBUG
-	auto inoop = Instruction(BYTECODE_NOOP, -1, -1, -1);
-	inoop->comment = "Procedure";
+	auto inoop = Instruction(BYTECODE_NOOP, -1, -1, -1);	
+	if(procedure->name != NULL)
+		inoop->comment = (String)"Procedure  " + procedure->name->value;
+	else
+		inoop->comment = "Procedure";
 #endif
 
-	int result_register = allocate_output_register(interpret->type_pointer);
+	int result_register = 0;
+	if (procedure->returnType != NULL && procedure->returnType->type == AST_TYPE) {
+		result_register = allocate_output_register((AST_Type*)procedure->returnType);
+	}
+	else {
+		result_register = allocate_output_register(interpret->type_pointer);
+	}
 
 	procedure->bytecode_address = get_current_bytecode_address();
 	procedure->bytecode_index = output_registers_index;
@@ -693,44 +703,20 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	assert(unary->left->type == AST_IDENT);
 	auto literar = static_cast<AST_Ident*>(unary->left);	
 
-	auto declaration = typeResolver->find_declaration(literar, literar->scope);
-	assert(declaration != NULL);
-	assert(declaration->value->type == AST_PROCEDURE);
+	//auto declaration = typeResolver->find_declaration(literar, literar->scope); //this is bad because we alerady found the address of the procedure when we type resolve this!
+	auto procedure = (AST_Procedure*)unary->left->expression;
+	assert(procedure != NULL);
+	assert(procedure->type == AST_PROCEDURE);
 
-	call->name = declaration->ident->name->value;
-	call->procedure = static_cast<AST_Procedure*>(declaration->value);
+	//call->name = declaration->ident->name->value;
+	call->name = procedure->name->value;
+	call->procedure = static_cast<AST_Procedure*>(procedure);
 	call->offset = output_registers_index;// get_current_bytecode_address();
 
 	if (call->procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) {
 		delete call;
 
 		return build_intrinsic_procedure_call(literar->name, unary->arguments->expressions);
-		/*
-		if (COMPARE(literar->name->value, "print")) {
-			int arg1 = build_expression(unary->arguments->expressions[0]);
-			Instruction(BYTECODE_INSTRICT_PRINT, -1, -1, arg1);
-			return 0;
-		}
-
-		if (COMPARE(literar->name->value, "assert")) {
-			int arg1 = build_expression(unary->arguments->expressions[0]);
-			Instruction(BYTECODE_INSTRICT_ASSERT, -1, -1, arg1);
-			return 0;
-		}
-
-		if (COMPARE(literar->name->value, "malloc")) {
-			int arg1 = build_expression(unary->arguments->expressions[0]);
-			int return_register = allocate_output_register(interpret->type_u8);
-
-			auto opt = Instruction(BYTECODE_RESERVE_MEMORY_TO_R, arg1, -1, return_register);
-			opt->comment = "calling malloc()";
-			opt->options = 1;
-
-			return return_register;
-		}
-
-		return 0;
-		*/
 	}
 	
 	call->arguments.clear();

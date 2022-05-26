@@ -104,6 +104,20 @@ void Interpret::report_warning(Token* token, const char* message, ...) {
 	vfprintf(stdout, message, args);
 	va_end(args);
 }
+void Interpret::report_info(Token* token, const char* message, ...) {
+	printf("\n%s:%d,%d : ", get_file_name(token->file_name).c_str(), token->row, token->column);
+	va_list args;
+	va_start(args, message);
+	vfprintf(stdout, message, args);
+	va_end(args);
+}
+void Interpret::report(const char* message, ...) {
+	printf("\n\t\t");
+	va_list args;
+	va_start(args, message);
+	vfprintf(stdout, message, args);
+	va_end(args);
+}
 void Interpret::report_warning(Token* token, String message, ...) {
 	printf("\n%s:%d,%d warning: ", get_file_name(token->file_name).c_str(), token->row, token->column);
 	va_list args;

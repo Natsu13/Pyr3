@@ -125,7 +125,7 @@ bool TypeResolver::is_static(AST_Expression* expression) {
 		auto decl = find_declaration(ident, ident->scope);
 		AST_Expression* expr = decl->value;
 
-		if (!(decl->flags & AST_IDENT_FLAG_CONSTANT)) {
+		if (!((decl->flags & AST_IDENT_FLAG_CONSTANT) == AST_IDENT_FLAG_CONSTANT)) {
 			return false;
 		}
 
@@ -378,14 +378,39 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 		}
 		case AST_PROCEDURE: {
 			AST_Procedure* procedure = static_cast<AST_Procedure*>(expression);
-
+			
+			bool isGenericFunction = false;
 			if (procedure->header != NULL) {
+				vector<AST_Type*> generic_to_add;
+
 				resolve(procedure->header);
+
 				for (int index = 0; index < procedure->header->expressions.size(); index++) {
 					AST_Expression* expr = procedure->header->expressions[index];
 					expr->flags |= DECLARATION_IN_HEAD;
+					if ((expr->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) {
+						isGenericFunction = true;
+						expr->is_resolved = true;
+
+						//we know it's generic soo we know the assigment type is AST_Ident
+						auto ident = (AST_Ident*)((AST_Declaration*)expr)->assigmet_type;
+						auto ast_generic = AST_NEW_EMPTY(AST_Generic);
+						ast_generic->type_declaration = AST_NEW_EMPTY(AST_Declaration);
+						ast_generic->type_declaration->ident = ident;
+						generic_to_add.push_back(ast_generic);
+					}
 				}
-			}				
+				
+				For(generic_to_add) {
+					procedure->header->expressions.push_back(it);
+				}
+
+				generic_to_add.clear();
+			}		
+
+			if (isGenericFunction) {
+				procedure->flags |= AST_PROCEDURE_FLAG_GENERIC;
+			}
 
 			if (procedure->foreign_library_expression != NULL) {
 				resolveExpression(procedure->foreign_library_expression);
@@ -890,17 +915,23 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 	else if (unary->operation == UNOP_CALL) { // ()
 		resolveExpression(unary->left);
 		resolveExpression(unary->arguments);
-		auto declaration = find_expression_declaration(unary->left);	
-		if (declaration->value->type == AST_PROCEDURE) {
-			unary->left->expression = declaration;
+
+		auto procedure = find_procedure(unary->left, unary->arguments);
+		if (procedure != NULL) {
+			unary->left->expression = procedure;
 		}
 		else {
-			interpret->report_error(unary->left->token, "You can call only procedures not '%s'", unary->left->token->value);
+			if (unary->left->type == AST_IDENT) {
+				interpret->report_error(unary->left->token, "Procedure '%s' not found", ((AST_Ident*)unary->left)->name->value);
+			}
+			else {
+				interpret->report_error(unary->left->token, "Internal compiler error!!!");
+			}
+			return NULL;
 		}
 
-		auto proc = static_cast<AST_Procedure*>(declaration->value);
-		if (proc->returnType != NULL && proc->returnType->type == AST_TYPE) {
-			auto type = static_cast<AST_Type*>(proc->returnType);
+		if (procedure->returnType != NULL && procedure->returnType->type == AST_TYPE) {
+			auto type = static_cast<AST_Type*>(procedure->returnType);
 			if (type->kind == AST_TYPE_DEFINITION) {
 				auto tdef = static_cast<AST_Type_Definition*>(type);
 				return tdef;
@@ -950,19 +981,21 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 
 		auto type_def = find_typedefinition(assing_type, declaration->scope);
 		if (type_def == NULL) {
-			addToResolve(declaration);
+			if (!(declaration->flags & TYPE_DEFINITION_GENERIC)) {
+				addToResolve(declaration);
+			}
+			return NULL;
 		}
 
 		declaration->assigmet_type = type_def;
 
-		if (type_def != NULL) {
-			if (type_def->type == AST_PROCEDURE) {
-				AST_Procedure* proc = (AST_Procedure*)type_def;
-				if (proc->flags & AST_PROCEDURE_FLAG_C_CALL) {
-					declaration->inferred_type = interpret->type_c_call;
-				}
+		if (type_def->type == AST_PROCEDURE) {
+			AST_Procedure* proc = (AST_Procedure*)type_def;
+			if (proc->flags & AST_PROCEDURE_FLAG_C_CALL) {
+				declaration->inferred_type = interpret->type_c_call;
 			}
 		}
+		
 		
 		if(declaration->inferred_type == NULL) {
 			declaration->inferred_type = type_def;
@@ -984,13 +1017,13 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 			type = static_cast<AST_Type*>(declaration->value);
 		}
 		
-		if ((declaration->is_resolved || type != NULL) && declaration->assigmet_type->type == AST_TYPE) {
+		if ((declaration->is_resolved || type != NULL) && declaration->assigmet_type != NULL && declaration->assigmet_type->type == AST_TYPE) {
 			type = static_cast<AST_Type*>(declaration->assigmet_type);
 			declaration->inferred_type = type;
 		}
 	}
 
-	if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT && type != NULL && type->kind != AST_TYPE_STRUCT && type->kind != AST_TYPE_ENUM) {
+	if ((declaration->flags & AST_DECLARATION_FLAG_CONSTANT) == AST_DECLARATION_FLAG_CONSTANT && type != NULL && type->kind != AST_TYPE_STRUCT && type->kind != AST_TYPE_ENUM) {
 		if (declaration->value != NULL && declaration->value->type != AST_PROCEDURE) {
 			if (!is_static(declaration->value)) {
 				interpret->report_error(declaration->value->token, "You must pass only constatnt values to constant declaration");
@@ -1032,7 +1065,176 @@ AST_Declaration* TypeResolver::find_expression_declaration(AST_Expression* expre
 	return NULL;
 }
 
+AST_Procedure* TypeResolver::find_procedure(AST_Expression* expression, AST_Block* arguments) {
+	assert(expression->type == AST_IDENT);
+
+	AST_Ident* ident = (AST_Ident*)expression;
+
+	auto decls = find_declarations(ident, ident->scope);
+	vector<AST_Procedure*> found;
+
+	{
+		For(decls) {
+			assert(it != NULL && it->value->type == AST_PROCEDURE);
+			auto procedure = (AST_Procedure*)it->value;
+
+			int generic_defitnion_count;
+			if (check_procedure_arguments(procedure->header, arguments, &generic_defitnion_count)) {
+				found.push_back(procedure);
+			}
+		}
+	}
+
+	if (found.size() == 1) {
+		auto proc = found.front();
+		return proc;
+	}
+	
+	if (found.size() > 0) {
+		interpret->report_error(expression->token, "Found this procedures but we can't match your provided arguments: ");
+		For(found) {
+			print_procedure(it);
+		}
+	}
+
+	return NULL;
+}
+
+bool TypeResolver::check_procedure_arguments(AST_Block* header, AST_Block* arguments, int* generic_definition) {
+	int need = 0;
+	*generic_definition = 0;
+
+	if (arguments->expressions.size() > header->expressions.size()) return false; //we need check if there is varguments
+
+	For(header->expressions) {
+		if (it->type == AST_TYPE) continue; //skip this it's generic
+
+		assert(it != NULL && it->type == AST_DECLARATION);
+		need++;
+
+		if (it_index >= arguments->expressions.size()) return false; //we need check if the argument is optional
+
+		auto arg = arguments->expressions[it_index];
+		auto declaration = (AST_Declaration*)it;
+		auto type_need = find_typeof(declaration->assigmet_type);
+		auto type_have = find_typeof(arg);
+
+		if ((declaration->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) {
+			*generic_definition++;
+			continue;
+		}
+
+		if (!compare_type(type_need, type_have)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+//we can compare basic types
+//we can't compare struct, enum, etc...
+bool TypeResolver::compare_type(AST_Expression* left, AST_Expression* right) {
+	if (left->type == AST_TYPE) {
+		if(right->type != AST_TYPE) return false;
+
+		auto type_left = (AST_Type*)left;
+		auto type_right = (AST_Type*)right;
+
+		if (type_left->kind != type_right->kind) return false;
+		if (type_left->kind == AST_TYPE_DEFINITION) {
+			auto type_def_left = (AST_Type_Definition*)type_left;
+			auto type_def_right = (AST_Type_Definition*)type_right;
+
+			if (type_def_left->internal_type == type_def_right->internal_type) return true;
+		}
+	}
+
+	return false;
+}
+
+void TypeResolver::print_procedure(AST_Procedure* procedure) {
+	String output = "";
+
+	if (procedure->name == NULL)
+		output += "UnnamedProcedure_" + procedure->serial;
+	else
+		output += procedure->name->value;
+
+	output += " :: (";
+	For(procedure->header->expressions) {
+		assert(it != NULL && it->type == AST_DECLARATION);
+
+		if (it_index != 0) output += ", ";
+
+		auto declaration = (AST_Declaration*)it;	
+
+		output += declaration->ident->name->value;
+		output += ": ";
+		output += expressionTypeToString(declaration);
+	}
+	output += ")";
+
+	if (procedure->returnType != NULL) {
+		output += " -> ";
+		output += expressionTypeToString(procedure->returnType);
+	}
+
+	interpret->report_info(procedure->token, output.data);
+}
+
+vector<AST_Declaration*> TypeResolver::find_declarations(AST_Ident* ident, AST_Block* scope) {
+	vector<AST_Declaration*> declarations;
+
+	for (int i = 0; i < scope->expressions.size(); i++) {
+		auto expression = scope->expressions[i];
+		if (expression->type == AST_DECLARATION) {
+			auto declaration = static_cast<AST_Declaration*>(expression);
+			if (declaration->ident->name->value == ident->name->value) {
+				if (declaration->value != NULL && declaration->value->type == AST_IDENT) {
+					auto new_ident = static_cast<AST_Ident*>(declaration->value);
+
+					if ((scope->flags & AST_BLOCK_FLAG_MAIN_BLOCK) != AST_BLOCK_FLAG_MAIN_BLOCK) { //if we go again inside main it's bad
+						auto declarations_found = find_declarations(new_ident, new_ident->scope);
+						ForPush(declarations_found, declarations);
+					}
+				}
+				declarations.push_back(declaration);
+			}
+		}
+	}
+
+	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_PROCEDURE) {
+		auto declarations_found = find_declarations(ident, scope->belongs_to_procedure->header);
+		ForPush(declarations_found, declarations);
+
+		if(scope->belongs_to_procedure->header->scope->serial == scope->scope->serial) //if the scopes are same we can just return
+			return declarations;
+	}
+
+	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_FOR) {
+		auto declarations_found = find_declarations(ident, scope->belongs_to_for->header);
+		ForPush(declarations_found, declarations);
+
+		if (scope->belongs_to_for->header->scope->serial == scope->scope->serial) //if the scopes are same we can just return
+			return declarations;
+	}
+
+	if (scope->scope != NULL) {
+		auto declarations_found = find_declarations(ident, scope->scope);
+		ForPush(declarations_found, declarations);
+	}
+
+	return declarations;
+}
+
 AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* scope) {
+	auto declarations = find_declarations(ident, scope);
+	if (declarations.size() == 0) return NULL;
+	auto declaration = declarations.front();
+	return declaration;
+	
+	/*
 	for (int i = 0; i < scope->expressions.size(); i++) {
 		auto expression = scope->expressions[i];
 		if (expression->type == AST_DECLARATION) {
@@ -1064,7 +1266,7 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 	if (scope->scope != NULL)
 		return find_declaration(ident, scope->scope);
 
-	return NULL;
+	return NULL;*/
 }
 
 AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
@@ -1109,6 +1311,12 @@ AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
 		auto declaration = static_cast<AST_Declaration*>(expression);
 		return find_typeof(declaration->assigmet_type);
 	}
+	else if (expression->type == AST_LITERAL) {
+		auto literal = static_cast<AST_Literal*>(expression);
+		if (literal->value_type == LITERAL_NUMBER) return interpret->type_s64;
+		if (literal->value_type == LITERAL_FLOAT) return interpret->type_float;
+		if (literal->value_type == LITERAL_STRING) return interpret->type_string;
+	}
 	/*else if (expression->type == AST_TYPE_ARRAY) {
 		auto arr = static_cast<AST_Array*>(expression);
 		return find_typeof(arr->point_to);
@@ -1121,6 +1329,17 @@ String TypeResolver::expressionTypeToString(AST_Expression* type) {
 	if (type->type == AST_TYPE) {
 		AST_Type* _type = static_cast<AST_Type*>(type);
 		return typeToString(_type);
+	}
+	else if (type->type == AST_DECLARATION) {
+		AST_Declaration* decl = static_cast<AST_Declaration*>(type);
+		if ((decl->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) {
+			return (String)"$" + expressionTypeToString(decl->assigmet_type);
+		}
+		return expressionTypeToString(decl->assigmet_type);
+	}
+	else if (type->type == AST_IDENT) {
+		AST_Ident* ident = static_cast<AST_Ident*>(type);
+		return ident->name->value;
 	}
 
 	assert(false && "Only type can be translated");
@@ -1160,6 +1379,10 @@ String TypeResolver::typeToString(AST_Type* type) {
 		AST_Array* arr = static_cast<AST_Array*>(type);
 		return (String)("Array<") + expressionTypeToString(arr->point_to) + ">";
 	}
+	else if (type->kind == AST_TYPE_GENERIC) {
+		AST_Generic* ast_generic = static_cast<AST_Generic*>(type);
+		return "";
+	}
 
 	assert(false && "This type is not transatable");
 }
@@ -1182,14 +1405,32 @@ AST_Type* TypeResolver::find_typedefinition(AST_Ident* ident, AST_Block* scope) 
 	for (auto i = 0; i < scope->expressions.size(); i++) {
 		AST_Expression* it = scope->expressions[i];
 
-		if (it->type == AST_DECLARATION) {
+		if (it->type == AST_TYPE) {
+			AST_Type* type = static_cast<AST_Type*>(it);
+			if (type->kind == AST_TYPE_GENERIC) {
+				AST_Generic* ast_generic = static_cast<AST_Generic*>(type);
+				if(ast_generic->type_declaration->ident->name->value == name)
+					return type;
+			}
+		}
+		else if (it->type == AST_DECLARATION) {
 			AST_Declaration* declaration = static_cast<AST_Declaration*>(it);
 			if (declaration->ident->name->value == name) {
 				ident->type_declaration = declaration;
 
 				if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT) {
 					ident->flags |= AST_IDENT_FLAG_CONSTANT;
-				}				
+				}
+				if (declaration->flags & TYPE_DEFINITION_GENERIC) {
+					ident->flags |= AST_IDENT_FLAG_GENERIC;
+
+					if (declaration->assigmet_type != NULL && declaration->assigmet_type->type == AST_IDENT) {
+						AST_Generic* ast_generic = AST_NEW_EMPTY(AST_Generic);
+						ast_generic->type_declaration = declaration;
+						ast_generic->found_in_scope = scope;
+						return ast_generic;
+					}
+				}
 
 				if (declaration->assigmet_type != NULL && declaration->assigmet_type->type == AST_TYPE) {
 					AST_Type* type = static_cast<AST_Type*>(declaration->assigmet_type);

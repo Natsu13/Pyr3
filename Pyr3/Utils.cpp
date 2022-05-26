@@ -189,6 +189,7 @@ const char* token_to_string(int type) {
 		return "range";
 	}
 
-	auto char_type = std::to_string(type);
-	return char_type.c_str();
+	//auto char_type = std::to_string(type);
+	//return char_type.c_str();
+	return (char*)&type;
 }

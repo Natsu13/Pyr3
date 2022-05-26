@@ -612,6 +612,8 @@ AST_Expression* Parser::parse_param_or_function() {
 	if (block != NULL) {
 		block->belongs_to = AST_BLOCK_BELONGS_TO_PROCEDURE;
 		block->belongs_to_procedure = function;
+		if(function->returnType != NULL) 
+			function->returnType->scope = block; //put the return type to scope of the procedure declaration soo it can see the Generic types
 	}
 
 	function->body = block;
@@ -986,6 +988,12 @@ AST_Expression* Parser::parse_ident() {
 
 		lexer->eat_token();
 		token = lexer->peek_next_token();
+
+		if (token->type == '$') { //parse generic types 'value: $T'
+			lexer->eat_token();
+			declaration->flags |= TYPE_DEFINITION_GENERIC;
+			token = lexer->peek_next_token();
+		}
 		
 		AST_Ident* type = NULL;
 		bool is_typedef = this->is_typedef_keyword();
@@ -1026,7 +1034,9 @@ AST_Expression* Parser::parse_ident() {
 		}
 
 		if (declaration->value->type == AST_PROCEDURE) {
+			auto procedure = (AST_Procedure*)declaration->value;
 			declaration->assigmet_type = interpret->type_pointer;
+			procedure->name = declaration->ident->name;
 		}
 
 		return declaration;

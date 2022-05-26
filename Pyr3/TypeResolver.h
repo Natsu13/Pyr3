@@ -75,12 +75,20 @@ public:
 	AST_Type* find_typeof(AST_Expression* expression, bool deep = true);
 	AST_Type* find_typedefinition(AST_Ident* ident, AST_Block* scope);
 	AST_Type_Definition* find_typedefinition_from_type(AST_Type* type);
+
 	AST_Declaration* find_declaration(AST_Ident* ident, AST_Block* scope);
+	vector<AST_Declaration*> find_declarations(AST_Ident* ident, AST_Block* scope);
+
+	AST_Procedure* find_procedure(AST_Expression* expression, AST_Block* arguments);
 
 	AST_Literal* make_string_literal(String value);
 	AST_Literal* make_number_literal(int value);
 	AST_Literal* make_number_literal(long long value);
 	AST_Literal* make_number_literal(float value);
+
+	void print_procedure(AST_Procedure* procedure);
+	bool check_procedure_arguments(AST_Block* header, AST_Block* arguments, int* generic_definition);
+	bool compare_type(AST_Expression* left, AST_Expression* right);
 
 	int get_size_of(AST_Expression* expr);
 	void calculate_struct_size(AST_Struct* _struct, int offset = 0);

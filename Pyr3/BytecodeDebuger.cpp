@@ -6,9 +6,6 @@ void BytecodeDebuger::debug() {
 	for (int i = 0; i < instructions.size(); i++) {
 		auto instruction = instructions[i];
 
-		if (instruction->comment != NULL && !instruction->comment.isEmpty()) {
-			printf("//%s\n", instruction->comment.data);
-		}
 		printf("%7d: ", instruction->index_instruction);
 #if _DEBUG
 		//printf("%10d: ", instruction->serial);
@@ -16,19 +13,19 @@ void BytecodeDebuger::debug() {
 
 		switch (instruction->instruction) {
 			case BYTECODE_NOOP: {
-				printf("%12s\n", "noop");
+				printf("%12s", "noop");
 				break;
 			}
 			case BYTECODE_CAST: {
 				auto type_from = (AST_Type*)types[instruction->index_a];
 				auto type_to = (AST_Type*)types[instruction->index_r];
 
-				printf("%12s v%d(%s) -> v%d(%s)\n", "cast", instruction->index_a, typeResolver->typeToString(type_from).data, instruction->index_r, typeResolver->typeToString(type_to).data);
+				printf("%12s v%d(%s) -> v%d(%s)", "cast", instruction->index_a, typeResolver->typeToString(type_from).data, instruction->index_r, typeResolver->typeToString(type_to).data);
 				break;
 			}
 			case BYTECODE_C_CALL_FROM_PROCEDURE: {
 				auto procedure = (AST_Procedure*)instruction->big_constant._pointer;
-				printf("%12s v%d -> v%d\n", "c_call", procedure->bytecode_address, instruction->index_r);
+				printf("%12s v%d -> v%d", "c_call", procedure->bytecode_address, instruction->index_r);
 				break;
 			}
 			case BYTECODE_CALL_PROCEDURE: {
@@ -45,24 +42,22 @@ void BytecodeDebuger::debug() {
 					args += "v"; 
 					args += (&buffer[0]);
 				}				
-				printf("%12s %s(%s)", "call", call->name.data, args.data);
+				printf("%12s %s:%d(%s)", "call", call->name.data, call->procedure->bytecode_address, args.data);
 				if (call->return_register != -1) {
 					printf(" -> v%d", call->return_register);
 				}
-				printf("\n");
-
 				break;
 			}
 			case BYTECODE_INTEGER_ADD_TO_CONSTANT: {
-				printf("%12s v%d += %I64d\n", "add_int", instruction->index_r, instruction->big_constant._s64);
+				printf("%12s v%d += %I64d", "add_int", instruction->index_r, instruction->big_constant._s64);
 				break;
 			}
 			case BYTECODE_RESERVE_MEMORY_TO_R: {
 				if (instruction->options == 0) {
-					printf("%12s v%d >> %d\n", "malloc", instruction->index_r, instruction->index_a);
+					printf("%12s v%d >> %d", "malloc", instruction->index_r, instruction->index_a);
 				}
 				else {
-					printf("%12s v%d >> v%d\n", "malloc", instruction->index_r, instruction->index_a);
+					printf("%12s v%d >> v%d", "malloc", instruction->index_r, instruction->index_a);
 				}
 				break;
 			}
@@ -70,31 +65,31 @@ void BytecodeDebuger::debug() {
 				auto type = (AST_Type_Definition*)types[instruction->index_r];
 				if (type->internal_type == AST_Type_string) {
 					New_String* str = (New_String*)instruction->big_constant._pointer;
-					printf("%12s v%d = '%s'\n", "constant", instruction->index_r, str->data);
+					printf("%12s v%d = '%s'", "constant", instruction->index_r, str->data);
 				}
 				else {
-					printf("%12s v%d = %I64d\n", "constant", instruction->index_r, instruction->big_constant._s64);
+					printf("%12s v%d = %I64d", "constant", instruction->index_r, instruction->big_constant._s64);
 				}				
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R: {
-				printf("%12s v%d, v%d\n", "mov1", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, v%d", "mov1", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_REGISTER_TO_R: {
-				printf("%12s v%d, [v%d]\n", "mov2", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, [v%d]", "mov2", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_BY_REFERENCE_TO_R: {
-				printf("%12s v%d, *v%d\n", "mov3", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, *v%d", "mov3", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET: {
-				printf("%12s v%d, *v%d + %d\n", "mov4", instruction->index_a, instruction->index_r, instruction->index_b);
+				printf("%12s v%d, *v%d + %d", "mov4", instruction->index_a, instruction->index_r, instruction->index_b);
 				break;
 			}
 			case BYTECODE_MOVE_A_PLUS_OFFSET_TO_R: {
-				printf("%12s v%d, *v%d + %d\n", "mov5", instruction->index_r, instruction->index_a, instruction->index_b);
+				printf("%12s v%d, *v%d + %d", "mov5", instruction->index_r, instruction->index_a, instruction->index_b);
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG: {
@@ -103,44 +98,44 @@ void BytecodeDebuger::debug() {
 				memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));	
 				*/
 				if (instruction->options == 1) {
-					printf("%12s v%d = *v%d + v%d\n", "mov6", instruction->index_a, instruction->index_r, instruction->index_b);
+					printf("%12s v%d = *v%d + v%d", "mov6", instruction->index_a, instruction->index_r, instruction->index_b);
 				}
 				else {
-					printf("%12s *v%d + v%d = v%d\n", "mov6", instruction->index_r, instruction->index_b, instruction->index_a);
+					printf("%12s *v%d + v%d = v%d", "mov6", instruction->index_r, instruction->index_b, instruction->index_a);
 				}
 				
 				break;
 			}
 			case BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R: {
-				printf("%12s v%d, *v%d + v%d\n", "mov7", instruction->index_r, instruction->index_a, instruction->index_b);
+				printf("%12s v%d, *v%d + v%d", "mov7", instruction->index_r, instruction->index_a, instruction->index_b);
 				break;
 			}
 			case BYTECODE_JUMP: {
-				printf("%12s %d\n", "jump", instruction->index_r + 1);
+				printf("%12s %d", "jump", instruction->index_r + 1);
 				break;
 			}
 			case BYTECODE_JUMP_IF: {
-				printf("%12s v%d == 1, %d\n", "jump_if", instruction->index_a, instruction->index_r + 1);
+				printf("%12s v%d == 1, %d", "jump_if", instruction->index_a, instruction->index_r + 1);
 				break;
 			}
 			case BYTECODE_JUMP_IF_NOT: {
-				printf("%12s v%d != 1, %d\n", "jump_if", instruction->index_a, instruction->index_r + 1);
+				printf("%12s v%d != 1, %d", "jump_if", instruction->index_a, instruction->index_r + 1);
 				break;
 			}
 			case BYTECODE_PUSH_TO_STACK: {
-				printf("%12s v%d\n", "push", instruction->index_r);
+				printf("%12s v%d", "push", instruction->index_r);
 				break;
 			}
 			case BYTECODE_RETURN: {
-				printf("%12s\n", "return");
+				printf("%12s", "return");
 				break;
 			}
 			case BYTECODE_POP_FROM_STACK: {
-				printf("%12s v%d\n", "pop", instruction->index_r);
+				printf("%12s v%d", "pop", instruction->index_r);
 				break;
 			}
 			case BYTECODE_ADDRESS_OF: {
-				printf("%12s v%d = [v%d]\n", "mov", instruction->index_r, instruction->index_a);
+				printf("%12s v%d = [v%d]", "mov", instruction->index_r, instruction->index_a);
 				break;
 			}			
 			case BYTECODE_BINOP_ISEQUAL:
@@ -185,21 +180,27 @@ void BytecodeDebuger::debug() {
 				else if (instruction->instruction == BYTECODE_BINOP_LESSEQUAL)
 					operation = "<=";
 
-				printf("%12s v%d, v%d %s v%d\n", "binop", instruction->index_r, instruction->index_a, operation.data, instruction->index_b);
+				printf("%12s v%d, v%d %s v%d", "binop", instruction->index_r, instruction->index_a, operation.data, instruction->index_b);
 				break;
 			}
 			case BYTECODE_INSTRICT_PRINT: {
-				printf("%12s v%d\n", "print", instruction->index_r);
+				printf("%12s v%d", "print", instruction->index_r);
 				break;
 			}
 			case BYTECODE_INSTRICT_ASSERT: {
-				printf("%12s v%d != 0\n", "assert", instruction->index_r);
+				printf("%12s v%d != 0", "assert", instruction->index_r);
 				break;
 			}
 			default: {
-				printf("%12s %s\n", "unkown", InstructionNames[instruction->instruction - 1]);
+				printf("%12s %s", "unkown", InstructionNames[instruction->instruction - 1]);
 				break;
 			}
 		}		
+
+		if (instruction->comment != NULL && !instruction->comment.isEmpty()) {
+			printf("\t//%s", instruction->comment.data);
+		}
+
+		printf("\n");
 	}
 }
