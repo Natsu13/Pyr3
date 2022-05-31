@@ -193,7 +193,7 @@ AST_For* Parser::parse_for() {
 			lexer->eat_token(); //eat ,
 			key = create_ident_from_current_token();
 		}
-		else {
+		else if(comma) {
 			interpret->report_error(token, "We expected comma here");
 		}
 	}
@@ -716,6 +716,10 @@ AST_Type* Parser::parse_typedefinition() {
 	}
 
 	switch (token->type) {
+		case TOKEN_KEYWORD_BOOL: {
+			_type = interpret->type_bool;
+			break;
+		}
 		case TOKEN_KEYWORD_CHAR: {
 			_type = interpret->type_char;
 			break;
@@ -1145,7 +1149,7 @@ bool Parser::is_typedef_keyword() {
 	if (type == TOKEN_KEYWORD_FLOAT || type == TOKEN_KEYWORD_LONG || type == TOKEN_KEYWORD_CHAR
 		|| type == TOKEN_KEYWORD_S8 || type == TOKEN_KEYWORD_S16 || type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
 		|| type == TOKEN_KEYWORD_U8 || type == TOKEN_KEYWORD_U16 || type == TOKEN_KEYWORD_U32 || type == TOKEN_KEYWORD_U64
-		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL || type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER || type == '*')
+		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL || type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER || type == '*' || type == TOKEN_KEYWORD_BOOL)
 		return true;
 
 	return false;

@@ -6,6 +6,7 @@
 
 TypeResolver::TypeResolver(Interpret* interpret) {
 	this->interpret = interpret;
+	this->copier = new Copier(interpret);
 }
 
 AST_Literal* TypeResolver::make_string_literal(String value) {
@@ -56,6 +57,7 @@ void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news) {
 	news->token->file_name = old->token->file_name;
 	news->token->column = old->token->column;
 	news->token->row = old->token->row;
+	news->token->value = old->token->value; //@todo: maybe?
 }
 
 AST_Type* TypeResolver::get_inferred_type(AST_Expression* expression) {
@@ -72,6 +74,8 @@ AST_Type* TypeResolver::get_inferred_type(AST_Expression* expression) {
 }
 
 void TypeResolver::addToResolve(AST_Expression* expression) {
+	//add check if the expression is alerady not in the list!
+	if (expression->is_resolved) return;
 	to_be_resolved.push_back(expression);
 }
 
@@ -86,6 +90,7 @@ void TypeResolver::resolveOther() {
 
 	for (int i = 0; i < resolve.size(); i++) {
 		AST_Expression* it = resolve[i];
+		if (it->is_resolved) continue;
 		resolveExpression(it);
 	}
 }
@@ -433,7 +438,10 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 				resolveExpression(procedure->returnType);
 
 			expression->is_resolved = true;
-			set_type_and_break(NULL);
+
+			if (procedure->returnType != NULL)
+				set_type_and_break(find_typeof(procedure->returnType));
+			set_type_and_break(interpret->type_pointer);//@todo: void!!!
 		}
 		case AST_PARAMLIST:
 			set_type_and_break(NULL);
@@ -694,7 +702,7 @@ bool TypeResolver::is_type_integer(AST_Type* type) {
 		auto type_def = static_cast<AST_Type_Definition*>(type);
 		auto intern = type_def->internal_type;
 		if (intern == AST_Type_s8 || intern == AST_Type_s16 || intern == AST_Type_s32 || intern == AST_Type_s64 ||
-			intern == AST_Type_u8 || intern == AST_Type_u16 || intern == AST_Type_u32 || intern == AST_Type_u64)
+			intern == AST_Type_u8 || intern == AST_Type_u16 || intern == AST_Type_u32 || intern == AST_Type_u64 || intern == AST_Type_bool)
 			return true;
 	}
 
@@ -887,6 +895,15 @@ AST_Type* TypeResolver::resolveIdent(AST_Ident* ident) {
 	return type;
 }
 
+AST_Declaration* TypeResolver::make_declaration(String name, AST_Expression* value) {
+	auto decl = AST_NEW_EMPTY(AST_Declaration);
+	decl->ident = AST_NEW_EMPTY(AST_Ident);
+	decl->ident->name = new Token();
+	decl->ident->name->value = name;
+	decl->value = value;
+	return decl;
+}
+
 AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 	if (unary->operation == UNOP_DEF) { //*
 		auto type = resolveExpression(unary->left);
@@ -917,16 +934,74 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 		resolveExpression(unary->arguments);
 
 		auto procedure = find_procedure(unary->left, unary->arguments);
+		if (procedure == NULL) {
+			unary->is_resolved = true; //@todo: maybe not?
+			return NULL;
+		}
+
+		if (!procedure->is_resolved) {
+			addToResolve(unary);
+			return NULL;
+		}
+
+		bool is_generic = (procedure->flags & AST_PROCEDURE_FLAG_GENERIC) == AST_PROCEDURE_FLAG_GENERIC;
+		bool is_intristic = (procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) == AST_PROCEDURE_FLAG_INTRINSIC;
+
+		if (is_generic && !is_intristic) {
+			//generic - we need to create copy of this procedure if the copy not alerady exist and fill the generic parameters
+			auto copy = copier->copy_procedure(procedure);
+			copy->flags = copy->flags & ~AST_PROCEDURE_FLAG_GENERIC;
+
+			vector<AST_Expression*> append;
+			For(copy->header->expressions) {
+				auto decl = (AST_Declaration*)it;
+				auto arg = unary->arguments->expressions[it_index];
+
+				assert(decl != NULL && arg != NULL);				
+				
+				if ((decl->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) {
+					decl->flags = decl->flags & ~TYPE_DEFINITION_GENERIC;
+
+					//we need to set type to type as argument in future we will support $T/type but this will not be bother of it xD the find_procedure must handle it
+					auto type = find_typeof(arg);					
+					//we need to add the generic type to the head
+					auto decl_type = AST_NEW_EMPTY(AST_Declaration);
+					auto ident = AST_NEW_EMPTY(AST_Ident);
+					ident->name = new Token();
+					ident->name->value = ((AST_Ident*)(decl->assigmet_type))->name->value;
+					decl_type->ident = ident;
+					decl_type->assigmet_type = type;
+					decl_type->flags |= DECLARATION_IS_GENERIC_TYPE_DEFINTION;
+					append.push_back(decl_type);
+
+					decl->assigmet_type = type;
+				}
+			}
+			ForPush(append, copy->header->expressions);
+
+			//now we need to replace procedure header that has generic arguments with it types provided
+			assert(unary->left->type == AST_IDENT);
+			auto ident_name = (AST_Ident*)unary->left;
+			auto new_function_from_generic_declaration = make_declaration(ident_name->name->value, copy);
+			new_function_from_generic_declaration->scope = unary->scope;
+
+			addToResolve(new_function_from_generic_declaration);
+			procedure->scope->expressions.push_back(new_function_from_generic_declaration);
+			unary->left->expression = copy;
+
+			return NULL;
+		}
+
 		if (procedure != NULL) {
 			unary->left->expression = procedure;
 		}
 		else {
-			if (unary->left->type == AST_IDENT) {
+			/*if (unary->left->type == AST_IDENT) {
 				interpret->report_error(unary->left->token, "Procedure '%s' not found", ((AST_Ident*)unary->left)->name->value);
 			}
 			else {
 				interpret->report_error(unary->left->token, "Internal compiler error!!!");
-			}
+			}*/
 			return NULL;
 		}
 
@@ -955,6 +1030,10 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 
 	if (declaration->value != NULL) {
 		valueType = resolveExpression(declaration->value);
+		if (valueType == NULL && declaration->value->is_resolved) {
+			declaration->is_resolved = true;
+			return NULL;
+		}
 		if (valueType != NULL && valueType->kind == AST_TYPE_STRUCT) {
 			valueType->expression = declaration->ident;
 		}
@@ -1039,6 +1118,8 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}
 	}
 
+	if (type == NULL) addToResolve(declaration); //@todo: check this!!
+
 	return type;
 }
 
@@ -1072,6 +1153,8 @@ AST_Procedure* TypeResolver::find_procedure(AST_Expression* expression, AST_Bloc
 
 	auto decls = find_declarations(ident, ident->scope);
 	vector<AST_Procedure*> found;
+	vector<AST_Procedure*> foundAll;
+	vector<AST_Procedure*> foundNotGeneric;
 
 	{
 		For(decls) {
@@ -1080,9 +1163,21 @@ AST_Procedure* TypeResolver::find_procedure(AST_Expression* expression, AST_Bloc
 
 			int generic_defitnion_count;
 			if (check_procedure_arguments(procedure->header, arguments, &generic_defitnion_count)) {
-				found.push_back(procedure);
+				if(generic_defitnion_count > 0) 
+					found.push_back(procedure);
+				else {
+					foundNotGeneric.push_back(procedure);
+				}
+			}
+			else {
+				foundAll.push_back(procedure);
 			}
 		}
+	}
+
+	if (foundNotGeneric.size() == 1) {
+		auto proc = foundNotGeneric.front();
+		return proc;
 	}
 
 	if (found.size() == 1) {
@@ -1092,8 +1187,24 @@ AST_Procedure* TypeResolver::find_procedure(AST_Expression* expression, AST_Bloc
 	
 	if (found.size() > 0) {
 		interpret->report_error(expression->token, "Found this procedures but we can't match your provided arguments: ");
-		For(found) {
-			print_procedure(it);
+		{	
+			For(found) {
+				print_procedure(it);
+			}
+		}
+		{
+			For(foundNotGeneric) {
+				print_procedure(it);
+			}
+		}
+	}
+
+	if (foundAll.size() > 0) {
+		interpret->report_error(expression->token, "Found this procedures but we can't match your provided arguments: ");
+		{
+			For(foundAll) {
+				print_procedure(it);
+			}
 		}
 	}
 
@@ -1104,23 +1215,32 @@ bool TypeResolver::check_procedure_arguments(AST_Block* header, AST_Block* argum
 	int need = 0;
 	*generic_definition = 0;
 
-	if (arguments->expressions.size() > header->expressions.size()) return false; //we need check if there is varguments
+	int argument_size = arguments->expressions.size();
+	if (argument_size > header->expressions.size()) return false; //we need check if there is varguments
 
 	For(header->expressions) {
-		if (it->type == AST_TYPE) continue; //skip this it's generic
+		assert(it != NULL);
+		if (it->type == AST_TYPE) {
+			if (it_index < argument_size) return false; //we are at end of the arguments but we have more passed and what left is just generic
+			continue; //skip this it's generic
+		}
 
-		assert(it != NULL && it->type == AST_DECLARATION);
-		need++;
+		assert(it->type == AST_DECLARATION);
+		need++;		
+		
+		auto declaration = (AST_Declaration*)it;
 
-		if (it_index >= arguments->expressions.size()) return false; //we need check if the argument is optional
+		if (it_index >= arguments->expressions.size()) {
+			if ((declaration->flags & DECLARATION_IS_GENERIC_TYPE_DEFINTION) == DECLARATION_IS_GENERIC_TYPE_DEFINTION) return true; //it's just define the type of generic argument
+			return false; //we need check if the argument is optional
+		}
 
 		auto arg = arguments->expressions[it_index];
-		auto declaration = (AST_Declaration*)it;
 		auto type_need = find_typeof(declaration->assigmet_type);
 		auto type_have = find_typeof(arg);
 
 		if ((declaration->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) {
-			*generic_definition++;
+			*generic_definition = *generic_definition + 1;
 			continue;
 		}
 
@@ -1163,6 +1283,7 @@ void TypeResolver::print_procedure(AST_Procedure* procedure) {
 
 	output += " :: (";
 	For(procedure->header->expressions) {
+		if (it->type == AST_TYPE) continue;
 		assert(it != NULL && it->type == AST_DECLARATION);
 
 		if (it_index != 0) output += ", ";
@@ -1362,6 +1483,7 @@ String TypeResolver::typeToString(AST_Type* type) {
 		if (tdef->internal_type == AST_Type_bit) return "bit";
 		if (tdef->internal_type == AST_Type_string) return "string";
 		if (tdef->internal_type == AST_Type_c_call) return "c_call";
+		if (tdef->internal_type == AST_Type_bool) return "bool";
 	}
 	else if (type->kind == AST_TYPE_STRUCT) {
 		auto strct = static_cast<AST_Struct*>(type);

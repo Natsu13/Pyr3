@@ -146,6 +146,7 @@
     <ClCompile Include="BytecodeDebuger.cpp" />
     <ClCompile Include="BytecodeRunner.cpp" />
     <ClCompile Include="CodeManager.cpp" />
+    <ClCompile Include="Copier.cpp" />
     <ClCompile Include="Pipes.cpp" />
     <ClCompile Include="String.cpp" />
     <ClCompile Include="DirectiveResolver.cpp" />
@@ -166,6 +167,7 @@
     <ClInclude Include="BytecodeDebuger.h" />
     <ClInclude Include="BytecodeRunner.h" />
     <ClInclude Include="CodeManager.h" />
+    <ClInclude Include="Copier.h" />
     <ClInclude Include="Pipes.h" />
     <ClInclude Include="String.h" />
     <ClInclude Include="DirectiveResolver.h" />

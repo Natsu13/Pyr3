@@ -3,6 +3,7 @@
 #include "Headers.h"
 #include "Interpret.h"
 #include "Table.h"
+#include "Copier.h"
 
 struct OperatorKey {
 	int Operator;
@@ -41,6 +42,7 @@ class TypeResolver
 {
 private:
 	Interpret* interpret;
+	Copier* copier;
 	Table<OperatorKey, AST_Operator*> operatorTable;
 	vector<AST_Expression*> to_be_resolved;
 	int phase = 0;
@@ -85,7 +87,8 @@ public:
 	AST_Literal* make_number_literal(int value);
 	AST_Literal* make_number_literal(long long value);
 	AST_Literal* make_number_literal(float value);
-
+	AST_Declaration* make_declaration(String name, AST_Expression* value);
+		
 	void print_procedure(AST_Procedure* procedure);
 	bool check_procedure_arguments(AST_Block* header, AST_Block* arguments, int* generic_definition);
 	bool compare_type(AST_Expression* left, AST_Expression* right);

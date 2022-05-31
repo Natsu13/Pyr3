@@ -263,6 +263,7 @@ int Lexer::decide_token_keyword(String word) {
 		if (COMPARE(word, "cast"))			return TOKEN_KEYWORD_CAST;
 		if (COMPARE(word, "long"))			return TOKEN_KEYWORD_LONG;
 		if (COMPARE(word, "char"))			return TOKEN_KEYWORD_CHAR;
+		if (COMPARE(word, "bool"))			return TOKEN_KEYWORD_BOOL;
 	}
 	else if (word.size == 5) {
 		if (COMPARE(word, "false"))			return TOKEN_KEYWORD_FALSE;

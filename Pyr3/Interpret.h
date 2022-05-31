@@ -106,7 +106,8 @@ enum AST_Internal_Types {
 	AST_Type_pointer		= 0x31,
 	AST_Type_string			= 0x32, //50
 	AST_Type_address		= 0x33,
-	AST_Type_c_call			= 0x34
+	AST_Type_c_call			= 0x34,
+	AST_Type_bool			= 0x35
 };
 
 enum AST_Type_Types {
@@ -223,7 +224,9 @@ const int TYPE_DEFINITION_NUMBER	= 0x2;
 const int TYPE_DEFINITION_STRUCT	= 0x3;
 const int TYPE_DEFINITION_IDENT		= 0x4;
 const int TYPE_DEFINITION_GENERIC	= 0x8;
-const int DECLARATION_IN_HEAD		= 0x1;
+
+const int DECLARATION_IN_HEAD					= 0x1;
+const int DECLARATION_IS_GENERIC_TYPE_DEFINTION = 0x2;
 
 struct AST_Declaration : public AST_Expression {
 	AST_Declaration() { type = AST_DECLARATION; }
@@ -401,6 +404,7 @@ public:
 
 	bool isError();		
 
+	AST_Type_Definition* type_bool = NULL;
 	AST_Type_Definition* type_bit = NULL;
 	AST_Type_Definition* type_pointer = NULL;
 	AST_Type_Definition* type_address = NULL;
@@ -426,7 +430,7 @@ public:
 };
 
 #define AST_NEW(type) create_expression(new type(), lexer->peek_next_token(), current_scope, __FILE__, __LINE__, interpret);
-#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr, nullptr, __FILE__, __LINE__, interpret);
+#define AST_NEW_EMPTY(type) create_expression<type>(new type(), nullptr, nullptr, __FILE__, __LINE__, interpret)
 
 template<class T>
 T insert_and_return(vector<T>& _vector, T object) {

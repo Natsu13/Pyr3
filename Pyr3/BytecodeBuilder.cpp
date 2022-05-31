@@ -375,7 +375,10 @@ int BytecodeBuilder::build_procedure(AST_Procedure* procedure) {
 	if (!(procedure->flags & AST_PROCEDURE_FLAG_FOREIGN)) {
 		auto size = procedure->header->expressions.size();
 		for (int i = size - 1; i >= 0; i--) {
-			auto addr = build_expression(procedure->header->expressions[i]);
+			auto it = procedure->header->expressions[i];
+			if ((it->flags & DECLARATION_IS_GENERIC_TYPE_DEFINTION) == DECLARATION_IS_GENERIC_TYPE_DEFINTION) continue; //generic definition
+
+			auto addr = build_expression(it);
 			Instruction(BYTECODE_POP_FROM_STACK, -1, -1, addr);
 		}
 
@@ -722,7 +725,7 @@ int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {
 	call->arguments.clear();
 
 	for (int i = 0; i < unary->arguments->expressions.size(); i++) {
-		auto expr = unary->arguments->expressions[i];
+		auto expr = unary->arguments->expressions[i];		
 		expr->bytecode_address = build_expression(expr);
 		call->arguments.push_back(expr);
 	}
