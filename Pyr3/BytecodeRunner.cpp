@@ -949,7 +949,8 @@ int BytecodeRunner::run_binop(int address) {
 		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 % this->registers[bc->index_b]._s64;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_ISEQUAL) {
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 == this->registers[bc->index_b]._s64;
+		this->registers[bc->index_r]._u8 = rega == regb;
+		//this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 == this->registers[bc->index_b]._s64;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_ISNOTEQUAL) {
 		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 != this->registers[bc->index_b]._s64;

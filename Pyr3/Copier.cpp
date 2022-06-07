@@ -124,7 +124,7 @@ AST_Literal* Copier::copy_literal(AST_Literal* ast_literal) {
 		ast_literal_copy->float_value = ast_literal->float_value;
 	}
 	else if (ast_literal->value_type == LITERAL_STRING) {
-		ast_literal_copy->string_value = String(ast_literal_copy->string_value);
+		ast_literal_copy->string_value = String(ast_literal->string_value);
 	}
 	else {
 		assert("Unkown literal type" && false);
