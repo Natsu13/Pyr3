@@ -16,6 +16,12 @@ void BytecodeDebuger::debug() {
 				printf("%12s", "noop");
 				break;
 			}
+			case BYTECODE_EMIT_TYPE: {
+				auto type_to = (AST_Type*)instruction->big_constant._pointer;
+
+				printf("%12s %s -> v%d", "emit_type", typeResolver->typeToString(type_to).data, instruction->index_r);
+				break;
+			}
 			case BYTECODE_CAST: {
 				auto type_from = (AST_Type*)types[instruction->index_a];
 				auto type_to = (AST_Type*)types[instruction->index_r];

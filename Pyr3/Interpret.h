@@ -107,7 +107,9 @@ enum AST_Internal_Types {
 	AST_Type_string			= 0x32, //50
 	AST_Type_address		= 0x33,
 	AST_Type_c_call			= 0x34,
-	AST_Type_bool			= 0x35
+	AST_Type_bool			= 0x35,
+	AST_Type_int			= 0x36, //just for all numbers s64 == int, s32 == int, ...
+	AST_Type_definition		= 0x37,
 };
 
 enum AST_Type_Types {
@@ -271,8 +273,8 @@ enum UnaryOp {
 	UNOP_INCREMENT = 4, //++i++
 	UNOP_DECREMENT = 5,	//--i--
 };
-struct AST_UnaryOp : public AST_Expression {
-	AST_UnaryOp() { type = AST_UNARYOP; }
+struct AST_Unary : public AST_Expression {
+	AST_Unary() { type = AST_UNARYOP; }
 
 	AST_Expression* left = NULL;
 	AST_Block* arguments = NULL;
@@ -410,6 +412,7 @@ public:
 	AST_Type_Definition* type_address = NULL;
 	AST_Type_Definition* type_string = NULL;
 	AST_Type_Definition* type_c_call = NULL;
+	AST_Type_Definition* type_definition = NULL;
 
 	AST_Type_Definition* type_float = NULL;
 	AST_Type_Definition* type_long = NULL;
@@ -424,6 +427,8 @@ public:
 	AST_Type_Definition* type_u16 = NULL;
 	AST_Type_Definition* type_u32 = NULL;
 	AST_Type_Definition* type_u64 = NULL;
+
+	AST_Type_Definition* type_int = NULL;
 
 	int counter;
 	int typeCounter;

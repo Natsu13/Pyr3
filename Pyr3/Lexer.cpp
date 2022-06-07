@@ -254,7 +254,8 @@ int Lexer::decide_token_keyword(String word) {
 		if (COMPARE(word, "u16"))			return TOKEN_KEYWORD_U16;
 		if (COMPARE(word, "u32"))			return TOKEN_KEYWORD_U32;
 		if (COMPARE(word, "u64"))			return TOKEN_KEYWORD_U64;
-		if (COMPARE(word, "ptr"))			return TOKEN_KEYWORD_POINTER;
+		if (COMPARE(word, "int"))			return TOKEN_KEYWORD_INT;
+		if (COMPARE(word, "ptr"))			return TOKEN_KEYWORD_POINTER;		
 	}
 	else if (word.size == 4) {
 		if (COMPARE(word, "true"))			return TOKEN_KEYWORD_TRUE;

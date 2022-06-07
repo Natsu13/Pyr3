@@ -17,7 +17,8 @@ void Interpret::initialize() {
 	create_new_type(type_pointer, AST_Type_pointer, 4, 4); //pointer
 	create_new_type(type_address, AST_Type_address, 4, 4); //address	
 	create_new_type(type_c_call, AST_Type_c_call, 4, 4); //c_call
-	create_new_type(type_bool, AST_Type_bool, 1, 1); //bit
+	create_new_type(type_bool, AST_Type_bool, 1, 1); //bool
+	create_new_type(type_definition, AST_Type_definition, 1, 1); //type_definition
 
 	create_new_type(type_bit, AST_Type_bit, 1, 1); //bit
 	create_new_type(type_float, AST_Type_float, 4, 4); //float
@@ -35,6 +36,7 @@ void Interpret::initialize() {
 
 	create_new_type(type_char, AST_Type_char, 1, 1); //char
 	create_new_type(type_string, AST_Type_string, 1, 1); //string
+	create_new_type(type_int, AST_Type_int, 8, 8); // it depends on OS!! we count with 64bit only for now
 }
 
 bool Interpret::isError() {

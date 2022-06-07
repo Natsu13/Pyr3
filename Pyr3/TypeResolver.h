@@ -63,7 +63,7 @@ public:
 	AST_Type* resolveDeclaration(AST_Declaration* declaration);
 	AST_Type* resolveLiteral(AST_Literal* literal);
 	AST_Type* resolveBinary(AST_Binary* binop);
-	AST_Type* resolveUnary(AST_UnaryOp* unary);
+	AST_Type* resolveUnary(AST_Unary* unary);
 	AST_Type* resolveType(AST_Type* type, bool as_declaration = false, AST_Expression* value = NULL);
 	AST_Type* resolveStructDereference(AST_Struct* _struct, AST_Expression* expression);
 	AST_Type* resolveArray(AST_Array * arr);

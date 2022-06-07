@@ -126,6 +126,9 @@ AST_Expression* Parser::parse_expression() {
 		lexer->eat_token();
 		return parse_param_or_function();
 	}
+	else if (is_typedef_keyword()) {
+		return parse_type();
+	}
 
 	interpret->report_error(token, "Unexpected token type '%s'", token_to_string(token->type));
 	return NULL;
@@ -772,6 +775,9 @@ AST_Type* Parser::parse_typedefinition() {
 			_type = interpret->type_pointer;
 			break;
 		}
+		case TOKEN_KEYWORD_INT: {
+			_type = interpret->type_s64; // int
+		}
 	}
 
 	if (_pointer != NULL) {
@@ -917,7 +923,7 @@ AST_Expression* Parser::parse_ident() {
 	if (token->type == TOKEN_MUL) { //Pointer to *test
 		lexer->eat_token();
 
-		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		AST_Unary* unary = AST_NEW(AST_Unary);
 		unary->operation = UNOP_DEF;
 		unary->left = parse_expression();
 		return unary;
@@ -925,21 +931,21 @@ AST_Expression* Parser::parse_ident() {
 	if (token->type == TOKEN_BAND) { //Address of &test
 		lexer->eat_token();
 
-		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		AST_Unary* unary = AST_NEW(AST_Unary);
 		unary->operation = UNOP_REF;
 		unary->left = parse_expression();
 		return unary;
 	}
 	if (token->type == TOKEN_INCREMENT) { //++i
 		lexer->eat_token();
-		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		AST_Unary* unary = AST_NEW(AST_Unary);
 		unary->operation = UNOP_INCREMENT;
 		unary->left = parse_expression();
 		return unary;
 	}
 	if (token->type == TOKEN_DECREMENT) { //--i
 		lexer->eat_token();
-		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		AST_Unary* unary = AST_NEW(AST_Unary);
 		unary->operation = UNOP_DECREMENT;		
 		unary->left = parse_expression();
 		return unary;
@@ -950,7 +956,7 @@ AST_Expression* Parser::parse_ident() {
 
 	if (token->type == TOKEN_INCREMENT) { //i++
 		lexer->eat_token();
-		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		AST_Unary* unary = AST_NEW(AST_Unary);
 		unary->operation = UNOP_INCREMENT;
 		unary->left = ident;
 		unary->isPreppend = false;
@@ -958,7 +964,7 @@ AST_Expression* Parser::parse_ident() {
 	}
 	if (token->type == TOKEN_DECREMENT) { //i--
 		lexer->eat_token();
-		AST_UnaryOp* unary = AST_NEW(AST_UnaryOp);
+		AST_Unary* unary = AST_NEW(AST_Unary);
 		unary->operation = UNOP_DECREMENT;
 		unary->left = ident;
 		unary->isPreppend = false;
@@ -1052,7 +1058,7 @@ AST_Expression* Parser::parse_ident() {
 	else if (token->type == '(') { //Call function
 		lexer->eat_token();
 
-		AST_UnaryOp* call = AST_NEW(AST_UnaryOp);
+		AST_Unary* call = AST_NEW(AST_Unary);
 		call->left = ident;
 		call->arguments = AST_NEW(AST_Block);
 		call->operation = UNOP_CALL;
@@ -1149,7 +1155,8 @@ bool Parser::is_typedef_keyword() {
 	if (type == TOKEN_KEYWORD_FLOAT || type == TOKEN_KEYWORD_LONG || type == TOKEN_KEYWORD_CHAR
 		|| type == TOKEN_KEYWORD_S8 || type == TOKEN_KEYWORD_S16 || type == TOKEN_KEYWORD_S32 || type == TOKEN_KEYWORD_S64
 		|| type == TOKEN_KEYWORD_U8 || type == TOKEN_KEYWORD_U16 || type == TOKEN_KEYWORD_U32 || type == TOKEN_KEYWORD_U64
-		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL || type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER || type == '*' || type == TOKEN_KEYWORD_BOOL)
+		|| type == TOKEN_KEYWORD_STRING || type == TOKEN_MUL || type == TOKEN_BAND || type == TOKEN_KEYWORD_POINTER || type == '*' 
+		|| type == TOKEN_KEYWORD_BOOL || type == TOKEN_KEYWORD_INT)
 		return true;
 
 	return false;

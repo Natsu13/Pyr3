@@ -64,8 +64,41 @@ AST_Expression* Copier::copy(AST_Expression* expression) {
 	else if (expression->type == AST_BINARY) {
 		return copy_binary((AST_Binary*)expression);
 	}
+	else if (expression->type == AST_CONDITION) {
+		return copy_condition((AST_Condition*)expression);
+	}
+	else if (expression->type == AST_UNARYOP) {
+		return copy_unary((AST_Unary*)expression);
+	}
 
 	assert(false && "This expression can't be copy");
+}
+
+AST_Unary* Copier::copy_unary(AST_Unary* unary) {
+	AST_Unary* unary_copy = AST_COPY(AST_Unary, unary);
+
+	unary_copy->operation = unary->operation;
+	unary_copy->isPreppend = unary->isPreppend;
+	unary_copy->left = copy(unary->left);
+
+	if (unary->arguments != NULL)
+		unary_copy->arguments = copy_block(unary->arguments);
+
+	return unary_copy;
+}
+
+AST_Condition* Copier::copy_condition(AST_Condition* condition) {
+	AST_Condition* condition_copy = AST_COPY(AST_Condition, condition);
+
+	condition_copy->condition = copy(condition->condition);
+
+	if (condition->body_pass != NULL)
+		condition_copy->body_pass = copy(condition->body_pass);
+
+	if (condition->body_fail != NULL)
+		condition_copy->body_fail = copy(condition->body_fail);
+
+	return condition_copy;
 }
 
 AST_Binary* Copier::copy_binary(AST_Binary* binary) {

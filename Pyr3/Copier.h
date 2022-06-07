@@ -20,6 +20,8 @@ public:
 	AST_Return* copy_return(AST_Return* ast_return);
 	AST_Literal* copy_literal(AST_Literal* ast_literal);
 	AST_Binary* copy_binary(AST_Binary* binary);
+	AST_Condition* copy_condition(AST_Condition* condition);
+	AST_Unary* copy_unary(AST_Unary* unary);
 
 	Token* copy_token(Token* token);
 };

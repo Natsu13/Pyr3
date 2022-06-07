@@ -34,12 +34,12 @@ private:
 	int build_expression(AST_Expression* expression);
 	int build_binary(AST_Binary* binop);
 	int build_condition(AST_Condition* condition);
-	int build_unary(AST_UnaryOp* unary);
+	int build_unary(AST_Unary* unary);
 	int build_assigment(AST_Binary* binop);
 	int build_type(AST_Type* type);
 	int build_pointer(AST_Pointer* pointer);
 	int build_return(AST_Return* ret);
-	int build_procedure_call(AST_UnaryOp* unary);
+	int build_procedure_call(AST_Unary* unary);
 	int build_intrinsic_procedure_call(Token* name, vector<AST_Expression*> arguments);
 	int build_declaration(AST_Declaration* declaration);
 	int build_procedure(AST_Procedure* procedure);

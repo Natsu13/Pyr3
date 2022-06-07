@@ -446,7 +446,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 		case AST_PARAMLIST:
 			set_type_and_break(NULL);
 		case AST_UNARYOP: {
-			AST_UnaryOp* unary = static_cast<AST_UnaryOp*>(expression);
+			AST_Unary* unary = static_cast<AST_Unary*>(expression);
 			set_type_and_break(resolveUnary(unary));
 		}
 		case AST_RETURN: {
@@ -677,7 +677,7 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Exp
 
 bool TypeResolver::is_pointer(AST_Expression* expression) {
 	if (expression->type == AST_UNARYOP) {
-		auto unary = static_cast<AST_UnaryOp*>(expression);
+		auto unary = static_cast<AST_Unary*>(expression);
 		if (unary->operation == UNOP_REF) {
 			return true;
 		}
@@ -814,7 +814,7 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 		binop->right = temp;
 	}
 
-	auto unary = static_cast<AST_UnaryOp*>(binop->left);
+	auto unary = static_cast<AST_Unary*>(binop->left);
 	auto pointer = static_cast<AST_Pointer*>(resolveExpression(unary));
 
 	auto size = find_typedefinition_from_type(pointer->point_type)->aligment;
@@ -904,7 +904,7 @@ AST_Declaration* TypeResolver::make_declaration(String name, AST_Expression* val
 	return decl;
 }
 
-AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
+AST_Type* TypeResolver::resolveUnary(AST_Unary* unary) {
 	if (unary->operation == UNOP_DEF) { //*
 		auto type = resolveExpression(unary->left);
 		/*
@@ -947,7 +947,7 @@ AST_Type* TypeResolver::resolveUnary(AST_UnaryOp* unary) {
 		bool is_generic = (procedure->flags & AST_PROCEDURE_FLAG_GENERIC) == AST_PROCEDURE_FLAG_GENERIC;
 		bool is_intristic = (procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) == AST_PROCEDURE_FLAG_INTRINSIC;
 
-		if (is_generic && !is_intristic) {
+		if (is_generic && !is_intristic) { //this all block should do some generic resolver
 			//generic - we need to create copy of this procedure if the copy not alerady exist and fill the generic parameters
 			auto copy = copier->copy_procedure(procedure);
 			copy->flags = copy->flags & ~AST_PROCEDURE_FLAG_GENERIC;
@@ -1134,7 +1134,7 @@ AST_Declaration* TypeResolver::find_expression_declaration(AST_Expression* expre
 		return decl;
 	}
 	else if (expression->type == AST_UNARYOP) {
-		auto unary = static_cast<AST_UnaryOp*>(expression);
+		auto unary = static_cast<AST_Unary*>(expression);
 		return find_expression_declaration(unary->left);
 	}
 	else if (expression->type == AST_BINARY) {
@@ -1425,7 +1425,7 @@ AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
 		return find_typeof(bin->left);
 	}
 	else if (expression->type == AST_UNARYOP) {
-		auto unar = static_cast<AST_UnaryOp*>(expression);
+		auto unar = static_cast<AST_Unary*>(expression);
 		return find_typeof(unar->left);
 	}
 	else if (expression->type == AST_DECLARATION) {
@@ -1484,6 +1484,7 @@ String TypeResolver::typeToString(AST_Type* type) {
 		if (tdef->internal_type == AST_Type_string) return "string";
 		if (tdef->internal_type == AST_Type_c_call) return "c_call";
 		if (tdef->internal_type == AST_Type_bool) return "bool";
+		if (tdef->internal_type == AST_Type_int) return "int";
 	}
 	else if (type->kind == AST_TYPE_STRUCT) {
 		auto strct = static_cast<AST_Struct*>(type);
@@ -1504,6 +1505,10 @@ String TypeResolver::typeToString(AST_Type* type) {
 	else if (type->kind == AST_TYPE_GENERIC) {
 		AST_Generic* ast_generic = static_cast<AST_Generic*>(type);
 		return "";
+	}
+	else if (type->kind == AST_TYPE_ENUM) {
+		AST_Enum* ast_enum = static_cast<AST_Enum*>(type);
+		return "enum";
 	}
 
 	assert(false && "This type is not transatable");
@@ -1576,9 +1581,11 @@ AST_Type* TypeResolver::find_typedefinition(AST_Ident* ident, AST_Block* scope) 
 		else if (it->type == AST_IDENT) {
 			AST_Ident* ident = static_cast<AST_Ident*>(it);
 			if (ident->name->value == name) {
-				auto definition = find_typedefinition(ident, ident->scope);
-				if (definition != NULL) {
-					return definition;
+				if (ident->serial != it->serial) { //we find the same ident
+					auto definition = find_typedefinition(ident, ident->scope);
+					if (definition != NULL) {
+						return definition;
+					}
 				}
 			}
 		}

@@ -115,7 +115,15 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 				return reg_c;
 			}
 		}
-
+		if (type_def != NULL && type_def->value != NULL && type_def->value->type == AST_TYPE) {
+			return build_type((AST_Type*)type_def->value);
+		}
+		if (type_def != NULL && type_def->type == AST_DECLARATION) {
+			AST_Declaration* decl = (AST_Declaration*)type_def;
+			if ((decl->flags & DECLARATION_IS_GENERIC_TYPE_DEFINTION) == DECLARATION_IS_GENERIC_TYPE_DEFINTION) {
+				return build_type((AST_Type*)decl->assigmet_type);
+			}
+		}
 		/*
 		if (member->value != NULL && member->value->type == AST_PROCEDURE) {
 		AST_Procedure* proc = (AST_Procedure*)member->value;
@@ -209,7 +217,7 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		break;
 	}
 	case AST_UNARYOP: {
-		AST_UnaryOp* unary = static_cast<AST_UnaryOp*>(expression);
+		AST_Unary* unary = static_cast<AST_Unary*>(expression);
 		return build_unary(unary);
 	}
 	case AST_RETURN: {
@@ -546,7 +554,7 @@ int BytecodeBuilder::find_address_of(AST_Expression* expression) {
 		return declaration->register_index;
 	}
 	else if (expression->type == AST_UNARYOP) {
-		auto unary = static_cast<AST_UnaryOp*>(expression);
+		auto unary = static_cast<AST_Unary*>(expression);
 		return find_address_of(unary->left);
 	}
 	else if (expression->type == AST_BINARY) {
@@ -566,7 +574,7 @@ int BytecodeBuilder::find_address_of(AST_Expression* expression) {
 	return 0;
 }
 
-int BytecodeBuilder::build_unary(AST_UnaryOp* unary) {
+int BytecodeBuilder::build_unary(AST_Unary* unary) {
 	if (unary->operation == UNOP_CALL) {
 		return build_procedure_call(unary);
 	}
@@ -700,7 +708,7 @@ int BytecodeBuilder::build_intrinsic_procedure_call(Token* name, vector<AST_Expr
 	return -1;
 }
 
-int BytecodeBuilder::build_procedure_call(AST_UnaryOp* unary) {	
+int BytecodeBuilder::build_procedure_call(AST_Unary* unary) {	
 	auto call = new Call_Record();
 
 	assert(unary->left->type == AST_IDENT);
@@ -781,6 +789,20 @@ int BytecodeBuilder::build_type(AST_Type* type) {
 		auto offset = build_array_offset(arr);
 		int output = allocate_output_register(interpret->type_u64);
 		auto inst = Instruction(BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R, arrAddr, offset, output);
+		return output;
+	}
+	if (type->kind == AST_TYPE_DEFINITION) {
+		//we need to somehow send the type
+		int output = allocate_output_register(interpret->type_definition);
+		auto inst = Instruction(BYTECODE_EMIT_TYPE, NULL, NULL, output);
+		inst->big_constant._pointer = type;
+		return output;
+	}
+	else {
+		//@todo: maybe something else for enum, struct
+		int output = allocate_output_register(interpret->type_definition);
+		auto inst = Instruction(BYTECODE_EMIT_TYPE, NULL, NULL, output);
+		inst->big_constant._pointer = type;
 		return output;
 	}
 

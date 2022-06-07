@@ -3,6 +3,7 @@
 #include "Bytecode.h"
 #include "Array.h"
 #include "Utils.h"
+#include "TypeResolver.h"
 
 struct ForeignLibrary {
 	const char* name;
@@ -14,6 +15,7 @@ class BytecodeRunner
 {
 private:
 	Interpret* interpret;
+	TypeResolver* typeResolver;
 	vector<ByteCode*> bytecodes;
 	vector<AST_Type*> types;
 	//vector<Register> registers;
@@ -32,7 +34,7 @@ private:
 	AST_Type* get_type_base(AST_Type* type);
 	void* smemcpy(void* dest, void* src, size_t size, bool reverse = false);
 public:
-	BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> types, int register_size, int memory_size);
+	BytecodeRunner(Interpret* interpret, TypeResolver* typeResolver, vector<ByteCode*> bytecodes, vector<AST_Type*> types, int register_size, int memory_size);
 	void run(int address);
 	void loop();
 	int run_expression(int address);

@@ -53,6 +53,8 @@ enum Bytecode_Instruction {
 
 	BYTECODE_CAST = 52,
 	BYTECODE_C_CALL_FROM_PROCEDURE = 53,	
+
+	BYTECODE_EMIT_TYPE = 54
 };
 
 const char* InstructionNames[];

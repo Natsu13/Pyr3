@@ -117,8 +117,9 @@ void* CallDllFunction(HMODULE hModule, const char* fun, vector<Register> regs, v
 	abort();
 }
 
-BytecodeRunner::BytecodeRunner(Interpret* interpret, vector<ByteCode*> bytecodes, vector<AST_Type*> types, int register_size, int memory_size) {
+BytecodeRunner::BytecodeRunner(Interpret* interpret, TypeResolver* typeResolver, vector<ByteCode*> bytecodes, vector<AST_Type*> types, int register_size, int memory_size) {
 	this->interpret = interpret;
+	this->typeResolver = typeResolver;
 	this->bytecodes = bytecodes;
 	this->types = types;
 
@@ -218,7 +219,6 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 //r,a,offset number //33,16,8
 #define ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(index, pointer, offset) \
 	{\
-		/*auto type = get_type((AST_Type*)types[index]);*/ \
 		auto type = get_type_base((AST_Type*)types[index]); \
 		void* pos = (int8_t*)this->registers[pointer]._pointer;\
 		auto type_out = (AST_Type*)types[pointer]; \
@@ -232,32 +232,14 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			if(tdef->internal_type == AST_Type_string) { \
 				New_String* pos = (New_String*)this->registers[pointer]._pointer; \
 				this->registers[index]._u8 = pos->data[offset]; \
-			} /*\
-			else if(tdef->internal_type == AST_Type_s8) this->registers[index]._s8 = *(int8_t*)pos;\
-			else if(tdef->internal_type == AST_Type_s16) this->registers[index]._s16 = *(int16_t*)pos;\
-			else if(tdef->internal_type == AST_Type_s32) this->registers[index]._s32 = *(int32_t*)pos;\
-			else if(tdef->internal_type == AST_Type_s64) this->registers[index]._s64 = *(int64_t*)pos;\
-			else if(tdef->internal_type == AST_Type_u8) this->registers[index]._u8 = *(uint8_t*)pos;\
-			else if(tdef->internal_type == AST_Type_u16) this->registers[index]._u16 = *(uint16_t*)pos;\
-			else if(tdef->internal_type == AST_Type_u32) this->registers[index]._u32 = *(uint32_t*)pos;\
-			else if(tdef->internal_type == AST_Type_u64) this->registers[index]._u64 = *(uint64_t*)pos;\
-			else if(tdef->internal_type == AST_Type_char) this->registers[index]._u32 = *(uint32_t*)pos;\
-			else if(tdef->internal_type == AST_Type_float) this->registers[index]._float = *(float*)pos;\
-			*/\
+			} \
 			else { this->registers[index]._s64 = *(int64_t*)output; }\
-			/*else this->registers[index]._pointer = pos;*/\
 		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
 			this->registers[index]._pointer = output;\
 		}  else { \
 			assert(false);\
 		}\
 	}
-
-/*
-		else if(type->kind == AST_TYPE_ENUM) {\
-			this->registers[index]._s64 = *(int32_t*)output;\
-		}
-*/
 
 #define GET_VALUE_FROM_REGISTER(variable, index, result_type) \
 	void* variable = NULL;\
@@ -334,9 +316,16 @@ int BytecodeRunner::run_expression(int address) {
 		case BYTECODE_NOOP: {
 			return 0;
 		}
+		case BYTECODE_EMIT_TYPE: {
+			this->registers[bc->index_r]._pointer = bc->big_constant._pointer;
+			return 0;
+		}
 		case BYTECODE_INSTRICT_ASSERT: {
 			//auto x = this->registers[bc->index_r]._pointer;
-			assert(this->registers[bc->index_r]._s64 != 0);
+			GET_VALUE_FROM_REGISTER(value, bc->index_r, bc->index_r);
+			assert(value != 0);
+
+			//assert(this->registers[bc->index_r]._s64 != 0);
 			//WNDCLASSEXA* example = (WNDCLASSEXA*)this->registers[bc->index_r]._pointer;
 			return 0;
 		}
@@ -379,6 +368,9 @@ int BytecodeRunner::run_expression(int address) {
 				}
 				else if (tdef->internal_type == AST_Type_pointer) {
 					printf("%p", &this->registers[bc->index_r]._pointer);
+				}
+				else if (tdef->internal_type == AST_Type_definition) {
+					printf("%s", typeResolver->typeToString((AST_Type*)this->registers[bc->index_r]._pointer).data);
 				}
 			}
 			else if(type->kind == AST_TYPE_ENUM) {

@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
                 debuger->debug();
 #endif
 
-                BytecodeRunner* runner = new BytecodeRunner(interpreter, builder->get_instructions(), builder->get_types(), builder->get_output_register_size(), builder->get_output_stack_size());
+                BytecodeRunner* runner = new BytecodeRunner(interpreter, type_resolver, builder->get_instructions(), builder->get_types(), builder->get_output_register_size(), builder->get_output_stack_size());
                 //runner->run(0);
                 runner->set_current_address(runner->get_address_of_procedure("main", main_block));
                 runner->loop();
