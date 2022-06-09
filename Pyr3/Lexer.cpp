@@ -277,6 +277,8 @@ int Lexer::decide_token_keyword(String word) {
 		if (COMPARE(word, "struct"))		return TOKEN_KEYWORD_STRUCT;
 		if (COMPARE(word, "static"))		return TOKEN_KEYWORD_STATIC;
 		if (COMPARE(word, "string"))		return TOKEN_KEYWORD_STRING;
+		if (COMPARE(word, "typeof"))		return TOKEN_KEYWORD_TYPEOF;
+		if (COMPARE(word, "sizeof"))		return TOKEN_KEYWORD_SIZEOF;
 	}
 	else if (word.size == 8) {
 		if (COMPARE(word, "no_check"))		return TOKEN_KEYWORD_NOCHECK;

@@ -43,19 +43,24 @@ class TypeResolver
 private:
 	Interpret* interpret;
 	Copier* copier;
+
 	Table<OperatorKey, AST_Operator*> operatorTable;
 	vector<AST_Expression*> to_be_resolved;
 	int phase = 0;
 
 	void addToResolve(AST_Expression* expression);	
-	AST_Declaration* find_expression_declaration(AST_Expression* expression);	
-	void resolveOther();
+	AST_Declaration* find_expression_declaration(AST_Expression* expression);		
+	bool any_change = false;
 
 public:
 	TypeResolver(Interpret* interpret);
-	void resolve_main(AST_Block* block);
-	void resolve(AST_Block* block);
 
+	bool has_changes();
+	
+	void resolve_main(AST_Block* block);
+	void resolveOther();
+
+	void resolve(AST_Block* block);
 	void resolveThis(AST_Expression* expression);
 
 	AST_Type* resolveExpression(AST_Expression* expression);

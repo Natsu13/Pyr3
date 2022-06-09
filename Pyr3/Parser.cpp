@@ -104,6 +104,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_CAST) {
 		return parse_cast();
 	}
+	else if (token->type == TOKEN_KEYWORD_TYPEOF || token->type == TOKEN_KEYWORD_SIZEOF) {
+		return parse_typesizeof();
+	}
 	else if (token->type == TOKEN_KEYWORD_WHILE) {
 		return parse_while();
 	}
@@ -132,6 +135,53 @@ AST_Expression* Parser::parse_expression() {
 
 	interpret->report_error(token, "Unexpected token type '%s'", token_to_string(token->type));
 	return NULL;
+}
+
+bool Parser::expect_and_eat_bracket(bool simple) {
+	auto token = lexer->peek_next_token();
+
+	if (simple) { // ()
+		if (token->type != '(' && token->type != ')') {
+			interpret->report_error(token, "You need to put the expression inside bracket (expr)");
+			return false;
+		}
+	}
+	else { // {}
+		if (token->type != '{' && token->type != '}') {
+			interpret->report_error(token, "You need to put the expressions inside bracket {expr}");
+			return false;
+		}
+	}
+
+	lexer->eat_token();
+	return true;
+}
+
+AST_TypeSizeOf* Parser::parse_typesizeof() {
+	auto token = lexer->peek_next_token();
+	lexer->eat_token(); //eat typeof,sizeof
+
+	AST_TypeSizeOf* ast = AST_NEW(AST_TypeSizeOf);
+	if (token->type == TOKEN_KEYWORD_TYPEOF) {
+		ast->flags |= AST_TYPESIZEOF_IS_TYPEOF;
+	}
+	else if (token->type == TOKEN_KEYWORD_SIZEOF) {
+		ast->flags |= AST_TYPESIZEOF_IS_SIZEOF;
+	}
+
+	if (ast->flags == 0) {
+		delete ast;
+		interpret->report_error(token, "Unexpected token type '%s' for sizeof, typeof", token_to_string(token->type));
+		assert(false && "Unkown token");
+	}
+
+	expect_and_eat_bracket();
+
+	ast->of = parse_expression();
+
+	expect_and_eat_bracket();
+
+	return ast;
 }
 
 AST_Operator* Parser::parse_operator() {

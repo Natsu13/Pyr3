@@ -58,20 +58,26 @@ int main(int argc, char* argv[])
 
             Parser* parser = NULL;
             TypeResolver* type_resolver = NULL;
+            CodeManager* code_manager = NULL;
 
             if (!interpreter->isError()) {              
                 type_resolver = new TypeResolver(interpreter);
+                code_manager = new CodeManager(interpreter, type_resolver);
 
                 parser = new Parser(interpreter, lexer, type_resolver);
                 main_block = parser->parse();
                 
+                code_manager->manage(main_block);
                 type_resolver->resolve_main(main_block);
+
+                while (!interpreter->isError() && type_resolver->has_changes()) {
+                    code_manager->manage(main_block);
+                    type_resolver->resolveOther();
+                }
+
             }
 
-            if (!interpreter->isError()) {
-                CodeManager* code_manager = new CodeManager(interpreter);
-                code_manager->manage(main_block);
-
+            if (!interpreter->isError()) {                              
                 DirectiveResolver* directive_resolver = new DirectiveResolver(interpreter);
                 directive_resolver->resolve(main_block);
 

@@ -27,7 +27,8 @@ enum AST_Types {
 	AST_OPERATOR		= 0x20,
 	AST_FOR				= 0x21,
 	AST_RANGE			= 0x22, //34
-	AST_GENERIC			= 0x23
+	AST_GENERIC			= 0x23,
+	AST_TYPESIZEOF		= 0x24
 };
 
 using namespace std;
@@ -69,6 +70,15 @@ struct AST_Expression {
 struct New_String {
 	char* data;
 	long long size;
+};
+
+const int AST_TYPESIZEOF_IS_TYPEOF = 0x1;
+const int AST_TYPESIZEOF_IS_SIZEOF = 0x2;
+
+struct AST_TypeSizeOf : public AST_Expression {
+	AST_TypeSizeOf() { type = AST_TYPESIZEOF; }
+
+	AST_Expression* of = NULL;
 };
 
 const int AST_BLOCK_FLAG_MAIN_BLOCK = 0x1;

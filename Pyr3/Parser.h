@@ -29,6 +29,9 @@ private:
 	AST_Condition* parse_condition();
 	AST_Directive* parse_directive();
 	AST_Expression* parse_dereference(AST_Ident* ident = NULL);
+	AST_TypeSizeOf* parse_typesizeof();
+
+	bool expect_and_eat_bracket(bool simple = true);
 	
 	AST_Struct* parse_struct();	
 	void parse_member_struct(AST_Struct* _struct);

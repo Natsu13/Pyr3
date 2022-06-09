@@ -7,6 +7,11 @@
 TypeResolver::TypeResolver(Interpret* interpret) {
 	this->interpret = interpret;
 	this->copier = new Copier(interpret);
+	any_change = false;
+}
+
+bool TypeResolver::has_changes() {
+	return any_change && to_be_resolved.size() > 0;
 }
 
 AST_Literal* TypeResolver::make_string_literal(String value) {
@@ -47,9 +52,9 @@ AST_Literal* TypeResolver::make_number_literal(float value) {
 void TypeResolver::resolve_main(AST_Block* block) {
 	phase = 1;
 	resolve(block);
-	while (to_be_resolved.size() > 0) {
+	/*while (to_be_resolved.size() > 0) {
 		resolveOther();
-	}
+	}*/
 }
 
 void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news) {
@@ -82,16 +87,20 @@ void TypeResolver::addToResolve(AST_Expression* expression) {
 void TypeResolver::resolveOther() {
 	phase += 1;
 
-	vector<AST_Expression*> resolve;
-	for (int i = 0; i < to_be_resolved.size(); i++) {
-		resolve.push_back(to_be_resolved[i]);
-	}
-	to_be_resolved.clear();
+	if (any_change || phase == 2) {
+		any_change = false;
 
-	for (int i = 0; i < resolve.size(); i++) {
-		AST_Expression* it = resolve[i];
-		if (it->is_resolved) continue;
-		resolveExpression(it);
+		vector<AST_Expression*> resolve;
+		for (int i = 0; i < to_be_resolved.size(); i++) {
+			resolve.push_back(to_be_resolved[i]);
+		}
+		to_be_resolved.clear();
+
+		for (int i = 0; i < resolve.size(); i++) {
+			AST_Expression* it = resolve[i];
+			if (it->is_resolved) continue;
+			resolveExpression(it);
+		}
 	}
 }
 
@@ -340,6 +349,7 @@ void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 	_struct->size = size;
 }
 
+#define resolved(expression) if(expression->is_resolved == false) { any_change = true; } expression->is_resolved = true;
 #define set_type_and_break(_type) type = _type; break;
 AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 	AST_Type* type = NULL;
@@ -395,7 +405,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 					expr->flags |= DECLARATION_IN_HEAD;
 					if ((expr->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) {
 						isGenericFunction = true;
-						expr->is_resolved = true;
+						resolved(expr);						
 
 						//we know it's generic soo we know the assigment type is AST_Ident
 						auto ident = (AST_Ident*)((AST_Declaration*)expr)->assigmet_type;
@@ -436,8 +446,8 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 
 			if(procedure->returnType != NULL)
 				resolveExpression(procedure->returnType);
-
-			expression->is_resolved = true;
+			
+			resolved(expression);
 
 			if (procedure->returnType != NULL)
 				set_type_and_break(find_typeof(procedure->returnType));
@@ -491,17 +501,29 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			resolveExpression(ast_for->each);
 			resolve(ast_for->header);
 			resolve(ast_for->block);
-
-			ast_for->is_resolved = true;
+			
+			resolved(ast_for);
 			set_type_and_break(NULL);
 		}
 		case AST_RANGE: {
 			AST_Range* range = static_cast<AST_Range*>(expression);
 			resolveExpression(range->from);
 			resolveExpression(range->to);
-
-			range->is_resolved = true;
+			
+			resolved(range);
 			set_type_and_break(NULL);
+		}
+		case AST_TYPESIZEOF: {
+			AST_TypeSizeOf* ast = static_cast<AST_TypeSizeOf*>(expression);
+
+			resolveExpression(ast->of);
+
+			if ((ast->flags & AST_TYPESIZEOF_IS_TYPEOF) == AST_TYPESIZEOF_IS_TYPEOF) {
+				set_type_and_break(interpret->type_definition);
+			}
+			if ((ast->flags & AST_TYPESIZEOF_IS_SIZEOF) == AST_TYPESIZEOF_IS_SIZEOF) {
+				set_type_and_break(interpret->type_s64);
+			}			
 		}
 		default:
 			assert(false);
@@ -509,7 +531,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 	}
 
 	if (type != NULL) {
-		expression->is_resolved = true;
+		resolved(expression);
 	}
 
 	return type;
@@ -934,8 +956,8 @@ AST_Type* TypeResolver::resolveUnary(AST_Unary* unary) {
 		resolveExpression(unary->arguments);
 
 		auto procedure = find_procedure(unary->left, unary->arguments);
-		if (procedure == NULL) {
-			unary->is_resolved = true; //@todo: maybe not?
+		if (procedure == NULL) {			
+			resolved(unary); //@todo: maybe not?
 			return NULL;
 		}
 
@@ -1021,7 +1043,7 @@ AST_Type* TypeResolver::resolveUnary(AST_Unary* unary) {
 		return type;
 	}
 
-	assert(false && "this type of unarry not handled");
+	assert(false && "this type of unary not handled");
 }
 
 AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
@@ -1030,8 +1052,8 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 
 	if (declaration->value != NULL) {
 		valueType = resolveExpression(declaration->value);
-		if (valueType == NULL && declaration->value->is_resolved) {
-			declaration->is_resolved = true;
+		if (valueType == NULL && declaration->value->is_resolved) {			
+			resolved(declaration);
 			return NULL;
 		}
 		if (valueType != NULL && valueType->kind == AST_TYPE_STRUCT) {
@@ -1391,6 +1413,10 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 }
 
 AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
+	while (expression->substitution != NULL) {
+		expression = expression->substitution;
+	}
+
 	if (expression->type == AST_TYPE) {
 		auto type = static_cast<AST_Type*>(expression);
 		if (type->kind == AST_TYPE_POINTER) {
@@ -1437,6 +1463,9 @@ AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
 		if (literal->value_type == LITERAL_NUMBER) return interpret->type_s64;
 		if (literal->value_type == LITERAL_FLOAT) return interpret->type_float;
 		if (literal->value_type == LITERAL_STRING) return interpret->type_string;
+	}
+	else if (expression->type == AST_TYPESIZEOF) {
+		return NULL;//@todo maybe we can try find the type but then why we have codemanager???
 	}
 	/*else if (expression->type == AST_TYPE_ARRAY) {
 		auto arr = static_cast<AST_Array*>(expression);
