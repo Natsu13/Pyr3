@@ -21,6 +21,16 @@ factorial :: (x: u64) -> u64 {
 ```
 
 ```
+number:s64 = 13;
+if typeof(number) == s16 {
+    print("number is s16");
+}else{
+    print("number = ");
+    print(typeof(number));
+}
+```
+
+```
 start :: 0;
 for index, key: start..start + 10 {
 	print(key);
