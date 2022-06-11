@@ -1027,16 +1027,22 @@ AST_Type* TypeResolver::resolveUnary(AST_Unary* unary) {
 			return NULL;
 		}
 
-		if (procedure->returnType != NULL && procedure->returnType->type == AST_TYPE) {
-			auto type = static_cast<AST_Type*>(procedure->returnType);
-			if (type->kind == AST_TYPE_DEFINITION) {
-				auto tdef = static_cast<AST_Type_Definition*>(type);
-				return tdef;
+		if (procedure->returnType != NULL) {
+			if (procedure->returnType->type == AST_TYPE) {
+				auto type = static_cast<AST_Type*>(procedure->returnType);
+				if (type->kind == AST_TYPE_DEFINITION) {
+					auto tdef = static_cast<AST_Type_Definition*>(type);
+					return tdef;
+				}
+			}
+			else {
+				return find_typeof(procedure->returnType); //ident like generic T etc...
 			}
 		}
+		
 
 		//return interpret->type_void;
-		return interpret->type_s64; //WTF? on top we check if return type is type definition else we drop here o.o
+		return interpret->type_s64; //WTF? on top we check if return type is type definition else we drop here o.o, this should definitely be void!
 	}
 	else if (unary->operation == UNOP_INCREMENT || unary->operation == UNOP_DECREMENT) {
 		auto type = resolveExpression(unary->left);

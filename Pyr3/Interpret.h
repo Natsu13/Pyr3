@@ -61,10 +61,10 @@ struct AST_Expression {
 
 #if _DEBUG
 	const char* _debug_file;
-	int _debug_line;
-	int serial;
+	int _debug_line;	
 #endif
 
+	int serial;
 };
 
 struct New_String {
