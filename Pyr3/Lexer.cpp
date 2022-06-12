@@ -349,7 +349,7 @@ void Lexer::lex() {
 					token->number_value_l = std::stol(ivalue, nullptr, 16);//atoi(ivalue);
 				}
 				else {
-					token->number_value_i = atoi(wvalue);
+					token->number_value_i = _atoi64(wvalue);
 				}
 			}
 		}

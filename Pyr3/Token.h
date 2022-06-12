@@ -112,7 +112,7 @@ public:
 	int token_keyword = 0;
 	int token_number = 0;
 
-	int number_value_i = 0;
+	__int64 number_value_i = 0; //idk?
 	double number_value_d = 0;
 	float number_value_f = 0;
 	long number_value_l = 0;
