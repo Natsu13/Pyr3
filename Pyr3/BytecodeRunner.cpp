@@ -543,7 +543,7 @@ int BytecodeRunner::run_expression(int address) {
 			/*else if (type->kind == AST_TYPE_POINTER) { //idk this???
 				is_pointer = true; 
 			}*/
-			is_pointer = false;
+			//is_pointer = false; //@todo: what why? documentation pls...
 
 			if (is_pointer) {
 				this->registers[bc->index_r]._pointer = &this->registers[bc->index_a]._pointer;
