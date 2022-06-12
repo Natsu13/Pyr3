@@ -9,6 +9,10 @@ Calculated in 0.005 ms
 ```
 main :: () {
 	fact := factorial(20);
+    	print(fact);
+    	if(fact != 2432902008176640000){
+        	print("\nThis is not correct answer!");
+    	}
 }
 
 factorial :: (x: u64) -> u64 {
