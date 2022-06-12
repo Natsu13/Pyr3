@@ -35,7 +35,7 @@ void Interpret::initialize() {
 	create_new_type(type_u64, AST_Type_u64, 8, 8); //u64
 
 	create_new_type(type_char, AST_Type_char, 1, 1); //char
-	create_new_type(type_string, AST_Type_string, 1, 1); //string
+	create_new_type(type_string, AST_Type_string, 4, 4); //string
 	create_new_type(type_int, AST_Type_int, 8, 8); // it depends on OS!! we count with 64bit only for now
 }
 

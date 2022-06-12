@@ -552,9 +552,11 @@ TokenDefine Lexer::get_next_token() {
 		rollback_eat_char();
 		token_value_string = peek_next_word(type);
 
-		token = decide_token_keyword(token_value_string);
-		if(token != 0)
-			type = TOKEN_KEYWORD;
+		if (type == TOKEN_IDENT) { //else we eat "s32" and say it's keyword s32
+			token = decide_token_keyword(token_value_string);
+			if (token != 0)
+				type = TOKEN_KEYWORD;
+		}
 		//rollback_eat_char();
 		break;
 	}

@@ -839,7 +839,7 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 	auto unary = static_cast<AST_Unary*>(binop->left);
 	auto pointer = static_cast<AST_Pointer*>(resolveExpression(unary));
 
-	auto size = find_typedefinition_from_type(pointer->point_type)->aligment;
+	auto size = find_typedefinition_from_type(pointer->point_type)->aligment; //wtf aligment why?
 
 	/*AST_Literal* literar = AST_NEW_EMPTY(AST_Literal);
 	literar->value_type = LITERAL_NUMBER;
@@ -1218,11 +1218,15 @@ AST_Procedure* TypeResolver::find_procedure(AST_Expression* expression, AST_Bloc
 		{	
 			For(found) {
 				print_procedure(it);
+				print_arguments_compare(arguments, it);
+				interpret->report("");
 			}
 		}
 		{
 			For(foundNotGeneric) {
 				print_procedure(it);
+				print_arguments_compare(arguments, it);
+				interpret->report("");
 			}
 		}
 	}
@@ -1232,11 +1236,39 @@ AST_Procedure* TypeResolver::find_procedure(AST_Expression* expression, AST_Bloc
 		{
 			For(foundAll) {
 				print_procedure(it);
+				print_arguments_compare(arguments, it);
+				interpret->report("");
 			}
 		}
-	}
+	}	
 
 	return NULL;
+}
+
+void TypeResolver::print_arguments_compare(AST_Block* call_arguments, AST_Procedure* procedure) {
+	String output = "... Types given: (";
+	int arguments_wanted = procedure->header->expressions.size();
+	int arguments_given = call_arguments->expressions.size();
+
+	{
+		For(call_arguments->expressions) {
+			if (it_index != 0) output += ", ";
+			output += expressionTypeToString(it);
+		}
+	}
+	output += "), Types wanted: (";
+	{
+		For(procedure->header->expressions) {
+			if (it_index != 0) output += ", ";
+			output += expressionTypeToString(it);
+		}
+	}
+	output += ")";
+	interpret->report(output.data);
+
+	if (arguments_wanted != arguments_given) {
+		interpret->report("... Wanted %d arguments, but given %d arguments.", arguments_wanted, arguments_given);
+	}	
 }
 
 bool TypeResolver::check_procedure_arguments(AST_Block* header, AST_Block* arguments, int* generic_definition) {
@@ -1462,6 +1494,11 @@ AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
 	}
 	else if (expression->type == AST_DECLARATION) {
 		auto declaration = static_cast<AST_Declaration*>(expression);
+		/*if ((declaration->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) { //call expressionTypeToString() not typeToString()
+			auto g = AST_NEW_EMPTY(AST_Generic);
+			g->type_declaration = declaration;
+			return g;
+		}*/
 		return find_typeof(declaration->assigmet_type);
 	}
 	else if (expression->type == AST_LITERAL) {
@@ -1497,8 +1534,10 @@ String TypeResolver::expressionTypeToString(AST_Expression* type) {
 		AST_Ident* ident = static_cast<AST_Ident*>(type);
 		return ident->name->value;
 	}
-
-	assert(false && "Only type can be translated");
+	
+	auto _found_type = find_typeof(type);
+	return typeToString(_found_type);
+	//assert(false && "Only type can be translated");
 }
 
 String TypeResolver::typeToString(AST_Type* type) {

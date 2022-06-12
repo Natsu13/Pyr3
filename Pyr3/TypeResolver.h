@@ -94,6 +94,7 @@ public:
 	AST_Literal* make_number_literal(float value);
 	AST_Declaration* make_declaration(String name, AST_Expression* value);
 		
+	void print_arguments_compare(AST_Block* call_arguments, AST_Procedure* procedure);
 	void print_procedure(AST_Procedure* procedure);
 	bool check_procedure_arguments(AST_Block* header, AST_Block* arguments, int* generic_definition);
 	bool compare_type(AST_Expression* left, AST_Expression* right);

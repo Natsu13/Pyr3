@@ -230,8 +230,7 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 		if(type->kind == AST_TYPE_DEFINITION) { \
 			auto tdef = (AST_Type_Definition*)type;\
 			if(tdef->internal_type == AST_Type_string) { \
-				New_String* pos = (New_String*)this->registers[pointer]._pointer; \
-				this->registers[index]._u8 = pos->data[offset]; \
+				this->registers[index]._pointer = *(New_String**)output; \
 			} \
 			else { this->registers[index]._s64 = *(int64_t*)output; }\
 		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
@@ -281,6 +280,7 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			else if(tdef->internal_type == AST_Type_float) variable = 8;/*idk*/\
 			else if(tdef->internal_type == AST_Type_pointer) variable = 4;\
 			else if(tdef->internal_type == AST_Type_c_call) variable = 4;\
+			else if(tdef->internal_type == AST_Type_string) variable = 4;\
 			else variable = 1;\
 		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
 			variable = interpret->type_pointer->size;\
@@ -363,8 +363,12 @@ int BytecodeRunner::run_expression(int address) {
 					printf("%lld", this->registers[bc->index_r]._u64);
 				}
 				else if (tdef->internal_type == AST_Type_string) {
+					/*
 					auto str = ((String*)this->registers[bc->index_r]._pointer);
 					printf("%s", ((String*)this->registers[bc->index_r]._pointer)->data);
+					*/
+					auto str = (New_String*)this->registers[bc->index_r]._pointer;
+					printf("%s", str->data);
 				}
 				else if (tdef->internal_type == AST_Type_pointer) {
 					printf("%p", &this->registers[bc->index_r]._pointer);
@@ -560,12 +564,12 @@ int BytecodeRunner::run_expression(int address) {
 			auto offset = this->registers[bc->index_r]._s64;
 			auto pointer = this->registers[bc->index_a]._pointer;
 			*/
-			auto type_r = (AST_Type*)types[bc->index_r];
+			/*auto type_r = (AST_Type*)types[bc->index_r];
 			auto tope = get_type((AST_Type*)types[bc->index_r]);
 			auto yyy = this->registers[bc->index_a]._pointer;
 			auto xxx = this->registers[bc->index_b]._s64;
 			void* posy = (int8_t*)this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);
-			void* posa = (int8_t*)this->registers[bc->index_a]._pointer;
+			void* posa = (int8_t*)this->registers[bc->index_a]._pointer;*/
 			//auto sada = *(int64_t*)posy;
 
 			/*
@@ -574,6 +578,37 @@ int BytecodeRunner::run_expression(int address) {
 		void* pos = (int8_t*)this->registers[pointer]._pointer + (offset);\
 			*/
 
+			//r,a,offset number(b)
+			//index, pointer, offset
+			/*{
+				auto type = get_type_base((AST_Type*)types[bc->index_r]);
+				void* pos = (int8_t*)this->registers[bc->index_a]._pointer;
+				auto type_out = (AST_Type*)types[bc->index_a];
+				auto output = pos;
+				if (type_out->kind == AST_TYPE_POINTER) {
+
+					output = *((void**)pos);
+				}
+				output = (int8_t*)output + this->registers[bc->index_b]._s64;
+				if (type->kind == AST_TYPE_DEFINITION) {
+					auto tdef = (AST_Type_Definition*)type;
+					if (tdef->internal_type == AST_Type_string) {
+						//New_String* pos = *(New_String**)this->registers[bc->index_a]._pointer;
+						this->registers[bc->index_r]._pointer = *(New_String**)this->registers[bc->index_a]._pointer;
+					} else { 
+						this->registers[bc->index_r]._s64 = *(int64_t*)output; 
+					}
+				}
+				else if (type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {
+
+					this->registers[bc->index_r]._pointer = output;
+				}
+				else {
+
+					assert(false);
+				}
+			}
+			*/
 			ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(bc->index_r, bc->index_a, this->registers[bc->index_b]._s64);
 
 			/*
@@ -676,6 +711,11 @@ int BytecodeRunner::run_expression(int address) {
 				}
 				else if (tdef->internal_type == AST_Type_pointer) {
 					smemcpy(output, &val, size_of, reverse); //??? idk maybe size_of constant 4 or remove because down &val?
+				}
+				else if (tdef->internal_type == AST_Type_string) {					
+					auto ns = (New_String*)val;
+					auto str = new New_String{ ns->data, ns->size };
+					smemcpy(output, &str, size_of, reverse);
 				}
 				else {
 					smemcpy(output, &val, size_of, reverse);
