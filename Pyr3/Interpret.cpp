@@ -12,6 +12,7 @@ Interpret::Interpret() {
 this->name->internal_type = internalType; \
 this->name->size = Size; \
 this->name->aligment = Align; \
+this->name->serial = this->counter++; \
 
 void Interpret::initialize() {
 	create_new_type(type_pointer, AST_Type_pointer, 4, 4); //pointer

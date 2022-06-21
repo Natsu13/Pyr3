@@ -93,6 +93,7 @@ public:
 	AST_Literal* make_number_literal(long long value);
 	AST_Literal* make_number_literal(float value);
 	AST_Declaration* make_declaration(String name, AST_Expression* value);
+	AST_Declaration* make_declaration(AST_Ident* ident, AST_Expression* value);
 		
 	void print_arguments_compare(AST_Block* call_arguments, AST_Procedure* procedure);
 	void print_procedure(AST_Procedure* procedure);

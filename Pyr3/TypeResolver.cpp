@@ -449,18 +449,93 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			
 			resolved(expression);
 
-			if (procedure->returnType != NULL)
+			if (procedure->returnType != NULL) {
+				if (procedure->returnType->type == AST_PARAMLIST) {
+					set_type_and_break(interpret->type_pointer);//@todo: maybe for now???
+				}
 				set_type_and_break(find_typeof(procedure->returnType));
+			}
 			set_type_and_break(interpret->type_pointer);//@todo: void!!!
 		}
-		case AST_PARAMLIST:
+		case AST_PARAMLIST: {
+			AST_ParamList* param_list = static_cast<AST_ParamList*>(expression);			
+
+			if ((param_list->flags & AST_PARAMLIST_IS_DECLARATION) == AST_PARAMLIST_IS_DECLARATION) {
+				/*resolveExpression(param_list->expressions[0]); //we resolve the first expression
+				auto ident = (AST_Ident*)param_list->expressions[0];
+				if (ident->type_declaration == NULL) {
+					addToResolve(param_list);
+					set_type_and_break(NULL);
+				}*/
+
+				auto first = param_list->expressions[0];
+				if (first->type != AST_IDENT) break;
+
+				auto ident = (AST_Ident*)first;
+				auto decl = find_declaration(ident, ident->scope);
+				auto value = decl->value;
+				if (value == NULL) { // a, b: s64;
+					//assert(false);
+				}
+				else if (value->type == AST_UNARYOP) {  // a, b := call();
+					auto unary = (AST_Unary*)value;
+					auto proc = find_procedure(unary->left, unary->arguments);
+					//auto proc = (AST_Procedure*)value;
+					auto ret = proc->returnType;
+					if (ret->type != AST_PARAMLIST) {
+						interpret->report_error(param_list->token, "Procedure don't match, it must return param list");//@todo: fix error message
+						param_list->is_resolved = true;
+						set_type_and_break(NULL);
+					}
+
+					auto ret_params = (AST_ParamList*)ret;
+
+					if (ret_params->expressions.size() != param_list->expressions.size()) {
+						interpret->report_error(param_list->token, "Procedure don't match, it must return param list at same size");//@todo: fix error message
+						interpret->report_info(param_list->token, "Got: %d, but want: %d", ret_params->expressions.size(), param_list->expressions.size());
+						param_list->is_resolved = true;
+						set_type_and_break(NULL);
+					}
+
+					For(param_list->expressions) {
+						if (it->type == AST_DECLARATION) continue;
+						auto left = (AST_Ident*)it;
+						auto right = ret_params->expressions[it_index];
+
+						auto decl = make_declaration(left, NULL);
+						decl->assigmet_type = right;
+						left->type_declaration = decl; //@todo: maybe not!
+						param_list->expressions[it_index] = decl;
+						addToResolve(decl);
+					}
+					resolved(param_list);
+				}
+			} else {
+				For(param_list->expressions) {
+					resolveExpression(it);
+				}
+				resolved(param_list);
+			}
 			set_type_and_break(NULL);
+		}
 		case AST_UNARYOP: {
 			AST_Unary* unary = static_cast<AST_Unary*>(expression);
 			set_type_and_break(resolveUnary(unary));
 		}
 		case AST_RETURN: {
 			AST_Return* ast_return = static_cast<AST_Return*>(expression);
+			if (ast_return->value == NULL) {
+				resolved(ast_return);
+				break;
+			}
+
+			if (ast_return->value->type == AST_PARAMLIST) {
+				auto param_list = (AST_ParamList*)ast_return->value;
+
+				For(param_list->expressions) {
+					resolveExpression(it);
+				}
+			}
 			set_type_and_break(resolveExpression(ast_return->value));
 		}
 		case AST_DIRECTIVE: {
@@ -926,6 +1001,13 @@ AST_Declaration* TypeResolver::make_declaration(String name, AST_Expression* val
 	return decl;
 }
 
+AST_Declaration* TypeResolver::make_declaration(AST_Ident* ident, AST_Expression* value) {
+	auto decl = AST_NEW_EMPTY(AST_Declaration);
+	decl->ident = ident;
+	decl->value = value;
+	return decl;
+}
+
 AST_Type* TypeResolver::resolveUnary(AST_Unary* unary) {
 	if (unary->operation == UNOP_DEF) { //*
 		auto type = resolveExpression(unary->left);
@@ -1035,6 +1117,9 @@ AST_Type* TypeResolver::resolveUnary(AST_Unary* unary) {
 					return tdef;
 				}
 			}
+			else if (procedure->returnType->type == AST_PARAMLIST) {
+				return interpret->type_pointer; //@todo: for now???
+			}
 			else {
 				return find_typeof(procedure->returnType); //ident like generic T etc...
 			}
@@ -1055,6 +1140,10 @@ AST_Type* TypeResolver::resolveUnary(AST_Unary* unary) {
 AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 	AST_Type* valueType = NULL;
 	AST_Type* type = NULL;	
+
+	if (declaration->param_list != NULL) {
+		resolveExpression(declaration->param_list);
+	}
 
 	if (declaration->value != NULL) {
 		valueType = resolveExpression(declaration->value);
@@ -1186,7 +1275,10 @@ AST_Procedure* TypeResolver::find_procedure(AST_Expression* expression, AST_Bloc
 
 	{
 		For(decls) {
-			assert(it != NULL && it->value->type == AST_PROCEDURE);
+			assert(it != NULL);
+			if (it->param_list != NULL) continue;
+
+			assert(it->value->type == AST_PROCEDURE);
 			auto procedure = (AST_Procedure*)it->value;
 
 			int generic_defitnion_count;
@@ -1371,7 +1463,21 @@ vector<AST_Declaration*> TypeResolver::find_declarations(AST_Ident* ident, AST_B
 		auto expression = scope->expressions[i];
 		if (expression->type == AST_DECLARATION) {
 			auto declaration = static_cast<AST_Declaration*>(expression);
-			if (declaration->ident->name->value == ident->name->value) {
+			if (declaration->param_list != NULL) {
+				For(declaration->param_list->expressions) {
+					if (it->type != AST_DECLARATION) {
+						//continue; //we don't finish type resolve of this param list
+						declarations.push_back(declaration); //we add the default declaration wher the a,b = x; contains for now for type definition!
+						continue; 
+					}
+
+					auto param_declaration = (AST_Declaration*)it;
+					if (param_declaration->ident->name->value == ident->name->value) {
+						declarations.push_back(param_declaration);
+					}
+				}
+			} 
+			else if (declaration->ident->name->value == ident->name->value) {
 				if (declaration->value != NULL && declaration->value->type == AST_IDENT) {
 					auto new_ident = static_cast<AST_Ident*>(declaration->value);
 
@@ -1616,7 +1722,29 @@ AST_Type* TypeResolver::find_typedefinition(AST_Ident* ident, AST_Block* scope) 
 		}
 		else if (it->type == AST_DECLARATION) {
 			AST_Declaration* declaration = static_cast<AST_Declaration*>(it);
-			if (declaration->ident->name->value == name) {
+			if (declaration->param_list != NULL) {
+				For(declaration->param_list->expressions) {
+					if (it->type != AST_DECLARATION) {
+						continue; //we don't finish type resolve of this param list
+					}
+
+					auto param_declaration = (AST_Declaration*)it;
+					if (param_declaration->ident->name->value == ident->name->value) {
+						if (param_declaration->assigmet_type != NULL) {
+							ident->type_declaration = param_declaration;
+
+							if (param_declaration->assigmet_type->type == AST_TYPE) {
+								return resolveType(static_cast<AST_Type*>(param_declaration->assigmet_type));
+							}
+							else if (param_declaration->assigmet_type->type == AST_IDENT) {
+								return resolveIdent(static_cast<AST_Ident*>(param_declaration->assigmet_type));
+							}
+						}
+						return NULL;
+					}
+				}
+			}
+			else if (declaration->ident->name->value == name) {
 				ident->type_declaration = declaration;
 
 				if (declaration->flags & AST_DECLARATION_FLAG_CONSTANT) {

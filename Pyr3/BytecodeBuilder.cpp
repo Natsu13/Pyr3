@@ -105,9 +105,9 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 	case AST_IDENT: {
 		AST_Ident* ident = static_cast<AST_Ident*>(expression);
 
-		auto type_def = typeResolver->find_declaration(ident, ident->scope);
-		if (type_def != NULL && type_def->value != NULL && type_def->value->type == AST_PROCEDURE) {
-			AST_Procedure* proc = (AST_Procedure*)type_def->value;
+		//auto type_def = typeResolver->find_declaration(ident, ident->scope);
+		if (ident->type_declaration != NULL && ident->type_declaration->value != NULL && ident->type_declaration->value->type == AST_PROCEDURE) {
+			AST_Procedure* proc = (AST_Procedure*)ident->type_declaration->value;
 			if (proc->flags & AST_PROCEDURE_FLAG_C_CALL) {
 				int reg_c = allocate_output_register(interpret->type_c_call);
 				auto inst_c = Instruction(BYTECODE_C_CALL_FROM_PROCEDURE, -1, -1, reg_c);
@@ -115,13 +115,12 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 				return reg_c;
 			}
 		}
-		if (type_def != NULL && type_def->value != NULL && type_def->value->type == AST_TYPE) {
-			return build_type((AST_Type*)type_def->value);
+		if (ident->type_declaration != NULL && ident->type_declaration->value != NULL && ident->type_declaration->value->type == AST_TYPE) {
+			return build_type((AST_Type*)ident->type_declaration->value);
 		}
-		if (type_def != NULL && type_def->type == AST_DECLARATION) {
-			AST_Declaration* decl = (AST_Declaration*)type_def;
-			if ((decl->flags & DECLARATION_IS_GENERIC_TYPE_DEFINTION) == DECLARATION_IS_GENERIC_TYPE_DEFINTION) {
-				return build_type((AST_Type*)decl->assigmet_type);
+		if (ident->type_declaration != NULL && ident->type_declaration->type == AST_DECLARATION) {
+			if ((ident->type_declaration->flags & DECLARATION_IS_GENERIC_TYPE_DEFINTION) == DECLARATION_IS_GENERIC_TYPE_DEFINTION) {
+				return build_type((AST_Type*)ident->type_declaration->assigmet_type);
 			}
 		}
 		/*
@@ -214,6 +213,10 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 		return build_procedure(procedure);
 	}
 	case AST_PARAMLIST: {
+		AST_ParamList* param_list = static_cast<AST_ParamList*>(expression);
+		For(param_list->expressions) {
+			build_expression(it);
+		}
 		break;
 	}
 	case AST_UNARYOP: {
@@ -420,6 +423,31 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 
 	AST_Type* type = static_cast<AST_Type*>(declaration->assigmet_type);
 
+	if (declaration->param_list != NULL) {
+		if (declaration->register_index == -1) {
+			For(declaration->param_list->expressions) {
+				assert(it->type == AST_DECLARATION);
+				auto decl = (AST_Declaration*)it;				
+
+				auto type = typeResolver->find_typeof(it);
+				int output_register = allocate_output_register(type);
+				decl->register_index = output_register;
+
+				if (it_index == 0) {
+					declaration->register_index = output_register;
+				}
+			}
+		}
+
+		auto index = build_expression(declaration->value);
+
+		For(declaration->param_list->expressions) {
+			auto instr = Instruction(BYTECODE_MOVE_A_TO_R, index + it_index, -1, declaration->register_index + it_index);
+		}
+
+		return declaration->register_index;
+	} 
+
 	if (declaration->register_index == -1) {
 		int output_register = allocate_output_register(static_cast<AST_Type_Definition*>(declaration->assigmet_type));
 		declaration->register_index = output_register;	
@@ -441,17 +469,15 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 		case AST_LITERAL: {
 			auto literal = static_cast<AST_Literal*>(declaration->value);
 
-			if (literal->value_type == LITERAL_NUMBER) {
-				auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
-
+			auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
+			if (literal->value_type == LITERAL_NUMBER) {			
 				if (literal->number_flags & NUMBER_FLAG_FLOAT)
 					instr->big_constant._float = literal->float_value;
 				else if (literal->number_flags & NUMBER_FLAG_SIGNED)
 					instr->big_constant._s64 = literal->integer_value;
 				else
 					instr->big_constant._u64 = literal->integer_value;
-			}else if (literal->value_type == LITERAL_STRING) {
-				auto instr = Instruction(BYTECODE_ASSING_TO_BIG_CONSTANT, -1, -1, declaration->register_index);
+			}else if (literal->value_type == LITERAL_STRING) {				
 				instr->big_constant._pointer = new New_String{ literal->string_value.data, literal->string_value.size };
 			}
 
@@ -512,14 +538,22 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 
 int BytecodeBuilder::build_return(AST_Return* ret) {
 	//ret->scope->
+	//int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_u64));
 
-	int output = allocate_output_register(static_cast<AST_Type_Definition*>(interpret->type_u64));
-	int addr = build_expression(ret->value);
-	//auto address_reg = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, output);
-	auto stackPush = Instruction(BYTECODE_PUSH_TO_STACK, -1, -1, addr);
+	if (ret->value->type == AST_PARAMLIST) {
+		auto param_list = (AST_ParamList*)ret->value;
+		For(param_list->expressions) {
+			int addr = build_expression(it);
+			auto stackPush = Instruction(BYTECODE_PUSH_TO_STACK, -1, -1, addr);
+		}
+	}
+	else {
+		int addr = build_expression(ret->value);
+		//auto address_reg = Instruction(BYTECODE_MOVE_A_TO_R, addr, -1, output);
+		auto stackPush = Instruction(BYTECODE_PUSH_TO_STACK, -1, -1, addr);
+	}
 
 	Instruction(BYTECODE_RETURN, -1, -1, -1);
-
 	return -1;
 }
 
@@ -714,21 +748,17 @@ int BytecodeBuilder::build_procedure_call(AST_Unary* unary) {
 	assert(unary->left->type == AST_IDENT);
 	auto literar = static_cast<AST_Ident*>(unary->left);	
 
-	//auto declaration = typeResolver->find_declaration(literar, literar->scope); //this is bad because we alerady found the address of the procedure when we type resolve this!
 	auto procedure = (AST_Procedure*)unary->left->expression;
 	assert(procedure != NULL);
 	assert(procedure->type == AST_PROCEDURE);
-
-	//call->name = declaration->ident->name->value;
-	call->name = procedure->name->value;
-	call->procedure = static_cast<AST_Procedure*>(procedure);
-	call->offset = output_registers_index;// get_current_bytecode_address();
-
-	if (call->procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) {
+	if (procedure->flags & AST_PROCEDURE_FLAG_INTRINSIC) {
 		delete call;
-
 		return build_intrinsic_procedure_call(literar->name, unary->arguments->expressions);
 	}
+
+	call->name = procedure->name->value;
+	call->procedure = procedure;
+	call->offset = output_registers_index;// get_current_bytecode_address();
 	
 	call->arguments.clear();
 
@@ -738,21 +768,46 @@ int BytecodeBuilder::build_procedure_call(AST_Unary* unary) {
 		call->arguments.push_back(expr);
 	}
 
+	bool is_paramslit = call->procedure->returnType->type == AST_PARAMLIST;
+	AST_ParamList* param_list = NULL;
+
 	int return_register = -1;
 	if (call->procedure->returnType != NULL) {
-		AST_Type* return_type = typeResolver->get_inferred_type(call->procedure->returnType);
-		return_register = allocate_output_register(return_type);
-		call->return_register = return_register;
+		if (is_paramslit) {
+			param_list = (AST_ParamList*)call->procedure->returnType;
+			For(param_list->expressions) {
+				AST_Type* return_type = typeResolver->get_inferred_type(it);
+
+				if (it_index == 0) {					
+					return_register = allocate_output_register(return_type);
+					call->return_register = return_register;
+				}
+				else {
+					allocate_output_register(return_type);
+				}
+			}
+		}
+		else {
+			AST_Type* return_type = typeResolver->get_inferred_type(call->procedure->returnType);
+			return_register = allocate_output_register(return_type);
+			call->return_register = return_register;
+		}
 	}
 
 	auto call_instr = Instruction(BYTECODE_CALL_PROCEDURE, -1, -1, -1);
 	call_instr->big_constant._pointer = call;
 
 	if (call->procedure->returnType != NULL) {
-		//Curently we support only one return value
-		Instruction(BYTECODE_POP_FROM_STACK, -1, -1, return_register);
-
-		return return_register;
+		if (is_paramslit) {
+			auto size = param_list->expressions.size() - 1;
+			For(param_list->expressions) {
+				Instruction(BYTECODE_POP_FROM_STACK, -1, -1, return_register + (size - it_index)); //it must be pushed reversed because the stack reading
+			}
+		}
+		else {			
+			Instruction(BYTECODE_POP_FROM_STACK, -1, -1, return_register);
+		}
+		return return_register; //return the first return address
 	}
 	return 0;
 }

@@ -17,7 +17,7 @@ private:
 
 	AST_Block* parse_block(bool new_scope = false);
 	AST_Expression* parse_primary();
-	AST_Expression* parse_primary(int prec);
+	AST_Expression* parse_primary(int prec, bool possibly_paramlist = true);
 	AST_Expression* parse_expression();
 	AST_Expression* parse_ident();
 	AST_Binary* parse_assigment(AST_Expression* left);
@@ -28,10 +28,11 @@ private:
 	AST_Block* parse_list();
 	AST_Condition* parse_condition();
 	AST_Directive* parse_directive();
-	AST_Expression* parse_dereference(AST_Ident* ident = NULL);
+	AST_Expression* parse_dereference(AST_Expression* ident = NULL);
 	AST_TypeSizeOf* parse_typesizeof();
 
 	bool expect_and_eat_bracket(bool simple = true);
+	void assign_to_ident_or_paramlist(AST_Expression* &ident_or_paramlist, AST_Expression* expression);
 	
 	AST_Struct* parse_struct();	
 	void parse_member_struct(AST_Struct* _struct);
@@ -51,6 +52,7 @@ private:
 	AST_Expression* parse_ident_array(AST_Expression* ident);
 	AST_Type* parse_typedefinition();
 	AST_Expression* parse_typedefinition_or_ident();
+	AST_Expression* parse_type_or_paramlist();
 	bool parse_arguments(AST_Block* block);
 	bool is_typedef_keyword();
 

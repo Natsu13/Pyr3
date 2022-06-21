@@ -72,6 +72,15 @@ struct New_String {
 	long long size;
 };
 
+const int AST_PARAMLIST_NAMED = 0x1;
+const int AST_PARAMLIST_IS_DECLARATION = 0x2;
+
+struct AST_ParamList : public AST_Expression {
+	AST_ParamList() { type = AST_PARAMLIST; }
+
+	vector<AST_Expression*> expressions;
+};
+
 const int AST_TYPESIZEOF_IS_TYPEOF = 0x1;
 const int AST_TYPESIZEOF_IS_SIZEOF = 0x2;
 
@@ -136,7 +145,7 @@ struct AST_Type : public AST_Expression {
 	AST_Type() { type = AST_TYPE; }
 
 	int kind = AST_TYPE_DEFINITION;
-	int serial = 0;
+	//int serial = 0;
 };
 
 struct AST_Type_Definition : public AST_Type {
@@ -239,11 +248,14 @@ const int TYPE_DEFINITION_GENERIC	= 0x8;
 
 const int DECLARATION_IN_HEAD					= 0x1;
 const int DECLARATION_IS_GENERIC_TYPE_DEFINTION = 0x2;
+const int DECLARATION_IS_FROM_PARAMLIST			= 0x4;
 
 struct AST_Declaration : public AST_Expression {
 	AST_Declaration() { type = AST_DECLARATION; }
 
 	AST_Ident* ident = NULL;
+	AST_ParamList* param_list = NULL;
+
 	AST_Expression* assigmet_type = NULL;
 	AST_Type* inferred_type = NULL; //AST_Type_Definition
 	AST_Expression* value = NULL;
