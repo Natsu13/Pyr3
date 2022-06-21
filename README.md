@@ -37,10 +37,23 @@ if typeof(number) == s16 {
 ```
 start :: 0;
 for index, key: start..start + 10 {
-	print(key);
-	print(": ");
-	print(index);
-	print("\n");
+    print(key);
+    print(": ");
+    print(index);
+    print("\n");
+}
+```
+
+```
+main :: (){
+    a, b := swap(1,2);
+    print(a);
+    print(" -- ");
+    print(b);
+}
+
+swap :: (a: s64, b: s64) -> s64, s64 {
+    return b, a;
 }
 ```
 
@@ -61,18 +74,18 @@ print(arr[2]);
 
 ```
 main :: () {
-	arr: Array;
-	arr.count = 2;
-	arr.data = malloc(8 * 2);
-	arr.data[0] = 50;
-	arr.data[1] = 100;
-	print(arr.count);
-	print(arr.data[0]);
-	print(arr.data[1]);
+    arr: Array;
+    arr.count = 2;
+    arr.data = malloc(8 * 2);
+    arr.data[0] = 50;
+    arr.data[1] = 100;
+    print(arr.count);
+    print(arr.data[0]);
+    print(arr.data[1]);
 }
 
 Array :: struct {
-	count: s64;
-	data: *s64;
+    count: s64;
+    data: *s64;
 }
 ```
