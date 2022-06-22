@@ -8,19 +8,19 @@ Calculated in 0.005 ms
 
 ```
 main :: () {
-	fact := factorial(20);
-    	print(fact);
-    	if(fact != 2432902008176640000){
-        	print("\nThis is not correct answer!");
-    	}
+    fact := factorial(20);
+    print(fact);
+    if(fact != 2432902008176640000){
+        print("\nThis is not correct answer!");
+    }
 }
 
 factorial :: (x: u64) -> u64 {
-	if x > 1 {
-		return x * factorial(x - 1);
-	}
+    if x > 1 {
+        return x * factorial(x - 1);
+    }
 
-	return 1;
+    return 1;
 }
 ```
 
@@ -54,6 +54,28 @@ main :: (){
 
 swap :: (a: s64, b: s64) -> s64, s64 {
     return b, a;
+}
+```
+
+```
+main :: () {
+    print(typeof(Types));
+    print("\n");
+    print(sizeof(string) + sizeof(Types));
+    print("\n");
+    print(sizeof(TypeDefinition));
+}
+
+Types :: enum {
+    NUMBER;
+    STRING;
+    FLOAT;
+    BOOL;
+}
+
+TypeDefinition :: struct {
+    name: string;
+    type: Types;
 }
 ```
 
