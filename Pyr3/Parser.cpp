@@ -73,7 +73,12 @@ AST_Expression* Parser::parse_primary(int prec, bool possibly_paramlist) {
 			if ((expr->type == AST_PROCEDURE && token->type == '}')) {
 				lexer->eat_token();
 			}
-			return expr;
+
+			if(left == NULL || !possibly_paramlist)
+				return expr;
+
+			assign_to_ident_or_paramlist(left, expr);
+			return left;
 		}
 
 		expr = parse_binop(prec, expr);
@@ -1065,17 +1070,24 @@ AST_Expression* Parser::parse_ident() {
 	AST_Expression* ident = NULL;
 
 	while (ident == NULL || token->type == ',') {
-		if (token->type == ',') lexer->eat_token();
+		if (token->type == ',') {
+			if (lexer->peek_token()->type == TOKEN_IDENT) {
+				lexer->eat_token();
+			}
+			else {
+				return ident;
+			}
+		}
 
-		auto _ident = create_ident_from_current_token();
+		AST_Expression* _ident = create_ident_from_current_token();
 		token = lexer->peek_next_token();
 		if (token->type == '[') { //Array
-			ident = parse_ident_array(ident);
+			_ident = parse_ident_array(_ident);
 			token = lexer->peek_next_token();
 		}
 
 		if (token->type == '.') { // a.b.c
-			ident = parse_dereference(ident);
+			_ident = parse_dereference(_ident);
 			token = lexer->peek_next_token();
 		}
 
@@ -1088,7 +1100,7 @@ AST_Expression* Parser::parse_ident() {
 			param_list->expressions.push_back(ident);
 			param_list->expressions.push_back(_ident);
 			ident = param_list;
-		} 
+		}
 		else {
 			assert(ident->type == AST_PARAMLIST);
 			auto param_list = (AST_ParamList*)ident;
