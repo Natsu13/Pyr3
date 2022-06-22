@@ -58,6 +58,28 @@ swap :: (a: s64, b: s64) -> s64, s64 {
 ```
 
 ```
+main :: () {
+    print(typeof(Types));
+    print("\n");
+    print(sizeof(string) + sizeof(Types));
+    print("\n");
+    print(sizeof(TypeDefinition));
+}
+
+Types :: enum {
+    NUMBER;
+    STRING;
+    FLOAT;
+    BOOL;
+}
+
+TypeDefinition :: struct {
+    name: string;
+    type: Types;
+}
+```
+
+```
 GetForegroundWindow :: () -> ptr #foreign "USER32.DLL";
 ```
 
