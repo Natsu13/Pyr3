@@ -980,11 +980,11 @@ AST_Expression* Parser::parse_ident_array(AST_Expression* ident) {
 }
 
 AST_Expression* Parser::parse_dereference(AST_Expression* ident) {
-	assert(ident->type == AST_IDENT);
-
 	if (ident == NULL) {
 		ident = create_ident_from_current_token();
 	}
+
+	assert(ident->type == AST_IDENT);
 
 	auto token = lexer->peek_next_token();
 	if (token->type == '.' || token->type == '?') {
