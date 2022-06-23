@@ -51,11 +51,19 @@ AST_Block* Parser::parse_block(bool new_scope) {
 	return scope;
 }
 
+AST_Expression* Parser::parse_primary_without_paramlist() {
+	auto saved_disable_paramlist = disable_paramlist;
+	disable_paramlist = true;
+	auto primary = parse_primary();
+	disable_paramlist = saved_disable_paramlist;
+	return primary;
+}
+
 AST_Expression* Parser::parse_primary() {
 	return parse_primary(0);
 }
 
-AST_Expression* Parser::parse_primary(int prec, bool possibly_paramlist) {
+AST_Expression* Parser::parse_primary(int prec) {
 	AST_Expression* left = NULL;
 	auto token = lexer->peek_next_token();
 
@@ -74,7 +82,7 @@ AST_Expression* Parser::parse_primary(int prec, bool possibly_paramlist) {
 				lexer->eat_token();
 			}
 
-			if(left == NULL || !possibly_paramlist)
+			if(left == NULL || disable_paramlist)
 				return expr;
 
 			assign_to_ident_or_paramlist(left, expr);
@@ -83,7 +91,7 @@ AST_Expression* Parser::parse_primary(int prec, bool possibly_paramlist) {
 
 		expr = parse_binop(prec, expr);
 
-		if (!possibly_paramlist)
+		if (disable_paramlist)
 			return expr;
 
 		assign_to_ident_or_paramlist(left, expr);
@@ -580,11 +588,11 @@ bool Parser::parse_arguments(AST_Block* block) {
 	Token* token = lexer->peek_next_token();
 
 	if (token->type == '\0') return false;
-
+	
 	bool isProcDeclaration = true;
 
 	while (token->type != ')') {
-		AST_Expression* exp = parse_primary(0, false);
+		AST_Expression* exp = parse_primary_without_paramlist();
 		if (exp == NULL) {
 			return true;
 		}

@@ -14,10 +14,12 @@ private:
 	TypeResolver* type_resolver;
 	AST_Block* current_scope = NULL;	
 	AST_Block* main_scope = NULL;
+	bool disable_paramlist = false;
 
 	AST_Block* parse_block(bool new_scope = false);
 	AST_Expression* parse_primary();
-	AST_Expression* parse_primary(int prec, bool possibly_paramlist = true);
+	AST_Expression* parse_primary_without_paramlist();
+	AST_Expression* parse_primary(int prec);
 	AST_Expression* parse_expression();
 	AST_Expression* parse_ident();
 	AST_Binary* parse_assigment(AST_Expression* left);
