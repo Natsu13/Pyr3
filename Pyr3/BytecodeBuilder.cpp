@@ -768,7 +768,7 @@ int BytecodeBuilder::build_procedure_call(AST_Unary* unary) {
 		call->arguments.push_back(expr);
 	}
 
-	bool is_paramslit = call->procedure->returnType->type == AST_PARAMLIST;
+	bool is_paramslit = call->procedure->returnType != NULL && call->procedure->returnType->type == AST_PARAMLIST;
 	AST_ParamList* param_list = NULL;
 
 	int return_register = -1;

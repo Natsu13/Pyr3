@@ -362,6 +362,14 @@ int BytecodeRunner::run_expression(int address) {
 				else if (tdef->internal_type == AST_Type_u64) {
 					printf("%lld", this->registers[bc->index_r]._u64);
 				}
+				else if (tdef->internal_type == AST_Type_bool) {
+					if (this->registers[bc->index_r]._u8 == 0) {
+						printf("false");
+					}
+					else {
+						printf("true");
+					}					
+				}
 				else if (tdef->internal_type == AST_Type_string) {
 					/*
 					auto str = ((String*)this->registers[bc->index_r]._pointer);
@@ -854,6 +862,9 @@ int BytecodeRunner::run_expression(int address) {
 						else if (type_def->internal_type == AST_Type_string) {
 							auto str = String((const char*)result);
 							registers[procedure->return_register]._pointer = &str;
+						}
+						else {
+							registers[procedure->return_register]._s64 = (int64_t)result;
 						}
 					}
 					else {
