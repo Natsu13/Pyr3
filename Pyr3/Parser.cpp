@@ -1079,7 +1079,7 @@ AST_Expression* Parser::parse_ident() {
 
 	while (ident == NULL || token->type == ',') {
 		if (token->type == ',') {
-			if (lexer->peek_token()->type == TOKEN_IDENT) {
+			if (lexer->peek_token()->type == TOKEN_IDENT && !disable_paramlist) {
 				lexer->eat_token();
 			}
 			else {

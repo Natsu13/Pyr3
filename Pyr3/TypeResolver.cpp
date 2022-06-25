@@ -1665,6 +1665,7 @@ String TypeResolver::typeToString(AST_Type* type) {
 		if (tdef->internal_type == AST_Type_c_call) return "c_call";
 		if (tdef->internal_type == AST_Type_bool) return "bool";
 		if (tdef->internal_type == AST_Type_int) return "int";
+		if (tdef->internal_type == AST_Type_pointer) return "void*";
 	}
 	else if (type->kind == AST_TYPE_STRUCT) {
 		auto strct = static_cast<AST_Struct*>(type);
