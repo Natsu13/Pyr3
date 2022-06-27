@@ -11,7 +11,7 @@ TypeResolver::TypeResolver(Interpret* interpret) {
 }
 
 bool TypeResolver::has_changes() {
-	return any_change && to_be_resolved.size() > 0;
+	return any_change/* && to_be_resolved.size() > 0*/; //@todo: the condition with the to be reoslved is not good because at end cycle when we resolve everything but have changes we dont do new cycle but we need it
 }
 
 AST_Literal* TypeResolver::make_string_literal(String value) {
@@ -237,6 +237,10 @@ int TypeResolver::calculate_array_size(AST_Type* type, bool first) {
 
 	if (type->kind == AST_TYPE_ARRAY) {
 		AST_Array* arr = static_cast<AST_Array*>(type);
+		if (arr->size == 0) {
+			return 1; //array view
+		}
+
 		if (!is_static(arr->size)) {
 			interpret->report_error(arr->token, "Size of array must be constant");
 			return 0;
@@ -480,6 +484,11 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 				else if (value->type == AST_UNARYOP) {  // a, b := call();
 					auto unary = (AST_Unary*)value;
 					auto proc = find_procedure(unary->left, unary->arguments);
+					if (proc == NULL) {
+						addToResolve(expression);
+						set_type_and_break(NULL);
+					}
+
 					//auto proc = (AST_Procedure*)value;
 					auto ret = proc->returnType;
 					if (ret->type != AST_PARAMLIST) {
@@ -744,7 +753,7 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Exp
 
 		resolveExpression(_array->point_to);
 
-		if (as_declaration) {
+		if (as_declaration && _array->size != NULL) {
 			if (!is_static(_array->size)) {
 				interpret->report_error(_array->token, "Declaration of array size must be constant");
 				return NULL;
@@ -765,6 +774,7 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Exp
 			return (AST_Type*)proc->returnType;
 		}
 
+		resolved(type);
 		return type;
 	}
 
@@ -1350,7 +1360,14 @@ void TypeResolver::print_arguments_compare(AST_Block* call_arguments, AST_Proced
 	}
 	output += "), Types wanted: (";
 	{
-		For(procedure->header->expressions) {
+		For(procedure->header->expressions) {			
+			if (it->type == AST_TYPE) {
+				auto type = (AST_Type*)it;
+				if (type->kind == AST_TYPE_GENERIC) {
+					arguments_wanted--;
+					continue;
+				}
+			}
 			if (it_index != 0) output += ", ";
 			output += expressionTypeToString(it);
 		}
@@ -1388,13 +1405,16 @@ bool TypeResolver::check_procedure_arguments(AST_Block* header, AST_Block* argum
 		}
 
 		auto arg = arguments->expressions[it_index];
+
 		auto type_need = find_typeof(declaration->assigmet_type);
 		auto type_have = find_typeof(arg);
-
+			 
 		if ((declaration->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) {
 			*generic_definition = *generic_definition + 1;
 			continue;
 		}
+
+		if (type_have == NULL) return false; //still not type resolved
 
 		if (!compare_type(type_need, type_have)) {
 			return false;
@@ -1638,7 +1658,19 @@ String TypeResolver::expressionTypeToString(AST_Expression* type) {
 	}
 	else if (type->type == AST_IDENT) {
 		AST_Ident* ident = static_cast<AST_Ident*>(type);
+		if(ident->type_declaration != NULL && ident->type_declaration->assigmet_type != NULL)
+			return expressionTypeToString(ident->type_declaration->assigmet_type);
+
 		return ident->name->value;
+	}
+	else if (type->type == AST_PARAMLIST) {
+		AST_ParamList* params = static_cast<AST_ParamList*>(type);
+		String ret = "";
+		For(params->expressions) {
+			if (it_index != 0) ret += ", ";
+			ret += expressionTypeToString(it);
+		}
+		return ret;
 	}
 	
 	auto _found_type = find_typeof(type);
@@ -1681,7 +1713,7 @@ String TypeResolver::typeToString(AST_Type* type) {
 	}
 	else if (type->kind == AST_TYPE_ARRAY) {
 		AST_Array* arr = static_cast<AST_Array*>(type);
-		return (String)("Array<") + expressionTypeToString(arr->point_to) + ">";
+		return expressionTypeToString(arr->point_to) + "[]";
 	}
 	else if (type->kind == AST_TYPE_GENERIC) {
 		AST_Generic* ast_generic = static_cast<AST_Generic*>(type);

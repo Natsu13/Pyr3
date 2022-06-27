@@ -84,18 +84,18 @@ void CodeManager::manageExpression(AST_Expression* expression) {
 			else {
 				auto _of = ast->of;
 				auto size = 0;
-				auto mul = 1;
+				auto mul = 0;
 				while (true) {
 					auto type = typeResolver->find_typeof(_of);
 					if (!type->is_resolved) break;
 
 					if (type->kind == AST_TYPE_DEFINITION) {
 						auto td = (AST_Type_Definition*)type;
-						ast->substitution = typeResolver->make_number_literal((size + td->size) * mul);
+						ast->substitution = typeResolver->make_number_literal((size + td->size) * (mul == 0? 1: mul));
 					}
 					else if (type->kind == AST_TYPE_STRUCT) {
 						auto st = (AST_Struct*)type;
-						ast->substitution = typeResolver->make_number_literal((size + st->size) * mul);
+						ast->substitution = typeResolver->make_number_literal((size + st->size) * (mul == 0 ? 1 : mul));
 					}
 					else if (type->kind == AST_TYPE_ENUM) {
 						auto en = (AST_Enum*)type;
@@ -104,9 +104,7 @@ void CodeManager::manageExpression(AST_Expression* expression) {
 					}
 					else if (type->kind == AST_TYPE_ARRAY) {
 						auto ar = (AST_Array*)type;
-						_of = ar->point_to;
-						mul++;
-						continue;
+						ast->substitution = typeResolver->make_number_literal(typeResolver->calculate_array_size(ar));					
 					}
 					else {
 						assert(false);
