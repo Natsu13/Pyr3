@@ -122,12 +122,12 @@ enum AST_Internal_Types {
 	AST_Type_float			= 0x24,
 	AST_Type_long			= 0x28,
 	AST_Type_bit			= 0x30,
-	AST_Type_pointer		= 0x31,
+	AST_Type_pointer		= 0x31,	//@remove
 	AST_Type_string			= 0x32, //50
 	AST_Type_address		= 0x33,
 	AST_Type_c_call			= 0x34,
 	AST_Type_bool			= 0x35,
-	AST_Type_int			= 0x36, //just for all numbers s64 == int, s32 == int, ...
+	AST_Type_int			= 0x36, //just for all numbers s64 == int, s32 == int, ... @remove
 	AST_Type_definition		= 0x37,
 };
 
@@ -451,6 +451,8 @@ public:
 	AST_Type_Definition* type_u64 = NULL;
 
 	AST_Type_Definition* type_int = NULL;
+
+	AST_Declaration* declaration_array = NULL;
 
 	int counter;
 	int typeCounter;

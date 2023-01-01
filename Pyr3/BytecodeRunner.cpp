@@ -217,13 +217,13 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 	return lib.mod;
 }
 //r,a,offset number //33,16,8
-#define ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(index, pointer, offset) \
+#define ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(index, pointer, offset, unbox) \
 	{\
 		auto type = get_type_base((AST_Type*)types[index]); \
 		void* pos = (int8_t*)this->registers[pointer]._pointer;\
 		auto type_out = (AST_Type*)types[pointer]; \
 		auto output = pos;\
-		if (type_out->kind == AST_TYPE_POINTER) {\
+		if (type_out->kind == AST_TYPE_POINTER || unbox) {\
 			output = *((void**)pos); \
 		}\
 		output = (int8_t*)output + offset;\
@@ -232,10 +232,30 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			if(tdef->internal_type == AST_Type_string) { \
 				this->registers[index]._pointer = *(New_String**)output; \
 			} \
-			else { this->registers[index]._s64 = *(int64_t*)output; }\
+			else { ASSIGN_TO_REGISTER(index, *(int64_t*)output);/*this->registers[index]._s64 = *(int64_t*)output;*/ }\
 		} else if(type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {\
 			this->registers[index]._pointer = output;\
 		}  else { \
+			assert(false);\
+		}\
+	}
+
+#define ASSIGN_TO_REGISTER(index, value) \
+	{\
+		auto type = get_type_base((AST_Type*)types[index]); \
+		if(type->kind == AST_TYPE_DEFINITION) {\
+			auto tdef = (AST_Type_Definition*)type;\
+			if(tdef->internal_type == AST_Type_s8) this->registers[index]._s8 = (int8_t)value;\
+			else if(tdef->internal_type == AST_Type_s16) this->registers[index]._s16 = (int16_t)value;\
+			else if(tdef->internal_type == AST_Type_s32) this->registers[index]._s32 = (int32_t)value;\
+			else if(tdef->internal_type == AST_Type_s64) this->registers[index]._s64 = (int64_t)value;\
+			else if(tdef->internal_type == AST_Type_u8)  this->registers[index]._u8 = (uint8_t)value;\
+			else if(tdef->internal_type == AST_Type_u16) this->registers[index]._u16 = (uint16_t)value;\
+			else if(tdef->internal_type == AST_Type_u32 || tdef->internal_type == AST_Type_char) this->registers[index]._u32 = (uint32_t)value;\
+			else if(tdef->internal_type == AST_Type_u64) this->registers[index]._u64 = (uint64_t)value;\
+			else if(tdef->internal_type == AST_Type_float) this->registers[index]._float = (float)value;\
+			else this->registers[index]._pointer = (void*)value;\
+		} else {\
 			assert(false);\
 		}\
 	}
@@ -277,7 +297,7 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			else if(tdef->internal_type == AST_Type_u32) variable = 4;\
 			else if(tdef->internal_type == AST_Type_u64) variable = 8;\
 			else if(tdef->internal_type == AST_Type_char) variable = 1;\
-			else if(tdef->internal_type == AST_Type_float) variable = 8;/*idk*/\
+			else if(tdef->internal_type == AST_Type_float) variable = 4;/*float64 = 8*/\
 			else if(tdef->internal_type == AST_Type_pointer) variable = 4;\
 			else if(tdef->internal_type == AST_Type_c_call) variable = 4;\
 			else if(tdef->internal_type == AST_Type_string) variable = 4;\
@@ -537,7 +557,12 @@ int BytecodeRunner::run_expression(int address) {
 
 			return 0;
 		}
+		case BYTECODE_MOVE_CONSTANT_TO_R_BY_REFERENCE: {
+			auto x = this->registers[bc->index_r]._pointer;// = bc->index_a;
+			*(int*)x = bc->index_a;
 
+			return bc->index_r;
+		}
 		case BYTECODE_MOVE_A_TO_R: {
 			//printf("\n  v%d <= %lld(%d)", bc->index_r, this->registers[bc->index_a]._s64, bc->index_a);
 			auto type = this->types[bc->index_a];
@@ -604,7 +629,8 @@ int BytecodeRunner::run_expression(int address) {
 						//New_String* pos = *(New_String**)this->registers[bc->index_a]._pointer;
 						this->registers[bc->index_r]._pointer = *(New_String**)this->registers[bc->index_a]._pointer;
 					} else { 
-						this->registers[bc->index_r]._s64 = *(int64_t*)output; 
+						ASSIGN_TO_REGISTER(bc->index_r, *(int64_t*)output);
+						//this->registers[bc->index_r]._s64 = *(int64_t*)output; 
 					}
 				}
 				else if (type->kind == AST_TYPE_POINTER || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY) {
@@ -617,7 +643,7 @@ int BytecodeRunner::run_expression(int address) {
 				}
 			}
 			*/
-			ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(bc->index_r, bc->index_a, this->registers[bc->index_b]._s64);
+			ASSIGN_TO_REGISTER_BY_TYPE_WITH_OFFSET(bc->index_r, bc->index_a, this->registers[bc->index_b]._s64, (bc->options & OPTION_MOVE_UNBOX) == OPTION_MOVE_UNBOX);
 
 			/*
 			void* pos = (int8_t*)this->registers[bc->index_a]._pointer + (this->registers[bc->index_b]._s64);
@@ -665,12 +691,19 @@ int BytecodeRunner::run_expression(int address) {
 			memcpy(pos, &val, size_of);
 			return bc->index_r;
 		}
+		case BYTECODE_MOVE_CONSTANT_TO_R_PLUS_OFFSET: {
+			GET_SIZE_OF_TYPE(size_of, bc->index_r);
+			void* pos = (int8_t*)this->registers[bc->index_r]._pointer + bc->index_b;
+
+			memcpy(pos, &bc->index_a, sizeof(int64_t));
+			return bc->index_r;
+		}
 		case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG: {	//mov6 *v24(r) + v39(b) = v36(a)
 														//malloc v24 >> 36
 			bool reverse = true; // bc->options == 1;
 			int moving_register = bc->index_a;
 			int saving_register = bc->index_r;
-			if (bc->options == 1) {
+			if ((bc->options & OPTION_MOVE_A_TO_R_PLUS_OFFSET_REG_NOREVERSE) == OPTION_MOVE_A_TO_R_PLUS_OFFSET_REG_NOREVERSE) {
 				//moving_register = bc->index_r;
 				//saving_register = bc->index_a;
 				//switch a to r
@@ -699,7 +732,7 @@ int BytecodeRunner::run_expression(int address) {
 
 			auto type_out = static_cast<AST_Type*>(this->types[saving_register]);
 			auto output = pos;
-			if (type_out->kind == AST_TYPE_POINTER) {
+			if (type_out->kind == AST_TYPE_POINTER || (bc->options & OPTION_MOVE_UNBOX) == OPTION_MOVE_UNBOX) {
 				output = *((void**)pos); //get the pointer inside the pointer
 			}
 
@@ -756,12 +789,20 @@ int BytecodeRunner::run_expression(int address) {
 			this->registers[bc->index_r] = *(static_cast<Register*>(pos));
 			return bc->index_r;
 		}
+		case BYTECODE_RESERVE_MEMORY_TO_R_PLUS_OFFSET: {
+			auto size = bc->index_a;
+			int offset = bc->index_b;
+			void* place = (int8_t*)(this->registers[bc->index_r]._pointer) + offset;
+			place = malloc(size);
+			memset(place, 0, size);//fill it with NULL
+			return bc->index_r;
+		}
 		case BYTECODE_RESERVE_MEMORY_TO_R: {
 			//options 0 == number
 			//		  1 == reg
 
 			auto size = 0;
-			if (bc->options == 0) {
+			if (bc->options == 0 || bc->options == OPTION_RESERVE_MEMORY_TO_R_BY_ADDRESS) {
 				size = bc->index_a;
 			}
 			else {
@@ -770,8 +811,22 @@ int BytecodeRunner::run_expression(int address) {
 				size = (int)size_val;
 			}
 
-			this->registers[bc->index_r]._pointer = malloc(size);
-			memset(this->registers[bc->index_r]._pointer, 0, size);//fill it with NULL
+			if (bc->options == OPTION_RESERVE_MEMORY_TO_R_BY_ADDRESS) {
+				//*((void**)pos)
+				auto point = this->registers[bc->index_r]._pointer;
+				auto memory = malloc(size);
+				memcpy((void**)point, &memory, size);
+				//auto address = &point;
+				//memcpy(&address, malloc(size), sizeof(void*));				
+				//address = malloc(size);
+				//address = malloc(size);
+				//memset(address, 0, size);//fill it with NULL
+				auto xxxx = 151;
+			}
+			else {
+				this->registers[bc->index_r]._pointer = malloc(size);
+				memset(this->registers[bc->index_r]._pointer, 0, size);//fill it with NULL
+			}
 			return bc->index_r;
 		}
 
@@ -977,57 +1032,57 @@ void* BytecodeRunner::smemcpy(void* dest, void* src, size_t size, bool reverse) 
 int BytecodeRunner::run_binop(int address) {
 	auto bc = get_bytecode(address);
 
-	//this->registers[bc->index_r]._u64 = 0; // WTF IS THIS OMG
-
-	//TODO: implement this?
 	GET_VALUE_FROM_REGISTER(rega, bc->index_a, bc->index_a);
 	GET_VALUE_FROM_REGISTER(regb, bc->index_b, bc->index_b);
 
-	if (bc->instruction == BYTECODE_BINOP_PLUS) {
-		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 + this->registers[bc->index_b]._s64;
+	uint64_t result;
+
+	if (bc->instruction == BYTECODE_BINOP_PLUS) {		
+		result = (uint64_t)rega + (uint64_t)regb;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_MINUS) {
-		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 - this->registers[bc->index_b]._s64;
+	else if (bc->instruction == BYTECODE_BINOP_MINUS) {		
+		result = (uint64_t)rega - (uint64_t)regb;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_DIV) {
-		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 / this->registers[bc->index_b]._s64;
+	else if (bc->instruction == BYTECODE_BINOP_DIV) {		
+		result = (uint64_t)rega / (uint64_t)regb;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_TIMES) {		
-		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 * this->registers[bc->index_b]._s64;		
-		//printf("\n%lld (v%d) * %lld (v%d) = %lld", this->registers[bc->index_a]._s64, bc->index_a, this->registers[bc->index_b]._s64, bc->index_b, this->registers[bc->index_r]._s64);
+	else if (bc->instruction == BYTECODE_BINOP_TIMES) {				
+		result = (uint64_t)rega * (uint64_t)regb;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_MOD) {
-		this->registers[bc->index_r]._s64 = this->registers[bc->index_a]._s64 % this->registers[bc->index_b]._s64;
+		result = (uint64_t)rega % (uint64_t)regb;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_ISEQUAL) {
-		this->registers[bc->index_r]._u8 = rega == regb;
-		//this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 == this->registers[bc->index_b]._s64;
+		this->registers[bc->index_r]._u8 = rega == regb;		
 	}
-	else if (bc->instruction == BYTECODE_BINOP_ISNOTEQUAL) {
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 != this->registers[bc->index_b]._s64;
+	else if (bc->instruction == BYTECODE_BINOP_ISNOTEQUAL) {		
+		this->registers[bc->index_r]._u8 = rega != regb;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_GREATER) {			
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 > this->registers[bc->index_b]._s64;		
-		//printf("\n%lld > %lld = %lld", this->registers[bc->index_a]._s64, this->registers[bc->index_b]._s64, this->registers[bc->index_r]._s64);
+	else if (bc->instruction == BYTECODE_BINOP_GREATER) {					
+		this->registers[bc->index_r]._u8 = rega > regb;		
 	}
-	else if (bc->instruction == BYTECODE_BINOP_GREATEREQUAL) {
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 >= this->registers[bc->index_b]._s64;
+	else if (bc->instruction == BYTECODE_BINOP_GREATEREQUAL) {		
+		this->registers[bc->index_r]._u8 = rega >= regb;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_LESS) {
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 < this->registers[bc->index_b]._s64;
+	else if (bc->instruction == BYTECODE_BINOP_LESS) {		
+		this->registers[bc->index_r]._u8 = rega < regb;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_LESSEQUAL) {
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 <= this->registers[bc->index_b]._s64;
+	else if (bc->instruction == BYTECODE_BINOP_LESSEQUAL) {		
+		this->registers[bc->index_r]._u8 = rega <= regb;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_LOGIC_AND) {
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 && this->registers[bc->index_b]._s64;
+	else if (bc->instruction == BYTECODE_BINOP_LOGIC_AND) {		
+		this->registers[bc->index_r]._u8 = rega && regb;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_LOGIC_OR) {
-		this->registers[bc->index_r]._u8 = this->registers[bc->index_a]._s64 || this->registers[bc->index_b]._s64;
+		this->registers[bc->index_r]._u8 = rega || regb;
 	}
 	else {
 		assert(false);
 	}
+
+	if(bc->instruction == BYTECODE_BINOP_PLUS || bc->instruction == BYTECODE_BINOP_MINUS || bc->instruction == BYTECODE_BINOP_DIV
+		|| bc->instruction == BYTECODE_BINOP_TIMES || bc->instruction == BYTECODE_BINOP_MOD) 
+		ASSIGN_TO_REGISTER(bc->index_r, result);
 
 	return bc->index_r;
 }

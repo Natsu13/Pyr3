@@ -18,6 +18,8 @@ enum Bytecode_Instruction {
 	BYTECODE_MOVE_A_TO_R_PLUS_OFFSET = 31,
 	BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG = 34,
 	BYTECODE_MOVE_A_BY_REFERENCE_TO_R = 28,
+	BYTECODE_MOVE_CONSTANT_TO_R_BY_REFERENCE = 61,
+	BYTECODE_MOVE_CONSTANT_TO_R_PLUS_OFFSET = 62,
 
 	BYTECODE_BINOP_PLUS = 5,
 	BYTECODE_BINOP_MINUS = 6,
@@ -46,7 +48,8 @@ enum Bytecode_Instruction {
 
 	BYTECODE_ADDRESS_OF = 27,	
 	BYTECODE_RETURN = 29,
-	BYTECODE_RESERVE_MEMORY_TO_R = 30,	
+	BYTECODE_RESERVE_MEMORY_TO_R = 30,
+	BYTECODE_RESERVE_MEMORY_TO_R_PLUS_OFFSET = 60,
 
 	BYTECODE_INSTRICT_PRINT = 50,
 	BYTECODE_INSTRICT_ASSERT = 51,
@@ -58,6 +61,12 @@ enum Bytecode_Instruction {
 };
 
 const char* InstructionNames[];
+
+enum Bytecode_Instruction_Options {
+	OPTION_RESERVE_MEMORY_TO_R_BY_ADDRESS = 0x100,
+	OPTION_MOVE_UNBOX = 0x110,
+	OPTION_MOVE_A_TO_R_PLUS_OFFSET_REG_NOREVERSE = 0x111
+};
 
 struct Register {
 	union {
@@ -82,8 +91,8 @@ struct ByteCode {
 
 	union {
 		struct {
-			int index_a;
-			int index_b;
+			int64_t index_a;
+			int64_t index_b;
 		};
 
 		Register big_constant;

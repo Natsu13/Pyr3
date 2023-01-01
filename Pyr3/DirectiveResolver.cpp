@@ -32,7 +32,7 @@ void DirectiveResolver::resolveDirective(AST_Directive* directive) {
 
 					}
 					else {
-						interpret->report_error(ident->name, "Can't use iden't that is not constant");
+						interpret->report_error(ident->name, "Can't use ident that is not constant");
 					}
 				}
 			}

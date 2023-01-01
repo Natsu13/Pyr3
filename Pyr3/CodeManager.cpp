@@ -141,6 +141,20 @@ void CodeManager::manageProcedure(AST_Procedure* procedure) {
 }
 
 void CodeManager::manageDeclaration(AST_Declaration* declaration) {
+	if (declaration->param_list == NULL) {
+		auto type = typeResolver->find_typedefinition(declaration->ident, declaration->scope);
+		if (type != NULL) {
+			if (type->kind == AST_TYPE_ARRAY) {
+				//declaration->assigmet_type = interpret->declaration_array->ident;
+			}
+			else if (type->kind == AST_TYPE_STRUCT) {
+				if (COMPARE(declaration->ident->name->value, "Array")) {
+					interpret->declaration_array = declaration;
+				}
+			}
+		}
+	}
+
 	E(declaration->value);
 }
 

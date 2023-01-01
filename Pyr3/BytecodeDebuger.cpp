@@ -26,7 +26,7 @@ void BytecodeDebuger::debug() {
 				auto type_from = (AST_Type*)types[instruction->index_a];
 				auto type_to = (AST_Type*)types[instruction->index_r];
 
-				printf("%12s v%d(%s) -> v%d(%s)", "cast", instruction->index_a, typeResolver->typeToString(type_from).data, instruction->index_r, typeResolver->typeToString(type_to).data);
+				printf("%12s v%lld(%s) -> v%d(%s)", "cast", instruction->index_a, typeResolver->typeToString(type_from).data, instruction->index_r, typeResolver->typeToString(type_to).data);
 				break;
 			}
 			case BYTECODE_C_CALL_FROM_PROCEDURE: {
@@ -58,12 +58,19 @@ void BytecodeDebuger::debug() {
 				printf("%12s v%d += %I64d", "add_int", instruction->index_r, instruction->big_constant._s64);
 				break;
 			}
+			case BYTECODE_RESERVE_MEMORY_TO_R_PLUS_OFFSET: {
+				printf("%12s [v%d + %lld] >> %lld", "malloc", instruction->index_r, instruction->index_b, instruction->index_a);
+				break;
+			}
 			case BYTECODE_RESERVE_MEMORY_TO_R: {
+				if (instruction->options == OPTION_RESERVE_MEMORY_TO_R_BY_ADDRESS) {
+					printf("%12s *v%d >> %lld", "malloc", instruction->index_r, instruction->index_a);
+				}
 				if (instruction->options == 0) {
-					printf("%12s v%d >> %d", "malloc", instruction->index_r, instruction->index_a);
+					printf("%12s v%d >> %lld", "malloc", instruction->index_r, instruction->index_a);
 				}
 				else {
-					printf("%12s v%d >> v%d", "malloc", instruction->index_r, instruction->index_a);
+					printf("%12s v%d >> v%lld", "malloc", instruction->index_r, instruction->index_a);
 				}
 				break;
 			}
@@ -71,7 +78,7 @@ void BytecodeDebuger::debug() {
 				auto type = (AST_Type_Definition*)types[instruction->index_r];
 				if (type->internal_type == AST_Type_string) {
 					New_String* str = (New_String*)instruction->big_constant._pointer;
-					printf("%12s v%d = '%s'", "constant", instruction->index_r, str->data);
+					printf("%12s v%d = string(%lld)", "constant", instruction->index_r, str->size);
 				}
 				else {
 					printf("%12s v%d = %I64d", "constant", instruction->index_r, instruction->big_constant._s64);
@@ -79,23 +86,23 @@ void BytecodeDebuger::debug() {
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R: {
-				printf("%12s v%d, v%d", "mov1", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, v%lld", "mov1", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_REGISTER_TO_R: {
-				printf("%12s v%d, [v%d]", "mov2", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, [v%lld]", "mov2", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_BY_REFERENCE_TO_R: {
-				printf("%12s v%d, *v%d", "mov3", instruction->index_r, instruction->index_a);
+				printf("%12s v%d, *v%lld", "mov3", instruction->index_r, instruction->index_a);
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET: {
-				printf("%12s v%d, *v%d + %d", "mov4", instruction->index_a, instruction->index_r, instruction->index_b);
+				printf("%12s v%lld, [v%d + %lld]", "mov4", instruction->index_a, instruction->index_r, instruction->index_b);
 				break;
 			}
 			case BYTECODE_MOVE_A_PLUS_OFFSET_TO_R: {
-				printf("%12s v%d, *v%d + %d", "mov5", instruction->index_r, instruction->index_a, instruction->index_b);
+				printf("%12s v%d, *v%lld + %lld", "mov5", instruction->index_r, instruction->index_a, instruction->index_b);
 				break;
 			}
 			case BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG: {
@@ -103,17 +110,25 @@ void BytecodeDebuger::debug() {
 				void* pos = (int8_t*)this->registers[bc->index_r]._pointer + this->registers[bc->index_b]._s64;
 				memcpy(pos, &this->registers[bc->index_a]._s64, sizeof(this->registers[bc->index_a]._s64));	
 				*/
-				if (instruction->options == 1) {
-					printf("%12s v%d = *v%d + v%d", "mov6", instruction->index_a, instruction->index_r, instruction->index_b);
+				if ((instruction->options & OPTION_MOVE_A_TO_R_PLUS_OFFSET_REG_NOREVERSE) == OPTION_MOVE_A_TO_R_PLUS_OFFSET_REG_NOREVERSE) {
+					printf("%12s v%d = *v%lld + v%lld", "mov6", instruction->index_a, instruction->index_r, instruction->index_b);
 				}
 				else {
-					printf("%12s *v%d + v%d = v%d", "mov6", instruction->index_r, instruction->index_b, instruction->index_a);
+					printf("%12s *v%d + v%lld = v%lld", "mov6", instruction->index_r, instruction->index_b, instruction->index_a);
 				}
 				
 				break;
 			}
 			case BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R: {
-				printf("%12s v%d, *v%d + v%d", "mov7", instruction->index_r, instruction->index_a, instruction->index_b);
+				printf("%12s v%d, *v%lld + v%lld", "mov7", instruction->index_r, instruction->index_a, instruction->index_b);
+				break;
+			}
+			case BYTECODE_MOVE_CONSTANT_TO_R_BY_REFERENCE: {
+				printf("%12s *v%d = %lld", "mov8", instruction->index_r, instruction->index_a);
+				break;
+			}
+			case BYTECODE_MOVE_CONSTANT_TO_R_PLUS_OFFSET: {
+				printf("%12s [v%d + %lld] = %lld", "mov9", instruction->index_r, instruction->index_b, instruction->index_a);
 				break;
 			}
 			case BYTECODE_JUMP: {
@@ -121,11 +136,11 @@ void BytecodeDebuger::debug() {
 				break;
 			}
 			case BYTECODE_JUMP_IF: {
-				printf("%12s v%d == 1, %d", "jump_if", instruction->index_a, instruction->index_r + 1);
+				printf("%12s v%lld == 1, %d", "jump_if", instruction->index_a, instruction->index_r + 1);
 				break;
 			}
 			case BYTECODE_JUMP_IF_NOT: {
-				printf("%12s v%d != 1, %d", "jump_if", instruction->index_a, instruction->index_r + 1);
+				printf("%12s v%lld != 1, %d", "jump_if", instruction->index_a, instruction->index_r + 1);
 				break;
 			}
 			case BYTECODE_PUSH_TO_STACK: {
@@ -141,7 +156,7 @@ void BytecodeDebuger::debug() {
 				break;
 			}
 			case BYTECODE_ADDRESS_OF: {
-				printf("%12s v%d = [v%d]", "mov", instruction->index_r, instruction->index_a);
+				printf("%12s v%d = [v%lld]", "mov", instruction->index_r, instruction->index_a);
 				break;
 			}			
 			case BYTECODE_BINOP_ISEQUAL:
@@ -186,7 +201,9 @@ void BytecodeDebuger::debug() {
 				else if (instruction->instruction == BYTECODE_BINOP_LESSEQUAL)
 					operation = "<=";
 
-				printf("%12s v%d, v%d %s v%d", "binop", instruction->index_r, instruction->index_a, operation.data, instruction->index_b);
+				printf("%12s v%d, v%lld ", "binop", instruction->index_r, instruction->index_a);
+				printf("%s", operation.data);
+				printf(" v%lld ", instruction->index_b);
 				break;
 			}
 			case BYTECODE_INSTRICT_PRINT: {

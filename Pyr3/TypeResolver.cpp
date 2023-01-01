@@ -169,7 +169,10 @@ bool TypeResolver::is_static(AST_Expression* expression) {
 String TypeResolver::get_string_from_literal(AST_Expression* expression) {
 	if (expression->type == AST_LITERAL) {
 		auto lit = static_cast<AST_Literal*>(expression);
-		return lit->string_value;
+		if(lit->value_type == LITERAL_STRING) 
+			return lit->string_value;
+
+		assert(false);
 	}
 	if (expression->type == AST_IDENT) {
 		auto ident = static_cast<AST_Ident*>(expression);
@@ -200,7 +203,7 @@ int TypeResolver::do_int_operation(int left, int right, int op) {
 		case BINOP_BITWISE_OR: return left | right;
 	}
 
-	return -1;
+	assert(false);
 }
 
 int TypeResolver::calculate_size_of_static_expression(AST_Expression* expression) {
@@ -353,7 +356,7 @@ void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 	_struct->size = size;
 }
 
-#define resolved(expression) if(expression->is_resolved == false) { any_change = true; } expression->is_resolved = true;
+#define resolved(expression) if(expression->is_resolved == false) { any_change = true; expression->is_resolved = true; }
 #define set_type_and_break(_type) type = _type; break;
 AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 	AST_Type* type = NULL;
@@ -796,7 +799,7 @@ bool TypeResolver::is_pointer(AST_Expression* expression) {
 bool TypeResolver::is_number(AST_Expression* expression) {
 	if (expression->type == AST_LITERAL) {
 		auto literar = static_cast<AST_Literal*>(expression);
-		if (literar->value_type == LITERAL_NUMBER) {
+		if (literar->value_type == LITERAL_NUMBER || literar->value_type == LITERAL_FLOAT) {
 			return true;
 		}
 	}
@@ -889,8 +892,11 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 					return interpret->type_s32;*/
 				return find_typeof(_enum->enum_type);
 			}
+			else if (type->kind == AST_TYPE_ARRAY) {
+
+			}
 			else {
-				assert(false && "Just now we can dereference only struct");
+				assert(false && "Just now we can dereference only struct and enum");
 			}
 		}
 	}
@@ -1440,6 +1446,12 @@ bool TypeResolver::compare_type(AST_Expression* left, AST_Expression* right) {
 
 			if (type_def_left->internal_type == type_def_right->internal_type) return true;
 		}
+		if (type_left->kind == AST_TYPE_ARRAY) {
+			auto arr_left = (AST_Array*)type_left;
+			auto arr_right = (AST_Array*)type_right;
+
+			return compare_type(arr_left->point_to, arr_right->point_to);
+		}
 	}
 
 	return false;
@@ -1592,12 +1604,12 @@ AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
 		else if (type->kind == AST_TYPE_ARRAY) {
 			auto arr = static_cast<AST_Array*>(expression);
 			//if (!deep) return arr;
-
+			/*
 			auto type = find_typeof(arr->point_to);
 			if (type->kind == AST_TYPE_POINTER) {
 				return find_typeof(type);
-			}
-			return type;
+			}*/ //@todo: hmm idk this
+			return arr;
 		}
 
 		return type;
@@ -1717,7 +1729,7 @@ String TypeResolver::typeToString(AST_Type* type) {
 	}
 	else if (type->kind == AST_TYPE_GENERIC) {
 		AST_Generic* ast_generic = static_cast<AST_Generic*>(type);
-		return "";
+		return "$";
 	}
 	else if (type->kind == AST_TYPE_ENUM) {
 		AST_Enum* ast_enum = static_cast<AST_Enum*>(type);

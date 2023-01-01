@@ -448,7 +448,7 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 		return declaration->register_index;
 	} 
 
-	if (declaration->register_index == -1) {
+	if (declaration->register_index == -1 && type->kind != AST_TYPE_ARRAY) {
 		int output_register = allocate_output_register(static_cast<AST_Type_Definition*>(declaration->assigmet_type));
 		declaration->register_index = output_register;	
 	}	
@@ -460,7 +460,21 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 		}
 
 		if (type->kind == AST_TYPE_ARRAY) {
-			build_array(declaration->register_index, (AST_Array*)type);
+			//allocate interpret->declaration_array
+			//fill the first element that is pointer to data soo array.size * Type
+			//fill the second element with size of the array
+			int output_register = allocate_output_register((AST_Type_Definition*)((AST_Declaration*)interpret->declaration_array)->assigmet_type);
+			declaration->register_index = output_register;
+			auto _struct = (AST_Struct*)(((AST_Declaration*)interpret->declaration_array)->value);
+			int size = typeResolver->calculate_array_size(type);
+			int amount_elements = typeResolver->calculate_size_of_static_expression(((AST_Array*)type)->size);
+			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, _struct->size, -1, declaration->register_index);
+			auto re_inst = Instruction(BYTECODE_RESERVE_MEMORY_TO_R, size, -1, declaration->register_index);
+			re_inst->options = OPTION_RESERVE_MEMORY_TO_R_BY_ADDRESS;
+			Instruction(BYTECODE_MOVE_CONSTANT_TO_R_PLUS_OFFSET, amount_elements, interpret->type_pointer->size, declaration->register_index);
+			//Instruction(BYTECODE_RESERVE_MEMORY_TO_R_PLUS_OFFSET, amount_elements, interpret->type_pointer->size, declaration->register_index)
+
+			//build_array(declaration->register_index, (AST_Array*)type);
 		}
 	}
 
@@ -844,6 +858,7 @@ int BytecodeBuilder::build_type(AST_Type* type) {
 		auto offset = build_array_offset(arr);
 		int output = allocate_output_register(interpret->type_u64);
 		auto inst = Instruction(BYTECODE_MOVE_A_BY_REFERENCE_PLUS_OFFSET_TO_R, arrAddr, offset, output);
+		inst->options = OPTION_MOVE_UNBOX;
 		return output;
 	}
 	if (type->kind == AST_TYPE_DEFINITION) {
@@ -1115,6 +1130,7 @@ int BytecodeBuilder::build_assigment(AST_Binary* binop) {
 		auto arr = static_cast<AST_Array*>(binop->left);
 		auto offset = build_array_offset(arr);
 		auto inst = Instruction(BYTECODE_MOVE_A_TO_R_PLUS_OFFSET_REG, addr, offset, addrResult);		
+		inst->options = OPTION_MOVE_UNBOX;
 	}
 	else if (binop->left->type == AST_BINARY) { //there is problem in struct.data[x]
 		auto _de_binop = static_cast<AST_Binary*>(binop->left);
@@ -1149,9 +1165,14 @@ int BytecodeBuilder::build_struct_dereference(AST_Binary* binary) {
 	*	struct + arra{addr of arra (10)} + test{add of test(8)} = 10 + 2 * (arra.type->size) 8 + 8 = 10 + 16 = *struct + 26 + 8
 	*/
 	auto ident = static_cast<AST_Ident*>(binary->left); //must be struct ident
+	auto ident_type = typeResolver->find_typeof(ident, false);
 	int addrStruct = find_address_of(binary->left);
 
 	auto member = find_last_member(binary->right, binary->left->scope);
+
+	if (ident_type->kind == AST_TYPE_ARRAY) {
+		member->scope = ((AST_Struct*)interpret->declaration_array->value)->members;
+	}
 	auto infern_type = typeResolver->find_typeof(member, false);
 	int reg = allocate_output_register(infern_type);
 
@@ -1206,6 +1227,10 @@ int BytecodeBuilder::build_reference(AST_Binary* binary) {
 			return build_struct_dereference(binary);
 		else if (type->kind == AST_TYPE_ENUM)
 			return build_enum_dereference(binary);
+		else if(type->kind == AST_TYPE_ARRAY)
+			return build_struct_dereference(binary);
+		else
+			assert(false && "Can reference only ENUM and STRUCT");
 	}
 
 	assert(false && "Can reference only ENUM and STRUCT");
