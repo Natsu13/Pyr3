@@ -266,16 +266,16 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 		auto type = get_type_base((AST_Type*)types[result_type]);\
 		if(type->kind == AST_TYPE_DEFINITION) {\
 			auto tdef = (AST_Type_Definition*)type;\
-			if(tdef->internal_type == AST_Type_s8) variable = (void*)this->registers[index]._s8;\
-			else if(tdef->internal_type == AST_Type_s16) variable = (void*)this->registers[index]._s16;\
-			else if(tdef->internal_type == AST_Type_s32) variable = (void*)this->registers[index]._s32;\
-			else if(tdef->internal_type == AST_Type_s64) variable = (void*)this->registers[index]._s64;\
-			else if(tdef->internal_type == AST_Type_u8) variable = (void*)this->registers[index]._u8;\
-			else if(tdef->internal_type == AST_Type_u16) variable = (void*)this->registers[index]._u16;\
-			else if(tdef->internal_type == AST_Type_u32) variable = (void*)this->registers[index]._u32;\
-			else if(tdef->internal_type == AST_Type_u64) variable = (void*)this->registers[index]._u64;\
-			else if(tdef->internal_type == AST_Type_char) variable = (void*)this->registers[index]._u32;\
-			else if(tdef->internal_type == AST_Type_float) variable = (void*)(int*)&this->registers[index]._float;\
+			if(tdef->internal_type == AST_Type_s8) variable = (void*)(&this->registers[index]._s8);\
+			else if(tdef->internal_type == AST_Type_s16) variable = (void*)(&this->registers[index]._s16);\
+			else if(tdef->internal_type == AST_Type_s32) variable = (void*)(&this->registers[index]._s32);\
+			else if(tdef->internal_type == AST_Type_s64) variable = (void*)(&this->registers[index]._s64);\
+			else if(tdef->internal_type == AST_Type_u8) variable = (void*)(&this->registers[index]._u8);\
+			else if(tdef->internal_type == AST_Type_u16) variable = (void*)(&this->registers[index]._u16);\
+			else if(tdef->internal_type == AST_Type_u32) variable = (void*)(&this->registers[index]._u32);\
+			else if(tdef->internal_type == AST_Type_u64) variable = (void*)(&this->registers[index]._u64);\
+			else if(tdef->internal_type == AST_Type_char) variable = (void*)(&this->registers[index]._u32);\
+			else if(tdef->internal_type == AST_Type_float) variable = (void*)((int*)&this->registers[index]._float);\
 			else variable = this->registers[index]._pointer;\
 		} else {\
 			assert(false);\
@@ -342,7 +342,7 @@ int BytecodeRunner::run_expression(int address) {
 		}
 		case BYTECODE_INSTRICT_ASSERT: {
 			//auto x = this->registers[bc->index_r]._pointer;
-			GET_VALUE_FROM_REGISTER(value, bc->index_r, bc->index_r);
+			GET_VALUE_FROM_REGISTER(value, bc->index_r, bc->index_r); //@todo: check
 			assert(value != 0);
 
 			//assert(this->registers[bc->index_r]._s64 != 0);
@@ -678,7 +678,7 @@ int BytecodeRunner::run_expression(int address) {
 			auto type = static_cast<AST_Type*>(this->types[bc->index_r]);
 			if (type->kind == AST_TYPE_DEFINITION) {
 				//auto olo = this->registers[bc->index_a];
-				GET_VALUE_FROM_REGISTER(value, bc->index_a, bc->index_r);
+				GET_VALUE_FROM_REGISTER(value, bc->index_a, bc->index_r); //@todo: check
 				val = value;
 			}
 			else if (type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY || type->kind == AST_TYPE_POINTER) {
@@ -720,7 +720,7 @@ int BytecodeRunner::run_expression(int address) {
 			void* val = NULL;
 			auto type = static_cast<AST_Type*>(this->types[moving_register]);
 			if (type->kind == AST_TYPE_DEFINITION) {
-				GET_VALUE_FROM_REGISTER(value, moving_register, moving_register);
+				GET_VALUE_FROM_REGISTER(value, moving_register, moving_register); //@todo: check
 				val = value;
 			}
 			else if (type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY || type->kind == AST_TYPE_POINTER) {
@@ -807,8 +807,8 @@ int BytecodeRunner::run_expression(int address) {
 			}
 			else {
 				//size = this->registers[bc->index_a]._s64;
-				GET_VALUE_FROM_REGISTER(size_val, bc->index_a, bc->index_a)
-				size = (int)size_val;
+				GET_VALUE_FROM_REGISTER(size_val, bc->index_a, bc->index_a); //@todo: check
+				size = *(int64_t*)size_val;
 			}
 
 			if (bc->options == OPTION_RESERVE_MEMORY_TO_R_BY_ADDRESS) {
@@ -988,8 +988,8 @@ int BytecodeRunner::run_expression(int address) {
 		case BYTECODE_ADDRESS_OF: {
 			auto type = static_cast<AST_Type*>(this->types[bc->index_a]);
 			if (type->kind == AST_TYPE_DEFINITION) {
-				GET_VALUE_FROM_REGISTER(value, bc->index_a, bc->index_a);
-				this->registers[bc->index_r]._pointer = &value;
+				GET_VALUE_FROM_REGISTER(value, bc->index_a, bc->index_a); //@todo: check
+				this->registers[bc->index_r]._pointer = value;
 			}
 			else if (type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_ARRAY || type->kind == AST_TYPE_POINTER) {
 				this->registers[bc->index_r]._pointer = &(this->registers[bc->index_a]._pointer);
@@ -1035,46 +1035,48 @@ int BytecodeRunner::run_binop(int address) {
 	GET_VALUE_FROM_REGISTER(rega, bc->index_a, bc->index_a);
 	GET_VALUE_FROM_REGISTER(regb, bc->index_b, bc->index_b);
 
-	uint64_t result;
+	int64_t value_a = *(int64_t*)rega;
+	int64_t value_b = *(int64_t*)regb;
+	int64_t result;
 
 	if (bc->instruction == BYTECODE_BINOP_PLUS) {		
-		result = (uint64_t)rega + (uint64_t)regb;
+		result = value_a + value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_MINUS) {		
-		result = (uint64_t)rega - (uint64_t)regb;
+		result = value_a - value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_DIV) {		
-		result = (uint64_t)rega / (uint64_t)regb;
+		result = value_a / value_b;
 	}
-	else if (bc->instruction == BYTECODE_BINOP_TIMES) {				
-		result = (uint64_t)rega * (uint64_t)regb;
+	else if (bc->instruction == BYTECODE_BINOP_TIMES) {	
+		result = value_a * value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_MOD) {
-		result = (uint64_t)rega % (uint64_t)regb;
+		result = value_a % value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_ISEQUAL) {
-		this->registers[bc->index_r]._u8 = rega == regb;		
+		this->registers[bc->index_r]._u8 = value_a == value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_ISNOTEQUAL) {		
-		this->registers[bc->index_r]._u8 = rega != regb;
+		this->registers[bc->index_r]._u8 = value_a != value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_GREATER) {					
-		this->registers[bc->index_r]._u8 = rega > regb;		
+		this->registers[bc->index_r]._u8 = value_a > value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_GREATEREQUAL) {		
-		this->registers[bc->index_r]._u8 = rega >= regb;
+		this->registers[bc->index_r]._u8 = value_a >= value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_LESS) {		
-		this->registers[bc->index_r]._u8 = rega < regb;
+		this->registers[bc->index_r]._u8 = value_a < value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_LESSEQUAL) {		
-		this->registers[bc->index_r]._u8 = rega <= regb;
+		this->registers[bc->index_r]._u8 = value_a <= value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_LOGIC_AND) {		
-		this->registers[bc->index_r]._u8 = rega && regb;
+		this->registers[bc->index_r]._u8 = value_a && value_b;
 	}
 	else if (bc->instruction == BYTECODE_BINOP_LOGIC_OR) {
-		this->registers[bc->index_r]._u8 = rega || regb;
+		this->registers[bc->index_r]._u8 = value_a || value_b;
 	}
 	else {
 		assert(false);
