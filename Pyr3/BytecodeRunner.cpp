@@ -276,6 +276,7 @@ HMODULE BytecodeRunner::get_hmodule(const char* name) {
 			else if(tdef->internal_type == AST_Type_u64) variable = (void*)(&this->registers[index]._u64);\
 			else if(tdef->internal_type == AST_Type_char) variable = (void*)(&this->registers[index]._u32);\
 			else if(tdef->internal_type == AST_Type_float) variable = (void*)((int*)&this->registers[index]._float);\
+			else if(tdef->internal_type == AST_Type_definition) variable = (void*)(&this->registers[index]._pointer);\
 			else variable = this->registers[index]._pointer;\
 		} else {\
 			assert(false);\
