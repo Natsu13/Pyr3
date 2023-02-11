@@ -57,14 +57,6 @@ void TypeResolver::resolve_main(AST_Block* block) {
 	}*/
 }
 
-void TypeResolver::copy_token(AST_Expression* old, AST_Expression* news) {
-	news->token = new Token();
-	news->token->file_name = old->token->file_name;
-	news->token->column = old->token->column;
-	news->token->row = old->token->row;
-	news->token->value = old->token->value; //@todo: maybe?
-}
-
 AST_Type* TypeResolver::get_inferred_type(AST_Expression* expression) {
 	if (expression->type == AST_IDENT) {
 		auto ident = static_cast<AST_Ident*>(expression);
@@ -79,8 +71,10 @@ AST_Type* TypeResolver::get_inferred_type(AST_Expression* expression) {
 }
 
 void TypeResolver::addToResolve(AST_Expression* expression) {
-	//add check if the expression is alerady not in the list!
 	if (expression->is_resolved) return;
+	For(to_be_resolved) {
+		if (it == expression) return; //but we should look whe this can happend!
+	}
 	to_be_resolved.push_back(expression);
 }
 
@@ -90,16 +84,19 @@ void TypeResolver::resolveOther() {
 	if (any_change || phase == 2) {
 		any_change = false;
 
-		vector<AST_Expression*> resolve;
-		for (int i = 0; i < to_be_resolved.size(); i++) {
-			resolve.push_back(to_be_resolved[i]);
-		}
-		to_be_resolved.clear();
+		if (to_be_resolved.size() != 0) {
+			vector<AST_Expression*> resolve;
+			//because we adding to the resolve as we found it we shout reverse resolve it
+			for (int i = to_be_resolved.size() - 1; i >= 0; i--) {
+				auto expression = to_be_resolved[i];
+				if (expression->is_resolved) continue;
+				resolve.push_back(expression);
+			}
+			to_be_resolved.clear();
 
-		for (int i = 0; i < resolve.size(); i++) {
-			AST_Expression* it = resolve[i];
-			if (it->is_resolved) continue;
-			resolveExpression(it);
+			for (int i = 0; i < resolve.size(); i++) {
+				resolveExpression(resolve[i]);
+			}
 		}
 	}
 }
@@ -265,8 +262,13 @@ int TypeResolver::calculate_array_size(AST_Type* type, bool first) {
 		}
 		else if (type->kind == AST_TYPE_STRUCT) {
 			AST_Struct* _struct = static_cast<AST_Struct*>(type);
-			calculate_struct_size(_struct, false);
+			calculate_type_size(_struct);
 			return _struct->size;
+		}
+		else if (type->kind == AST_TYPE_UNION) {
+			AST_Union* _union = static_cast<AST_Union*>(type);
+			calculate_type_size(_union);
+			return _union->size;
 		}
 		else {
 			return 1;
@@ -287,10 +289,18 @@ int TypeResolver::get_size_of(AST_Expression* expr) {
 		else if (type->kind == AST_TYPE_ARRAY) {
 			return calculate_array_size(type);
 		}
-		else if (type->kind == AST_TYPE_STRUCT) {
-			auto _struct = (AST_Struct*)type;
-			calculate_struct_size(_struct);
-			return _struct->size;
+		else if (type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_UNION) {			
+			calculate_type_size(type);
+
+			if (type->kind == AST_TYPE_STRUCT) {
+				auto _struct = (AST_Struct*)type;
+				return _struct->size;
+			}
+			else if (type->kind == AST_TYPE_UNION) {
+				auto _union = (AST_Union*)type;
+				return _union->size;
+			}
+			assert(false);
 		}
 	}
 	else if (expr->type == AST_DECLARATION) {
@@ -302,18 +312,34 @@ int TypeResolver::get_size_of(AST_Expression* expr) {
 	return 0;
 }
 
-bool TypeResolver::ensure_struct_elements_is_resolved(AST_Struct* _struct) {
-	for (int i = 0; i < _struct->members->expressions.size(); i++) {
-		auto it = _struct->members->expressions[i];
+AST_Block* TypeResolver::get_members_of_type(AST_Type* _type) {
+	if (_type->kind == AST_TYPE_STRUCT) {
+		return ((AST_Struct*)_type)->members;
+	}
+	else if (_type->kind == AST_TYPE_UNION) {
+		return ((AST_Union*)_type)->members;
+	}
+	
+	assert(false);
+}
+
+bool TypeResolver::ensure_elements_is_resolved(AST_Type* _type) {
+	auto members = get_members_of_type(_type);
+
+	for (int i = 0; i < members->expressions.size(); i++) {
+		auto it = members->expressions[i];
 		if (!it->is_resolved) return false;
 	}
 	return true;
 }
 
-void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
+void TypeResolver::calculate_type_size(AST_Type* _type, int offset) {
+	auto members = get_members_of_type(_type);
+
 	int size = 0;
-	for (int i = 0; i < _struct->members->expressions.size(); i++) {
-		auto it = _struct->members->expressions[i];
+	int max_size = 0;
+	for (int i = 0; i < members->expressions.size(); i++) {
+		auto it = members->expressions[i];
 
 		if (it->type == AST_DECLARATION) {
 			auto declaration = static_cast<AST_Declaration*>(it);
@@ -322,20 +348,41 @@ void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 				declaration->offset = offset + size;
 
 				size+= type_def->size;
+				if (type_def->size > max_size) max_size = type_def->size;
+
 				continue;
 			}
 			else if (declaration->inferred_type->kind == AST_TYPE_ENUM) {
 				auto _enum = static_cast<AST_Enum*>(declaration->inferred_type);
 				declaration->offset = offset + size;
+				int new_size = 0;
 				if (_enum->enum_type == NULL)
-					size += interpret->type_s32->size;
+					new_size = interpret->type_s32->size;
 				else
-					size += get_size_of(_enum->enum_type);
+					new_size = get_size_of(_enum->enum_type);
+				
+				size += new_size;
+				if (new_size > max_size) max_size = new_size;
+
+				continue;
+			}
+			else if (declaration->inferred_type->kind == AST_TYPE_UNION) {
+				auto _union = static_cast<AST_Union*>(declaration->inferred_type);
+				declaration->offset = offset + size;
+				if (!_union->is_resolved) {
+					resolveExpression(_union);
+				}
+				size += _union->size;
+				if (_union->size > max_size) max_size = _union->size;
+
 				continue;
 			}
 			else if (declaration->inferred_type->kind == AST_TYPE_POINTER) {
 				declaration->offset = offset + size;
+				
 				size += interpret->type_pointer->size; 
+				if (interpret->type_pointer->size > max_size) max_size = interpret->type_pointer->size;
+
 				continue;
 			}
 			assert(false);
@@ -344,16 +391,27 @@ void TypeResolver::calculate_struct_size(AST_Struct* _struct, int offset) {
 			auto type = static_cast<AST_Type*>(it);
 			if (type->kind == AST_STRUCT) {
 				auto _type_struct = static_cast<AST_Struct*>(type);
-				calculate_struct_size(_type_struct, size);
+				calculate_type_size(_type_struct, size);
+
 				size += _type_struct->size;
+				if (_type_struct->size > max_size) max_size = _type_struct->size;
+				
 				continue;
+			}
+			else {
+				assert(false);
 			}
 		}
 
 		assert(false);
 	}
 
-	_struct->size = size;
+	if (_type->kind == AST_TYPE_STRUCT) {
+		((AST_Struct*)_type)->size = size;
+	}
+	else {
+		((AST_Union*)_type)->size = max_size;
+	}
 }
 
 #define resolved(expression) if(expression->is_resolved == false) { any_change = true; expression->is_resolved = true; }
@@ -372,18 +430,15 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 			resolveExpression(condition->body_pass);
 			if (condition->body_fail != NULL)
 				resolveExpression(condition->body_fail);
-
 			set_type_and_break(NULL);
 		}
 		case AST_BLOCK: {
 			AST_Block* _block = static_cast<AST_Block*>(expression);
 			resolve(_block);
-
 			set_type_and_break(NULL);
 		}
 		case AST_DECLARATION: {
 			AST_Declaration* declaration = static_cast<AST_Declaration*>(expression);
-			
 			set_type_and_break(resolveDeclaration(declaration));
 		}
 		case AST_TYPE: {
@@ -444,7 +499,7 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 						auto old = procedure->foreign_library_expression;
 						auto news = get_string_from_literal(old);
 						procedure->foreign_library_expression = make_string_literal(news);
-						copy_token(old, procedure->foreign_library_expression);
+						copier->copy_token(old, procedure->foreign_library_expression);
 					}
 				}
 			}
@@ -618,7 +673,8 @@ AST_Type* TypeResolver::resolveExpression(AST_Expression* expression) {
 	}
 
 	if (type != NULL) {
-		resolved(expression);
+		if (((expression->type == AST_TYPE) && expression->is_resolved) || expression->type != AST_TYPE)
+			 resolved(expression);
 	}
 
 	return type;
@@ -710,16 +766,30 @@ AST_Type* TypeResolver::resolveType(AST_Type* type, bool as_declaration, AST_Exp
 		pointer->point_type = resolveExpression(pointer->point_to);
 		return pointer;
 	}
-	else if (type->kind == AST_TYPE_STRUCT) {
+	/*else if (type->kind == AST_TYPE_STRUCT) {
 		AST_Struct* _struct = static_cast<AST_Struct*>(type);
 		resolve(_struct->members);
-		if (!ensure_struct_elements_is_resolved(_struct)) {
+		if (!ensure_elements_is_resolved(_struct)) {
 			addToResolve(_struct);
 		}
 		else {
-			calculate_struct_size(_struct);		
+			calculate_type_size(_struct);		
 		}
 		return _struct;
+	}*/
+	else if (type->kind == AST_TYPE_UNION || type->kind == AST_TYPE_STRUCT) {
+		//AST_Union* _union = static_cast<AST_Union*>(type);
+		if (!ensure_elements_is_resolved(type)) {
+			auto expresions = get_members_of_type(type)->expressions;
+			For(expresions) {
+				addToResolve(it);
+			}
+			addToResolve(type);
+ 		}
+		else {
+			calculate_type_size(type);
+		}
+		return type;
 	}
 	else if (type->kind == AST_TYPE_ENUM) {
 		AST_Enum* _enum = static_cast<AST_Enum*>(type);
@@ -1167,7 +1237,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 			resolved(declaration);
 			return NULL;
 		}
-		if (valueType != NULL && valueType->kind == AST_TYPE_STRUCT) {
+		if (valueType != NULL && (valueType->kind == AST_TYPE_STRUCT || valueType->kind == AST_TYPE_UNION)) {
 			valueType->expression = declaration->ident;
 		}
 	}
@@ -1235,7 +1305,11 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 		}
 	}
 
-	if ((declaration->flags & AST_DECLARATION_FLAG_CONSTANT) == AST_DECLARATION_FLAG_CONSTANT && type != NULL && type->kind != AST_TYPE_STRUCT && type->kind != AST_TYPE_ENUM) {
+	if ((declaration->flags & AST_DECLARATION_FLAG_CONSTANT) == AST_DECLARATION_FLAG_CONSTANT && 
+		type != NULL && 
+		type->kind != AST_TYPE_STRUCT && 
+		type->kind != AST_TYPE_ENUM &&
+		type->kind != AST_TYPE_UNION) {
 		if (declaration->value != NULL && declaration->value->type != AST_PROCEDURE) {
 			if (!is_static(declaration->value)) {
 				interpret->report_error(declaration->value->token, "You must pass only constatnt values to constant declaration");
@@ -1245,7 +1319,7 @@ AST_Type* TypeResolver::resolveDeclaration(AST_Declaration* declaration) {
 				if (is_type_integer(type)) {
 					auto old = declaration->value;
 					declaration->value = make_number_literal(calculate_size_of_static_expression(declaration->value));
-					copy_token(old, declaration->value);
+					copier->copy_token(old, declaration->value);
 				}
 			}
 		}
@@ -1552,40 +1626,6 @@ AST_Declaration* TypeResolver::find_declaration(AST_Ident* ident, AST_Block* sco
 	if (declarations.size() == 0) return NULL;
 	auto declaration = declarations.front();
 	return declaration;
-	
-	/*
-	for (int i = 0; i < scope->expressions.size(); i++) {
-		auto expression = scope->expressions[i];
-		if (expression->type == AST_DECLARATION) {
-			auto declaration = static_cast<AST_Declaration*>(expression);
-			if (declaration->ident->name->value == ident->name->value) {
-				if (declaration->value != NULL && declaration->value->type == AST_IDENT) {
-					auto new_ident = static_cast<AST_Ident*>(declaration->value);
-					return find_declaration(new_ident, new_ident->scope);
-				}
-				return declaration;
-			}
-		}
-	}
-
-	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_PROCEDURE) {
-		auto decl = find_declaration(ident, scope->belongs_to_procedure->header);
-		if (decl != NULL) {
-			return decl;
-		}
-	}
-
-	if (scope->belongs_to == AST_BLOCK_BELONGS_TO_FOR) {
-		auto decl = find_declaration(ident, scope->belongs_to_for->header);
-		if (decl != NULL) {
-			return decl;
-		}
-	}
-
-	if (scope->scope != NULL)
-		return find_declaration(ident, scope->scope);
-
-	return NULL;*/
 }
 
 AST_Type* TypeResolver::find_typeof(AST_Expression* expression, bool deep) {
@@ -1718,6 +1758,14 @@ String TypeResolver::typeToString(AST_Type* type) {
 			return (String)"struct<" + ident->name->value.data + ">";
 		}
 		return "struct<>";
+	}
+	else if (type->kind == AST_TYPE_UNION) {
+		auto _union = static_cast<AST_Union*>(type);
+		if (_union->expression != NULL && _union->expression->type == AST_IDENT) {
+			auto ident = (AST_Ident*)_union->expression;
+			return (String)"union<" + ident->name->value.data + ">";
+		}
+		return "union<>";
 	}
 	else if (type->kind == AST_TYPE_POINTER) {
 		auto point = static_cast<AST_Pointer*>(type);

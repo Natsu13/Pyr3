@@ -163,6 +163,8 @@ const char* token_to_string(int type) {
 		return "enum";
 	case TOKEN_KEYWORD_STRUCT:
 		return "struct";
+	case TOKEN_KEYWORD_UNION:
+		return "union";
 	case TOKEN_KEYWORD_DEFER:
 		return "defer";
 	case TOKEN_KEYWORD_CONSTRUCTOR:

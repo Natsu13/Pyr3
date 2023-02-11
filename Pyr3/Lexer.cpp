@@ -271,6 +271,7 @@ int Lexer::decide_token_keyword(String word) {
 		if (COMPARE(word, "while"))			return TOKEN_KEYWORD_WHILE;
 		if (COMPARE(word, "defer"))			return TOKEN_KEYWORD_DEFER;
 		if (COMPARE(word, "float"))			return TOKEN_KEYWORD_FLOAT;
+		if (COMPARE(word, "union"))			return TOKEN_KEYWORD_UNION;
 	}
 	else if (word.size == 6) {
 		if (COMPARE(word, "return"))		return TOKEN_KEYWORD_RETURN;

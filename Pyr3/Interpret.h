@@ -138,7 +138,8 @@ enum AST_Type_Types {
 	AST_TYPE_STRUCT			= 0x3,
 	AST_TYPE_ARRAY			= 0x4,
 	AST_TYPE_ENUM			= 0x5,
-	AST_TYPE_GENERIC		= 0x6
+	AST_TYPE_GENERIC		= 0x6,
+	AST_TYPE_UNION			= 0x7
 };
 
 struct AST_Type : public AST_Expression {
@@ -158,6 +159,13 @@ struct AST_Type_Definition : public AST_Type {
 
 struct AST_Struct : public AST_Type {
 	AST_Struct() { kind = AST_TYPE_STRUCT; }
+
+	AST_Block* members = NULL;
+	int size = 0;
+};
+
+struct AST_Union : public AST_Type {
+	AST_Union() { kind = AST_TYPE_UNION; }
 
 	AST_Block* members = NULL;
 	int size = 0;

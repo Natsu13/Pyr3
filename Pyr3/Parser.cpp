@@ -127,6 +127,9 @@ AST_Expression* Parser::parse_expression() {
 	else if (token->type == TOKEN_KEYWORD_STRUCT) {
 		return parse_struct();
 	}
+	else if (token->type == TOKEN_KEYWORD_UNION) {
+		return parse_union();
+	}
 	else if (token->type == TOKEN_KEYWORD_ENUM) {
 		return parse_enum();
 	}
@@ -465,6 +468,33 @@ AST_Enum* Parser::parse_enum() {
 	return _enum;
 }
 
+void Parser::parse_member_union(AST_Union* _union){
+	lexer->eat_token(); //eat {
+	Token* token = lexer->peek_next_token();
+
+	_union->members = AST_NEW(AST_Block);
+
+	while (token->type != '}' && token->type != TOKEN_EOF) {
+		if (token->type == '#') {
+
+		}
+		else {
+			auto primary = parse_expression();
+			_union->members->expressions.push_back(primary);
+		}
+
+		lexer->eat_token();
+		token = lexer->peek_next_token();
+
+		if (token->type == ';') {
+			lexer->eat_token();
+			token = lexer->peek_next_token();
+		}
+	}
+
+	assert(token->type == '}');
+}
+
 void Parser::parse_member_struct(AST_Struct* _struct) {
 	lexer->eat_token(); //eat {
 	Token* token = lexer->peek_next_token();
@@ -480,7 +510,7 @@ void Parser::parse_member_struct(AST_Struct* _struct) {
 			_struct->members->expressions.push_back(primary);
 		}
 		
-		lexer->eat_token();
+		//lexer->eat_token();
 		token = lexer->peek_next_token();
 
 		if (token->type == ';') {
@@ -490,6 +520,26 @@ void Parser::parse_member_struct(AST_Struct* _struct) {
 	}
 
 	assert(token->type == '}');
+}
+
+AST_Union* Parser::parse_union() {
+	lexer->eat_token();
+	Token* token = lexer->peek_next_token();
+
+	if (token->type != '{') {
+		interpret->report_error(token, "Union members must be inside block");
+		return NULL;
+	}
+
+	AST_Union* _union = AST_NEW(AST_Union);
+
+	parse_member_union(_union);
+
+	token = lexer->peek_next_token();
+	assert(token->type == '}');
+	lexer->eat_token();
+
+	return _union;
 }
 
 AST_Struct* Parser::parse_struct() {
@@ -502,7 +552,6 @@ AST_Struct* Parser::parse_struct() {
 	}
 
 	AST_Struct* _struct = AST_NEW(AST_Struct);
-	_struct->serial = interpret->typeCounter++;
 
 	parse_member_struct(_struct);
 
@@ -1100,20 +1149,6 @@ AST_Expression* Parser::parse_ident() {
 		}
 
 		assign_to_ident_or_paramlist(ident, _ident);
-		/*if (ident == NULL) {
-			ident = _ident;
-		}
-		else if(ident->type == AST_IDENT){
-			auto param_list = AST_NEW(AST_ParamList);
-			param_list->expressions.push_back(ident);
-			param_list->expressions.push_back(_ident);
-			ident = param_list;
-		}
-		else {
-			assert(ident->type == AST_PARAMLIST);
-			auto param_list = (AST_ParamList*)ident;
-			param_list->expressions.push_back(_ident);
-		}*/
 		token = lexer->peek_next_token();
 	}
 
@@ -1155,29 +1190,35 @@ AST_Expression* Parser::parse_ident() {
 			interpret->report_error(token, "Param list declaration can't have specifed types by declaration please use := auto decide.");
 		}
 
-		if (token->type == '$') { //parse generic types 'value: $T'
-			lexer->eat_token();
-			declaration->flags |= TYPE_DEFINITION_GENERIC;
-			token = lexer->peek_next_token();
-		}
-		
-		AST_Ident* type = NULL;
-		bool is_typedef = this->is_typedef_keyword();
-		if (token->type == TOKEN_IDENT || is_typedef) {
+		if (token->type != ':') {
+			if (token->type == '$') { //parse generic types 'value: $T'
+				lexer->eat_token();
+				declaration->flags |= TYPE_DEFINITION_GENERIC;
+				token = lexer->peek_next_token();
+			}
+
+			bool is_typedef = is_typedef_keyword();
 			if (is_typedef) {
 				declaration->assigmet_type = parse_type();
+				token = lexer->peek_next_token();
+				if (token->type == TOKEN_LBRACKET) {
+					declaration->assigmet_type = parse_type_array(declaration->assigmet_type);
+				}
+			}
+			else if ((declaration->flags & TYPE_DEFINITION_GENERIC) == TYPE_DEFINITION_GENERIC) {
+				declaration->assigmet_type = create_ident_from_current_token();
+				token = lexer->peek_next_token();
+				if (token->type == TOKEN_LBRACKET) {
+					declaration->assigmet_type = parse_type_array(declaration->assigmet_type);
+				}
 			}
 			else {
-				type = create_ident_from_current_token();
-				declaration->assigmet_type = type;
+				declaration->assigmet_type = parse_primary();
 			}
+
 			token = lexer->peek_next_token();
-			if (token->type == TOKEN_LBRACKET) {
-				declaration->assigmet_type = parse_type_array(declaration->assigmet_type);
-			}
 		}
 
-		token = lexer->peek_next_token();
 		if (token->type == ':') { //Constant
 			declaration->flags |= AST_DECLARATION_FLAG_CONSTANT;
 		}

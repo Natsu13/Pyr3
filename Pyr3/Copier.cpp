@@ -13,6 +13,14 @@ Token* Copier::copy_token(Token* token) {
 	return news;
 }
 
+void Copier::copy_token(AST_Expression* old, AST_Expression* news) {
+	news->token = new Token();
+	news->token->file_name = old->token->file_name;
+	news->token->column = old->token->column;
+	news->token->row = old->token->row;
+	news->token->value = old->token->value; //@todo: maybe?
+}
+
 #define AST_COPY(type, expression) (type*)copy_expression(expression, AST_NEW_EMPTY(type));
 
 AST_Expression* Copier::copy_expression(AST_Expression* expression, AST_Expression* expression_copy) {

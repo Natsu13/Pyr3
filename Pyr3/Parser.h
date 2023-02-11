@@ -42,6 +42,9 @@ private:
 	AST_Enum* parse_enum();
 	void parse_member_enum(AST_Enum* _enum);
 
+	AST_Union* parse_union();
+	void parse_member_union(AST_Union* _union);
+
 	AST_Return* parse_return();
 	AST_Cast* parse_cast();
 	AST_Operator* parse_operator();

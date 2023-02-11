@@ -24,5 +24,6 @@ public:
 	AST_Unary* copy_unary(AST_Unary* unary);
 
 	Token* copy_token(Token* token);
+	void copy_token(AST_Expression* old, AST_Expression* news);
 };
 

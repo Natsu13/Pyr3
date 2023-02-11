@@ -77,7 +77,8 @@ public:
 
 	AST_Operator* findOperator(int Operator, AST_Type* type1, AST_Type* type2 = NULL);
 
-	bool ensure_struct_elements_is_resolved(AST_Struct* _struct);
+	AST_Block* get_members_of_type(AST_Type* _type);
+	bool ensure_elements_is_resolved(AST_Type* _type);
 
 	AST_Type* find_typeof(AST_Expression* expression, bool deep = true);
 	AST_Type* find_typedefinition(AST_Ident* ident, AST_Block* scope);
@@ -101,7 +102,7 @@ public:
 	bool compare_type(AST_Expression* left, AST_Expression* right);
 
 	int get_size_of(AST_Expression* expr);
-	void calculate_struct_size(AST_Struct* _struct, int offset = 0);
+	void calculate_type_size(AST_Type* _type, int offset = 0);
 	void calcaulate_index_of_enum(AST_Enum* _enum);
 	bool is_static(AST_Expression* expression);
 	int do_int_operation(int left, int right, int op);

@@ -23,5 +23,9 @@ void __M_Assert(const char* expr_str, bool expr, const char* file, int line, con
 #define COMPARE(a,b) a[0]==b[0] && strcmp(a, b)==0
 #define COMPARE_CH(a, b) a == b
 
-#define For(elements) auto it = elements.size() == 0? NULL: elements[0]; for(int it_index = 0; it_index < elements.size(); it_index++,  it = elements[it_index < elements.size()? it_index: 0])
+#define For(elements) \
+	auto it = elements.size() == 0? NULL: elements[0]; \
+	for(int it_index = 0; it_index < elements.size(); it_index++,  it = elements[it_index < elements.size()? it_index: 0])
+
+#define ForType(elements, type) for(type* it = elements.size() == 0? NULL: elements[0], int it_index = 0; it_index < elements.size(); it_index++,  it = elements[it_index < elements.size()? it_index: 0])
 #define ForPush(elements, destination) for(int it_index = 0; it_index < elements.size(); it_index++) { destination.push_back(elements[it_index]); }
