@@ -1,10 +1,9 @@
 # Pyr3
 New programming language in C++
 
-Some example
-Factorial!
+Some examples:
 
-Calculated in 0.005 ms
+Example of Factorial! Calculated in 0.005 ms
 
 ```
 main :: () {
@@ -24,6 +23,7 @@ factorial :: (x: u64) -> u64 {
 }
 ```
 
+Example of typeof conditions
 ```
 number:s64 = 13;
 if typeof(number) == s16 {
@@ -34,6 +34,7 @@ if typeof(number) == s16 {
 }
 ```
 
+Example of foor lopp and range operator
 ```
 start :: 0;
 for index, key: start..start + 10 {
@@ -44,6 +45,7 @@ for index, key: start..start + 10 {
 }
 ```
 
+Example of return list
 ```
 main :: (){
     a, b := swap(1,2);
@@ -57,6 +59,7 @@ swap :: (a: s64, b: s64) -> s64, s64 {
 }
 ```
 
+Example of typeof, sizeof
 ```
 main :: () {
     print(typeof(Types));
@@ -79,10 +82,12 @@ TypeDefinition :: struct {
 }
 ```
 
+Example of foreign procedures from system library
 ```
 GetForegroundWindow :: () -> ptr #foreign "USER32.DLL";
 ```
 
+Example of custom array with pointer index skip
 ```
 arr: *s64;
 arr= malloc(128);
@@ -94,6 +99,7 @@ print(arr[1]);
 print(arr[2]);
 ```
 
+Example of build in Array
 ```
 main :: () {
     arr: s64[2];        
@@ -107,5 +113,26 @@ main :: () {
 Array :: struct {
     count: s64;
     data: *s64;
+}
+```
+
+Example of Union in Struct
+```
+Test :: struct {
+    size: s16;
+    x: s64;
+    value: union {
+        number: s64;
+        text: string;        
+        x: s64;
+        y: s64;
+    }
+}
+
+main :: () {
+    test: Test;
+    test.value.x = 36;
+    test.value.text = "Hello";
+    print(test.value.text);
 }
 ```
