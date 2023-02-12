@@ -249,7 +249,7 @@ int BytecodeBuilder::build_expression(AST_Expression* expression) {
 
 		auto inst = Instruction(BYTECODE_CAST, from_register, -1, result_register);
 
-		if(!(type->kind == AST_TYPE_DEFINITION || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_POINTER)) {
+		if(!(type->kind == AST_TYPE_DEFINITION || type->kind == AST_TYPE_STRUCT || type->kind == AST_TYPE_UNION || type->kind == AST_TYPE_POINTER)) {
 			assert(false);
 		}
 
@@ -458,8 +458,11 @@ int BytecodeBuilder::build_declaration(AST_Declaration* declaration) {
 			auto _struct = static_cast<AST_Struct*>(type);
 			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, _struct->size, -1, declaration->register_index);
 		}
-
-		if (type->kind == AST_TYPE_ARRAY) {
+		else if (type->kind == AST_TYPE_UNION) {
+			auto _union = static_cast<AST_Union*>(type);
+			Instruction(BYTECODE_RESERVE_MEMORY_TO_R, _union->size, -1, declaration->register_index);
+		}
+		else if (type->kind == AST_TYPE_ARRAY) {
 			//allocate interpret->declaration_array
 			//fill the first element that is pointer to data soo array.size * Type
 			//fill the second element with size of the array
@@ -1153,7 +1156,7 @@ int BytecodeBuilder::build_assigment(AST_Binary* binop) {
 	return addr;
 }
 
-int BytecodeBuilder::build_struct_dereference(AST_Binary* binary) {
+int BytecodeBuilder::build_dereference(AST_Binary* binary) {
 	/*
 	*	ignore left array
 	*
@@ -1224,11 +1227,13 @@ int BytecodeBuilder::build_reference(AST_Binary* binary) {
 	if (binary->left->type == AST_IDENT) {	//propably struct on left...
 		auto type = typeResolver->find_typeof(binary->left);
 		if (type->kind == AST_TYPE_STRUCT)
-			return build_struct_dereference(binary);
+			return build_dereference(binary);
+		else if (type->kind == AST_TYPE_UNION)
+			return build_dereference(binary);
+		else if (type->kind == AST_TYPE_ARRAY)
+			return build_dereference(binary);
 		else if (type->kind == AST_TYPE_ENUM)
 			return build_enum_dereference(binary);
-		else if(type->kind == AST_TYPE_ARRAY)
-			return build_struct_dereference(binary);
 		else
 			assert(false && "Can reference only ENUM and STRUCT");
 	}

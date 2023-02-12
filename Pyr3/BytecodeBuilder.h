@@ -43,7 +43,7 @@ private:
 	int build_intrinsic_procedure_call(Token* name, vector<AST_Expression*> arguments);
 	int build_declaration(AST_Declaration* declaration);
 	int build_procedure(AST_Procedure* procedure);
-	int build_struct_dereference(AST_Binary* binary);
+	int build_dereference(AST_Binary* binary);
 	int build_reference(AST_Binary* binary);
 	int build_while(AST_While* whl);
 	int build_enum_dereference(AST_Binary* binary);

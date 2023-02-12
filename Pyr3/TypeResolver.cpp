@@ -335,6 +335,7 @@ bool TypeResolver::ensure_elements_is_resolved(AST_Type* _type) {
 
 void TypeResolver::calculate_type_size(AST_Type* _type, int offset) {
 	auto members = get_members_of_type(_type);
+	auto is_struct = _type->kind == AST_TYPE_STRUCT;
 
 	int size = 0;
 	int max_size = 0;
@@ -345,7 +346,7 @@ void TypeResolver::calculate_type_size(AST_Type* _type, int offset) {
 			auto declaration = static_cast<AST_Declaration*>(it);
 			if (declaration->inferred_type->kind == AST_TYPE_DEFINITION) {
 				auto type_def = static_cast<AST_Type_Definition*>(declaration->inferred_type);
-				declaration->offset = offset + size;
+				declaration->offset = offset + (is_struct? size: 0);
 
 				size+= type_def->size;
 				if (type_def->size > max_size) max_size = type_def->size;
@@ -354,7 +355,7 @@ void TypeResolver::calculate_type_size(AST_Type* _type, int offset) {
 			}
 			else if (declaration->inferred_type->kind == AST_TYPE_ENUM) {
 				auto _enum = static_cast<AST_Enum*>(declaration->inferred_type);
-				declaration->offset = offset + size;
+				declaration->offset = offset + (is_struct ? size : 0);
 				int new_size = 0;
 				if (_enum->enum_type == NULL)
 					new_size = interpret->type_s32->size;
@@ -368,7 +369,7 @@ void TypeResolver::calculate_type_size(AST_Type* _type, int offset) {
 			}
 			else if (declaration->inferred_type->kind == AST_TYPE_UNION) {
 				auto _union = static_cast<AST_Union*>(declaration->inferred_type);
-				declaration->offset = offset + size;
+				declaration->offset = offset + (is_struct ? size : 0);
 				if (!_union->is_resolved) {
 					resolveExpression(_union);
 				}
@@ -378,7 +379,7 @@ void TypeResolver::calculate_type_size(AST_Type* _type, int offset) {
 				continue;
 			}
 			else if (declaration->inferred_type->kind == AST_TYPE_POINTER) {
-				declaration->offset = offset + size;
+				declaration->offset = offset + (is_struct ? size : 0);
 				
 				size += interpret->type_pointer->size; 
 				if (interpret->type_pointer->size > max_size) max_size = interpret->type_pointer->size;
@@ -406,7 +407,7 @@ void TypeResolver::calculate_type_size(AST_Type* _type, int offset) {
 		assert(false);
 	}
 
-	if (_type->kind == AST_TYPE_STRUCT) {
+	if (is_struct) {
 		((AST_Struct*)_type)->size = size;
 	}
 	else {
@@ -889,37 +890,39 @@ bool TypeResolver::is_type_integer(AST_Type* type) {
 	return false;
 }
 
-AST_Type* TypeResolver::resolveStructDereference(AST_Struct* _struct, AST_Expression* expression) {
-	if (expression->type == AST_IDENT) { // struct.member
+AST_Type* TypeResolver::resolveDereference(AST_Type* type, AST_Expression* expression) {
+	auto members = get_members_of_type(type);	
+	expression->scope = members;
+
+	if (expression->type == AST_IDENT) { // x.member
 		auto ident = static_cast<AST_Ident*>(expression);
-		auto type = find_declaration(ident, _struct->members);
+		auto type = find_declaration(ident, members);
 		ident->type_declaration = type;
 
 		resolveExpression(type);
 		resolveExpression(ident);
 		return type->inferred_type;
 	}
-	
+
 	if (expression->type == AST_TYPE) { //struct.arr[0]
 		auto type = (AST_Type*)expression;
 		assert(type->kind == AST_TYPE_ARRAY);
-		
+
 		auto arr = (AST_Array*)type;
-		arr->scope = _struct->members;
+		arr->scope = members;
 
 		return resolveArray(arr);
 	}
 
 	auto binary = static_cast<AST_Binary*>(expression);
 	auto ident = static_cast<AST_Ident*>(binary->left);
-	auto type = find_declaration(ident, _struct->members);
-	ident->type_declaration = type;
+	binary->left->scope = members;
 
-	if (type->assigmet_type->type == AST_TYPE) {
-		auto struct_type = static_cast<AST_Type*>(type->assigmet_type);
-		//assert(struct_type->kind == AST_TYPE_STRUCT) ????
+	auto ident_type = find_declaration(ident, members);
+	ident->type_declaration = ident_type;
 
-		return resolveStructDereference(static_cast<AST_Struct*>(struct_type), binary->right);		
+	if (ident_type->assigmet_type->type == AST_TYPE) {
+		return resolveDereference((AST_Type*)ident_type->assigmet_type, binary->right);
 	}
 }
 
@@ -950,10 +953,16 @@ AST_Type* TypeResolver::resolveBinary(AST_Binary* binop) {
 			ident->type_declaration = find_declaration(ident, binop->scope);
 
 			if (type->kind == AST_TYPE_STRUCT) {
-				auto _struct = static_cast<AST_Struct*>(type);
-				binop->right->scope = _struct->members;
+				//auto _struct = static_cast<AST_Struct*>(type);
+				//binop->right->scope = _struct->members;
 
-				return resolveStructDereference(_struct, binop->right);
+				return resolveDereference(type, binop->right);
+			}
+			else if (type->kind == AST_TYPE_UNION) {
+				//auto _union = static_cast<AST_Union*>(type);
+				//binop->right->scope = _union->members;
+
+				return resolveDereference(type, binop->right);
 			}
 			else if (type->kind == AST_TYPE_ENUM) {
 				auto _enum = static_cast<AST_Enum*>(type);
